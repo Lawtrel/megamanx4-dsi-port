@@ -1,11 +1,11 @@
 # Prioridades atuais
 
-1. **Qualificar a N06.3 no DSi.** Confirmar a correção do reinício de sessões
-   e a reprodução dos oito canais de efeitos pelo ARM7/hardware. A falha da
-   N06.2 em `memcpy` foi reproduzida e corrigida no teste de memória.
+1. **Qualificar a N06.4 no DSi.** Repetir a morte do dragão e a entrada/saída
+   das opções com X e Zero. Conferir as correções da chamada ARM e das paletas.
 2. **30 FPS sustentados.** Usar perfis do DSi, com trechos comparáveis.
-   Desenho e áudio têm picos maiores que a lógica no log atual. Reduzir
-   conversões e trabalho repetido, acesso a arquivos e custo da mistura de áudio.
+   Na N06.3 o áudio já custa menos com os efeitos no ARM7. Na N06.4 foram
+   reduzidos comandos gráficos e publicações repetidas de PCM. Medir o ganho
+   e os piores intervalos antes de transferir novas tarefas entre CPUs.
 3. **Regressões de qualidade.** Manter escala 1:1, cores após pausa,
    animações, transparência, HUD e recursos adicionais dos chefes.
 4. **Campanha e áudio pendentes.** Completar qualificação das fases,
@@ -19,5 +19,5 @@
 - Registrar versão, identificador do executável e trechos usados na medição.
 - Tratar os resultados no computador e no console como evidências distintas.
 
-A N06.3 ainda precisa de confirmação física desses critérios. Não há promessa de 30 ou 60 FPS em toda
+A N06.4 ainda precisa de confirmação física desses critérios. Não há promessa de 30 ou 60 FPS em toda
 a campanha na versão atual.

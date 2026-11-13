@@ -47,6 +47,7 @@ static Cached* load_cached(FILE* f,unsigned bank,unsigned index,size_t samples,u
  int16_t* pcm=(int16_t*)(((uintptr_t)memory+31)&~(uintptr_t)31);
  if(fread(pcm,2,samples,f)!=samples){free(memory);return NULL;}
  memset((uint8_t*)pcm+samples*2,0,bytes-samples*2);
+ if(backend.prepare)backend.prepare(pcm,bytes);
  *slot=(Cached){memory,pcm,bytes,samples,bank,index,loop,++cache_age,0};cache_bytes+=bytes;return slot;
 }
 static int start_cached(Voice* v,Cached* c,unsigned mask,unsigned priority){

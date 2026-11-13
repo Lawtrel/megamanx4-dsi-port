@@ -1,4 +1,30 @@
-# Último teste físico — N06.2
+# Último teste físico — N06.3
+
+Registro de 13/11/2026, fornecido pelo usuário: `native_n063_000.log`.
+Identificador confirmado no cabeçalho: `0c98703e416352b68028`.
+SHA-256 do log: `4122b544f2ede434472fdc8368cfaf2c3bed308f9cb78fb88de221042aa472a8`.
+
+| Sessão e recorte | Amostras | Mínimo | Máximo | Média aritmética |
+| --- | ---: | ---: | ---: | ---: |
+| X, intro área 2, gameplay desbloqueado | 69 | 21 FPS | 37 FPS | 27,87 FPS |
+| Zero, Web Spider, gameplay desbloqueado | 257 | 16 FPS | 47 FPS | 26,63 FPS |
+
+O recorte usa `engine=6/0` e `locked=0`. São médias de intervalos registrados,
+não medições ponderadas nem uma comparação controlada com a N06.2.
+
+O usuário relatou maior estabilidade e melhora com o ARM7. Contudo, a morte
+do dragão ficou em repetição: X permaneceu próximo de x=4468, y=443, bloqueado,
+com a música parada. O vídeo confirma os raios de morte repetidos. O segundo
+vídeo mostra pausa/opções e o retorno à luta; o usuário relatou inversão do
+sprite após entrar nas opções. A orientação exata não fica clara nos quadros
+inspecionados; a falha de paleta e os textos ocultos foram investigados no código.
+
+A N06.4 corrige uma chamada incompatível que impedia remover filtros no ARM9,
+a restauração da paleta ao sair das opções e a ordem de desenho dos textos.
+A reprodução isolada em ARM e os testes de fluxo são evidências do computador;
+o encerramento real da luta e a correção visual permanecem pendentes no DSi.
+
+## Histórico — N06.2
 
 Registro consolidado em 13/11/2026 a partir do log e da foto enviados pelo usuário.
 O arquivo bruto e a foto ficam apenas no arquivo privado local.

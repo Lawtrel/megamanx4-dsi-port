@@ -12,6 +12,7 @@ int x4_flow_begin(const char* content_root,unsigned character,unsigned stage,uns
 int x4_flow_new_game(const char* content_root);
 int x4_flow_step(unsigned held,unsigned pressed);
 void x4_flow_state(X4FlowState* out);
+void x4_flow_debug(char* text,unsigned capacity);
 int x4_flow_draw(uint16_t* screen);
 void x4_flow_close(void);
 int x4_flow_load(unsigned id,unsigned mode,void* destination);

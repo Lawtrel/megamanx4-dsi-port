@@ -4,8 +4,8 @@ import hashlib,json,struct,subprocess,sys,shutil,os
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'tools'))
 from nds_header import crc16
 N06=True
-BUILD=ROOT/('build/native/n063-arm7' if N06 else 'build/native/n05-integrated');DIST=ROOT/('dist/native-n063' if N06 else 'dist/native-n05-flow');FLOW=ROOT/'build/native/n05-flow'
-target='mmx4_native_n063' if N06 else 'mmx4_native_n05_flow'
+BUILD=ROOT/('build/native/n064-balanced' if N06 else 'build/native/n05-integrated');DIST=ROOT/('dist/native-n064' if N06 else 'dist/native-n05-flow');FLOW=ROOT/'build/native/n05-flow'
+target='mmx4_native_n064' if N06 else 'mmx4_native_n05_flow'
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 inputs=json.loads((FLOW/'build_inputs.json').read_text())
 assert sha(FLOW/'flow.o')==inputs['flow_sha256']==sha(BUILD/'flow.o')
@@ -64,7 +64,7 @@ os.replace(temporary,DIST/binary.name)
 if N06:
  for required in ('x4_gpu_present','x4_video_tile','x4_n06_draw_hud','glInit'):assert required in symbols,required
  for required in ('x4_arm7_audio_init','x4_sfx_set_backend','soundPreparePcm','soundSynchronize'):assert required in symbols,required
-shutil.copyfile(ROOT/'docs/STATUS_N063.md',DIST/'LEIA-ME.md')
+shutil.copyfile(ROOT/'docs/STATUS_N064.md',DIST/'LEIA-ME.md')
 shutil.copyfile(ROOT/'referencias/mmx4-decomp/LICENSE',DIST/'LICENSE-upstream.txt')
 for _,p in reports:shutil.copyfile(FLOW/'host'/p,DIST/p)
 if N06:shutil.copyfile(ROOT/'build/native/n06-video-tests/validation.json',DIST/'video_tests.json')
@@ -74,7 +74,7 @@ if N06:
  shutil.copyfile(ROOT/'docs/research/N06.md',DIST/'PESQUISA_N06_HISTORICO.md')
  for p in (FLOW/'host').glob('sigma*.png'):shutil.copyfile(p,DIST/('diagnostico_'+p.name))
  for p in (FLOW/'host').glob('jungle*.png'):shutil.copyfile(p,DIST/('diagnostico_'+p.name))
-manifest={'version':'N06.3' if N06 else 'N05 FLOW integration 2','not_complete_game':True,'physical_dsi_tested':False,
+manifest={'version':'N06.4' if N06 else 'N05 FLOW integration 2','not_complete_game':True,'physical_dsi_tested':False,
  'binary':binary.name,'sha256':sha(binary),'build_id':build_id,'size':len(data),'unit_code':2,'bios_or_cpu_emulator_linked':False,
  'upstream':'https://github.com/sozud/mmx4','upstream_revision':'4e16dfc7c06597fd5719dd112654d8cf85d343c2',
  'host_stage_entry_cases':48,'host_system_cases':len(json.loads((FLOW/'host'/reports[1][1]).read_text())['cases']),
@@ -82,8 +82,9 @@ manifest={'version':'N06.3' if N06 else 'N05 FLOW integration 2','not_complete_g
  'pending':['Full physical DSi qualification and complete playthrough','FMV playback','Ten unsupported sound commands and precise looping/reverb/panning','Complete graphics priority/filter fidelity','Original title/load menu qualification','30/60 FPS optimization'],
  'flow_object_sha256':sha(BUILD/'flow.o'),'frontend_sha256':sha(BUILD/'source/main.c'),'nitrofs_files':files,'segments':segments}
 if N06:manifest.update(renderer='DS 3D RGB555-alpha tiles',logical_viewport=[320,240],world_crop=[32,24,256,192],physical_viewport=[256,192],texture_cache_bytes=524288,palette_cache_bytes=0,melonDS_tested=False,
- gpu_submission='packed FIFO via DMA0; VTX16 then VTX_XY',gpu_compilation='ARM -O3',rng_startup_seed='0x0D37',log_commit='fclose/reopen per profile interval',
+ gpu_submission='packed four-opcode FIFO via DMA0; retained state; VTX16 then VTX_XY',gpu_compilation='ARM -O3',rng_startup_seed='0x0D37',log_commit='fclose/reopen per profile interval',
  audio_effects='Calico ARM7 driver and native hardware channels 8..15; acknowledged ownership',sfx_pcm_cache_limit=4194304,
+ sfx_publication='cache insertion only; acknowledged stop before reuse',boss_trace=True,
  pending=['30/60 FPS measurement and visual qualification on physical DSi','melonDS white-screen diagnosis','DS blending approximates some original effects','FMV and pending sound commands','Complete campaign and all Sigma phases'])
 (DIST/'build_manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
 assert sha(DIST/binary.name)==manifest['sha256']

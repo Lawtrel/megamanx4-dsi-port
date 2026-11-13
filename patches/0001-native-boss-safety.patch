@@ -1,3 +1,19 @@
+diff --git a/src/main/effects/effect_26_boss_death_fx.c b/src/main/effects/effect_26_boss_death_fx.c
+index 9c11f08..d578a75 100644
+--- a/src/main/effects/effect_26_boss_death_fx.c
++++ b/src/main/effects/effect_26_boss_death_fx.c
+@@ -126,7 +126,10 @@ void func_800BB364(struct EffectObj* arg0)
+         quad->x_pos.i.hi = arg0->x_pos.i.hi;
+         quad->y_pos.i.hi = arg0->y_pos.i.hi;
+     }
+-    ((void (*)(s32, s32))func_8002B560)(0x82, 0);
++    /* AAPCS32 requires the caller to sign-extend narrow arguments. Calling
++     * through an incompatible int signature passed +130 on ARM9 instead of
++     * -126, leaving the looping stage color filter alive during whiteout. */
++    func_8002B560((s8)0x82, 0);
+     if (arg0->ext.effect_26.timer != 0) {
+         arg0->ext.effect_26.timer--;
+         spawn_explosion(BASE_OBJECT(arg0));
 diff --git a/src/main/mains/main_08_eregion.c b/src/main/mains/main_08_eregion.c
 index 0077eb0..0031b74 100644
 --- a/src/main/mains/main_08_eregion.c

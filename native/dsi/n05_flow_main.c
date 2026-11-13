@@ -15,9 +15,9 @@
 #include "x4_sfx.h"
 #include <calico/system/tick.h>
 #ifdef X4_N06_GPU
-void x4_gpu_init(void);void x4_gpu_present(void);
-#define VERSION "N06.3"
-#define LOG_PREFIX "native_n063"
+void x4_gpu_init(void);void x4_gpu_present(void);unsigned x4_gpu_words(void);
+#define VERSION "N06.4"
+#define LOG_PREFIX "native_n064"
 #else
 #define VERSION "N05"
 #define LOG_PREFIX "native_n05_flow"
@@ -205,6 +205,10 @@ int main(int argc,char** argv){
      vblanks,s.frames,s.character,s.stage,s.area,fps,s.x,s.y,s.hp,s.checkpoint,s.state,s.substate,s.player_state,s.locked,gfx_errors,x4_audio_errors(),x4_n05_missing_sfx(),x4_audio_track());
      fprintf(log_file,"PROFILE logic_us=%u draw_us=%u audio_us=%u present_us=%u wait_us=%u commands=%u hits=%u misses=%u palettes=%u upload=%u overflow=%u sim_hz=%u dropped_ticks=%u\n",logic_us,draw_us,audio_us,present_us,wait_us,v.commands,v.hits,v.misses,v.palette_uploads,v.uploaded_bytes,v.overflow,simulation_hz,dropped_ticks);
      fprintf(log_file,"ARM7 voices=%u pcm_bytes=%u cache_hits=%u cache_misses=%u starts=%u\n",fx.active,fx.bytes,fx.hits,fx.misses,fx.starts);
+     char debug[256];x4_flow_debug(debug,sizeof debug);fprintf(log_file,"%s\n",debug);
+#ifdef X4_N06_GPU
+     fprintf(log_file,"FIFO words=%u old_words=%u\n",x4_gpu_words(),21*v.commands);
+#endif
      commit_log();}
    }
   }

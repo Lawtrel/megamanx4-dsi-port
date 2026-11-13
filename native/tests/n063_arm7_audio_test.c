@@ -7,10 +7,11 @@
 #include <string.h>
 static unsigned locked,active_mask,pending_stop,starts,syncs,volume[16];
 static int automatic;
+static unsigned pcm_publications;
 static const int16_t* playing[16];
 void mmLockChannels(unsigned mask){assert(mask==0xff00);locked=mask;}
 void soundSetAutoUpdate(bool enabled){automatic=enabled;}
-void DC_FlushRange(const void* data,size_t bytes){assert(!((uintptr_t)data&31)&&!(bytes&31));}
+void DC_FlushRange(const void* data,size_t bytes){assert(!((uintptr_t)data&31)&&!(bytes&31));++pcm_publications;}
 void soundPreparePcm(unsigned channel,unsigned vol,unsigned pan,unsigned timer,SoundMode mode,SoundFmt fmt,const void* data,unsigned point,unsigned words){
  assert(channel&SOUND_START);channel&=15;
  assert(channel>=8&&(locked&(1u<<channel))&&pan==64&&timer==soundTimerFromHz(18900));
@@ -39,6 +40,7 @@ int main(int argc,char** argv){
  int16_t output[32];for(unsigned i=0;i<32;++i)output[i]=i-16;int16_t before[32];memcpy(before,output,sizeof output);
  x4_sfx_mix(output,32);assert(!memcmp(before,output,sizeof output));
  X4SfxStats s=x4_sfx_stats();assert(s.hits==1&&s.misses==2&&s.active==2&&s.starts==3&&s.bytes==64);
+ assert(pcm_publications==2); /* Replaying cached PCM needs no new flush. */
  x4_arm7_audio_mute(1);for(unsigned i=8;i<16;++i)assert(!volume[i]);
  x4_arm7_audio_mute(0);for(unsigned i=8;i<16;++i)assert(volume[i]==0x7f0);
  active_mask&=~(1u<<8);assert(x4_sfx_finished(2,0)&&!x4_sfx_finished(2,1));

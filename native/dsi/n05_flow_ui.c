@@ -35,6 +35,9 @@ void func_800170E0(void){
   * Our native pause renderer temporarily changes that RAM palette, so it
   * must restore it explicitly rather than only setting an upload flag. */
  if(pause_palette_active){assert(SP_PALETTE);memcpy(SP_PALETTE+1024,saved_pause_palette,sizeof saved_pause_palette);pause_palette_active=0;}
+ /* Options also borrow the background palette. Their original exit only
+  * schedules a VRAM upload; the native path must undo its RAM replacement. */
+ if(menu_palette_active){memcpy(SP_PALETTE,saved_menu_palette,sizeof saved_menu_palette);menu_palette_active=0;}
  need_palette_load|=1;
 }
 void func_8001E980(u8 restore){
@@ -53,7 +56,7 @@ void func_80016124(void){
   x+=w;if(x>=320){x=0;y+=48;}
  }
 }
-void func_80017100(void){extern void func_80023D68(void);tile_background=1;func_80023D68();}
+void func_80017100(void){extern void func_80023D68(void);if(menu_palette_active)func_8001E980(1);tile_background=1;func_80023D68();}
 void func_800175AC(u8 index){
  if(index>38||sprite_count>=64)return;
  struct NativeHudLayout layout;

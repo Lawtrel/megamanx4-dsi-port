@@ -172,7 +172,11 @@ int x4_n05_draw_ui_sprite(uint16_t* screen,const X4Archive* a,const struct Anima
     drawing_hud=2;int result=checked_draw(screen,a,a,object,frames,0,0);drawing_hud=0;return result;
 }
 int x4_n05_draw_ui_overlay(uint16_t* screen,const X4Archive* a){
-    int errors=0;for(unsigned i=0;i<COUNT(unk_objects);++i)errors+=checked_draw(screen,a,a,ANIMATED_OBJECT(&unk_objects[i]),unk_objects[i].unk3C,0,0);return errors;
+    /* Option labels/cursors belong above the native menu background, just
+     * like the pause widgets. World ordering previously hid them behind it. */
+    drawing_hud=2;
+    int errors=0;for(unsigned i=0;i<COUNT(unk_objects);++i)errors+=checked_draw(screen,a,a,ANIMATED_OBJECT(&unk_objects[i]),unk_objects[i].unk3C,0,0);
+    drawing_hud=0;return errors;
 }
 extern u8 D_800F2B5C[21][12];
 static int64_t edge(int ax,int ay,int bx,int by,int x,int y){return (int64_t)(x-ax)*(by-ay)-(int64_t)(y-ay)*(bx-ax);}
@@ -250,12 +254,15 @@ static int background(uint16_t* screen,const X4Archive* stage,int cx,int cy){
     const X4ArchiveMember* attributes=x4_archive_find(stage,1,0);
     if(!image||!map||!attributes||!SP_BG_TILEMAP||!SP_PALETTE)return 1;
     if(!layout_width||!layout_height)return 1;
+    int vx=0,vy=0,vw=256,vh=192;
+    if(x4_video_enabled)x4_video_get_viewport(&vx,&vy,&vw,&vh);
     for(int layer=2;layer>=0;--layer){
     if(x4_original_camera_mode){
         if(!background_objects[layer].unk3)continue;
         cx=background_objects[layer].x_pos.i.hi+(x4_video_enabled?0:32);cy=background_objects[layer].y_pos.i.hi+(x4_video_enabled?0:24);
     }
-    for(int ty=cy/16;ty<=(cy+(x4_video_enabled?239:191))/16;++ty)for(int tx=cx/16;tx<=(cx+(x4_video_enabled?319:255))/16;++tx){
+    /* Cull before map/attribute lookup as well as before texture decoding. */
+    for(int ty=(cy+vy)/16;ty<=(cy+vy+vh-1)/16;++ty)for(int tx=(cx+vx)/16;tx<=(cx+vx+vw-1)/16;++tx){
         if(tx<0||ty<0||tx>=layout_width*16||ty>=layout_height*16)continue;
         unsigned block=SP_BG_TILEMAP[layer*layout_size+(ty/16)*layout_width+tx/16];
         if(!block)continue;

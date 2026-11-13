@@ -8,6 +8,8 @@ typedef struct {
  int (*play)(unsigned voice,const int16_t* pcm,size_t samples,int loop);
  void (*stop)(unsigned voice);
  int (*active)(unsigned voice);
+ /* Publish immutable PCM to the other CPU once, before its first play. */
+ void (*prepare)(const int16_t* pcm,size_t bytes);
 } X4SfxBackend;
 typedef struct {unsigned hits,misses,bytes,starts,active;} X4SfxStats;
 void x4_sfx_set_backend(const X4SfxBackend* backend);

@@ -3,9 +3,18 @@
 #include <string.h>
 #include "x4_video.h"
 static uint16_t sorted[X4_VIDEO_COMMANDS],scratch[X4_VIDEO_COMMANDS];
-/* Per quad: state (4 words), first vertex (5), three XY vertices (4 each). DMA owns
- * this buffer until glCallList returns; no END opcode (libnds restriction). */
+/* Worst case remains bounded by the old 21 words/quad. Pack four opcodes
+ * together across vertices and retain unchanged color/texture/polygon state.
+ * DMA owns this buffer until glCallList returns; no END (libnds restriction). */
 static uint32_t list[1+21*X4_VIDEO_COMMANDS] __attribute__((aligned(32)));
+static unsigned used,opcode_word,opcode_lane,last_words;
+static void emit(unsigned opcode,uint32_t a,uint32_t b,unsigned parameters){
+ if(opcode_lane==4){opcode_word=used++;list[opcode_word]=0;opcode_lane=0;}
+ list[opcode_word]|=opcode<<(opcode_lane++*8);
+ if(parameters)list[used++]=a;
+ if(parameters==2)list[used++]=b;
+}
+unsigned x4_gpu_words(void){return last_words;}
 /* Stable descending ordering-table order, using a bounded radix sort. */
 static void sort_commands(const X4VideoCommand* commands,unsigned count){
  unsigned buckets[256],offsets[256];for(unsigned i=0;i<count;++i)sorted[i]=i;
@@ -40,13 +49,15 @@ void x4_gpu_present(void){
  glClearColor((clear&31)*gain/255,((clear>>5)&31)*gain/255,((clear>>10)&31)*gain/255,31);
  glMatrixMode(GL_MODELVIEW);glLoadIdentity();unsigned count;const X4VideoCommand* commands=x4_video_commands(&count);
  sort_commands(commands,count);
- unsigned used=1;
+ used=1;opcode_lane=4;
+ unsigned last_texture=~0u,last_poly=~0u,last_color=~0u;
  for(unsigned i=0;i<count;++i){
   const X4VideoCommand* c=&commands[sorted[i]];unsigned slot=c->tile;
   unsigned texture=c->textured?(slot*64)|(1<<20)|(1<<23)|(GL_RGBA<<26):0;
   unsigned poly=POLY_ALPHA(c->semi?16:31)|POLY_CULL_NONE|POLY_ID(c->semi?(i%62)+1:0);
-  list[used++]=FIFO_COMMAND_PACK(FIFO_TEX_FORMAT,FIFO_POLY_FORMAT,FIFO_BEGIN,0);
-  list[used++]=texture;list[used++]=poly;list[used++]=GL_QUADS;
+  if(texture!=last_texture){emit(FIFO_TEX_FORMAT,texture,0,1);last_texture=texture;}
+  if(poly!=last_poly){emit(FIFO_POLY_FORMAT,poly,0,1);last_poly=poly;}
+  emit(FIFO_BEGIN,GL_QUADS,0,1);
   int u=0,v=0;
   int us[4]={u,u+c->w,u+c->w,u},vs[4]={v,v,v+c->h,v+c->h};
   if(c->flip&1)for(unsigned j=0;j<4;++j)us[j]=2*u+c->w-us[j];
@@ -54,13 +65,12 @@ void x4_gpu_present(void){
   for(unsigned j=0;j<4;++j){unsigned color=c->color[j];
    if(gain!=255)color=RGB15((color&31)*gain/255,((color>>5)&31)*gain/255,((color>>10)&31)*gain/255);
    int x=c->x[j],y=c->y[j];if(c->screen_space){x=32+x*4/5;y=24+y*4/5;}
-   list[used++]=FIFO_COMMAND_PACK(FIFO_COLOR,FIFO_TEX_COORD,j?FIFO_VERTEX_XY:FIFO_VERTEX16,0);
-   list[used++]=color;
-   list[used++]=(uint16_t)(us[j]<<4)|((uint32_t)(uint16_t)(vs[j]<<4)<<16);
-   list[used++]=(uint16_t)x|((uint32_t)(uint16_t)y<<16);
-   if(!j)list[used++]=i;
+   if(color!=last_color){emit(FIFO_COLOR,color,0,1);last_color=color;}
+   emit(FIFO_TEX_COORD,(uint16_t)(us[j]<<4)|((uint32_t)(uint16_t)(vs[j]<<4)<<16),0,1);
+   emit(j?FIFO_VERTEX_XY:FIFO_VERTEX16,(uint16_t)x|((uint32_t)(uint16_t)y<<16),i,j?1:2);
   }
  }
- if(used>1){list[0]=used-1;glCallList(list);}
+ last_words=used-1;
+ if(used>1){list[0]=last_words;glCallList(list);}
  glFlush(GL_TRANS_MANUALSORT);
 }

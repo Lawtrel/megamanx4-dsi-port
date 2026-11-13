@@ -112,6 +112,15 @@ void x4_flow_state(X4FlowState* out){
  engine_obj.checkpoint,g_Player.x_pos.i.hi,g_Player.y_pos.i.hi,(u8)g_Player.hp&127,g_Player.state,engine_obj.gameplay_locked,
  frames,draw_errors,(unsigned)!!x4_flow_load_error()};
 }
+void x4_flow_debug(char* text,unsigned capacity){
+ extern u16 g_FilterAmountG;
+ struct MainObj* boss=engine_obj.enable_boss?engine_obj.boss_ptr:NULL;
+ int death=-1,timer=0;
+ for(unsigned i=0;i<COUNT(effect_objects);++i)if(effect_objects[i].active&&effect_objects[i].id==26){death=effect_objects[i].state;timer=effect_objects[i].ext.effect_26.timer;break;}
+ snprintf(text,capacity,"BOSS enabled=%d hp=%d state=%d/%d/%d death=%d timer=%d filter=%u/%u/%u script=%d dialogue=%d menu=%d/%d/%d",
+  engine_obj.enable_boss,boss?boss->hp:-1,boss?boss->state:-1,boss?boss->unk5:-1,boss?boss->unk6:-1,
+  death,timer,g_FilterAmountR,g_FilterAmountG,g_FilterAmountB,g_Player.script_state,abc_object.unkC,bar_object.state,bar_object.unk5,bar_object.unk6);
+}
 int x4_flow_draw(uint16_t* screen){
  if(!draw_requested)return 0;
  draw_requested=0;const X4Archive* a=x4_flow_archive();
