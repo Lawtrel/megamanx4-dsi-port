@@ -1,0 +1,51 @@
+#include <nds.h>
+#include <calico/nds/arm9/sound.h>
+#include "x4_arm7_audio.h"
+#include "x4_sfx.h"
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+static unsigned locked,active_mask,pending_stop,starts,syncs,volume[16];
+static int automatic;
+static const int16_t* playing[16];
+void mmLockChannels(unsigned mask){assert(mask==0xff00);locked=mask;}
+void soundSetAutoUpdate(bool enabled){automatic=enabled;}
+void DC_FlushRange(const void* data,size_t bytes){assert(!((uintptr_t)data&31)&&!(bytes&31));}
+void soundPreparePcm(unsigned channel,unsigned vol,unsigned pan,unsigned timer,SoundMode mode,SoundFmt fmt,const void* data,unsigned point,unsigned words){
+ assert(channel&SOUND_START);channel&=15;
+ assert(channel>=8&&(locked&(1u<<channel))&&pan==64&&timer==soundTimerFromHz(18900));
+ assert(fmt==SoundFmt_Pcm16&&(mode==SoundMode_Repeat||mode==SoundMode_OneShot)&&!point&&words==3);
+ assert(!((uintptr_t)data&31)&&!pending_stop);playing[channel]=data;assert(playing[channel][0]>=1000);
+ assert(playing[channel][5]==0);volume[channel]=vol;active_mask|=1u<<channel;++starts;
+}
+void soundStop(unsigned mask){assert(!(mask&~0xff00));pending_stop|=mask;}
+void soundSynchronize(void){
+ /* Memory must remain readable until the ARM7 acknowledges STOP. */
+ for(unsigned i=8;i<16;++i)if(pending_stop&(1u<<i)){if(playing[i])assert(playing[i][0]>=1000);playing[i]=NULL;}
+ active_mask&=~pending_stop;pending_stop=0;++syncs;
+}
+unsigned soundGetActiveChannels(void){assert(automatic);return active_mask;}
+void soundChSetVolume(unsigned ch,unsigned vol){assert(ch>=8&&ch<16);volume[ch]=vol;}
+static void word(FILE* f,unsigned v){for(unsigned i=0;i<4;++i)assert(fputc((v>>(i*8))&255,f)!=EOF);}
+int main(int argc,char** argv){
+ assert(argc==2);char path[1024],hidden[1024];snprintf(path,sizeof path,"%s/07_2.sfx",argv[1]);snprintf(hidden,sizeof hidden,"%s/hidden.sfx",argv[1]);
+ FILE* f=fopen(path,"wb");assert(f);assert(fwrite("X4SFX01\0",1,8,f)==8);word(f,10);word(f,18900);
+ for(unsigned i=0;i<10;++i){word(f,(i<<24)|0x80);word(f,i*16);word(f,5);word(f,i==1);}
+ for(unsigned i=0;i<10;++i)for(unsigned j=0;j<8;++j){unsigned v=1000+i*100+j;fputc(v&255,f);fputc(v>>8,f);}assert(!fclose(f));
+ x4_arm7_audio_init();x4_sfx_config(argv[1]);assert(!x4_sfx_bank(7,2));
+ assert(!x4_sfx_play(2,0));assert(!rename(path,hidden));
+ assert(!x4_sfx_play(2,0));/* A cache hit must work with the source file absent. */
+ assert(!rename(hidden,path));assert(!x4_sfx_play(2,1));
+ int16_t output[32];for(unsigned i=0;i<32;++i)output[i]=i-16;int16_t before[32];memcpy(before,output,sizeof output);
+ x4_sfx_mix(output,32);assert(!memcmp(before,output,sizeof output));
+ X4SfxStats s=x4_sfx_stats();assert(s.hits==1&&s.misses==2&&s.active==2&&s.starts==3&&s.bytes==64);
+ x4_arm7_audio_mute(1);for(unsigned i=8;i<16;++i)assert(!volume[i]);
+ x4_arm7_audio_mute(0);for(unsigned i=8;i<16;++i)assert(volume[i]==0x7f0);
+ active_mask&=~(1u<<8);assert(x4_sfx_finished(2,0)&&!x4_sfx_finished(2,1));
+ assert(!x4_sfx_bank(7,2));assert(!active_mask&&!x4_sfx_stats().bytes);
+ for(unsigned i=0;i<8;++i)assert(!x4_sfx_play(2,i));assert(x4_sfx_play(2,8)==-7);
+ x4_sfx_stop(2,3);assert(!x4_sfx_play(2,8));
+ x4_sfx_close();assert(!active_mask&&!pending_stop&&syncs>=starts&&!x4_sfx_errors());
+ x4_sfx_close();x4_sfx_set_backend(NULL);
+ puts("PASS ARM7 PCM backend: reserved channels, alignment, padded length, stop acknowledgement, cache without file I/O, eight voices, mute and replacement lifetime");
+}

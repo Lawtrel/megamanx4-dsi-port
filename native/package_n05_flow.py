@@ -4,8 +4,8 @@ import hashlib,json,struct,subprocess,sys,shutil,os
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'tools'))
 from nds_header import crc16
 N06=True
-BUILD=ROOT/('build/native/n062-fixed' if N06 else 'build/native/n05-integrated');DIST=ROOT/('dist/native-n062' if N06 else 'dist/native-n05-flow');FLOW=ROOT/'build/native/n05-flow'
-target='mmx4_native_n062' if N06 else 'mmx4_native_n05_flow'
+BUILD=ROOT/('build/native/n063-arm7' if N06 else 'build/native/n05-integrated');DIST=ROOT/('dist/native-n063' if N06 else 'dist/native-n05-flow');FLOW=ROOT/'build/native/n05-flow'
+target='mmx4_native_n063' if N06 else 'mmx4_native_n05_flow'
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 inputs=json.loads((FLOW/'build_inputs.json').read_text())
 assert sha(FLOW/'flow.o')==inputs['flow_sha256']==sha(BUILD/'flow.o')
@@ -27,6 +27,8 @@ if N06:
  for path,digest in video['sources'].items():assert sha(ROOT/path)==digest,path
  gpu=json.loads((ROOT/'build/native/n061-gpu-tests/validation.json').read_text());assert gpu['status']=='passed'
  for path,digest in gpu['sources'].items():assert sha(ROOT/path)==digest,path
+ arm7=json.loads((ROOT/'build/native/n063-arm7-tests/validation.json').read_text());assert arm7['status']=='passed'
+ for path,digest in arm7['sources'].items():assert sha(ROOT/path)==digest,path
  assert sha(BUILD/'source/n06_gpu.c')==sha(ROOT/'native/dsi/n06_gpu.c')
 binary=BUILD/(target+'.nds');data=binary.read_bytes();assert data[0x12]==2
 assert build_id.encode() in data, 'NDS does not contain the current build identifier; finish building before packaging'
@@ -61,16 +63,18 @@ temporary=DIST/(binary.name+'.building');shutil.copyfile(binary,temporary);asser
 os.replace(temporary,DIST/binary.name)
 if N06:
  for required in ('x4_gpu_present','x4_video_tile','x4_n06_draw_hud','glInit'):assert required in symbols,required
-shutil.copyfile(ROOT/'docs/STATUS_N062.md',DIST/'LEIA-ME.md')
+ for required in ('x4_arm7_audio_init','x4_sfx_set_backend','soundPreparePcm','soundSynchronize'):assert required in symbols,required
+shutil.copyfile(ROOT/'docs/STATUS_N063.md',DIST/'LEIA-ME.md')
 shutil.copyfile(ROOT/'referencias/mmx4-decomp/LICENSE',DIST/'LICENSE-upstream.txt')
 for _,p in reports:shutil.copyfile(FLOW/'host'/p,DIST/p)
 if N06:shutil.copyfile(ROOT/'build/native/n06-video-tests/validation.json',DIST/'video_tests.json')
 if N06:shutil.copyfile(ROOT/'build/native/n061-gpu-tests/validation.json',DIST/'gpu_backend_tests.json')
+if N06:shutil.copyfile(ROOT/'build/native/n063-arm7-tests/validation.json',DIST/'arm7_audio_tests.json')
 if N06:
  shutil.copyfile(ROOT/'docs/research/N06.md',DIST/'PESQUISA_N06_HISTORICO.md')
  for p in (FLOW/'host').glob('sigma*.png'):shutil.copyfile(p,DIST/('diagnostico_'+p.name))
  for p in (FLOW/'host').glob('jungle*.png'):shutil.copyfile(p,DIST/('diagnostico_'+p.name))
-manifest={'version':'N06.2' if N06 else 'N05 FLOW integration 2','not_complete_game':True,'physical_dsi_tested':False,
+manifest={'version':'N06.3' if N06 else 'N05 FLOW integration 2','not_complete_game':True,'physical_dsi_tested':False,
  'binary':binary.name,'sha256':sha(binary),'build_id':build_id,'size':len(data),'unit_code':2,'bios_or_cpu_emulator_linked':False,
  'upstream':'https://github.com/sozud/mmx4','upstream_revision':'4e16dfc7c06597fd5719dd112654d8cf85d343c2',
  'host_stage_entry_cases':48,'host_system_cases':len(json.loads((FLOW/'host'/reports[1][1]).read_text())['cases']),
@@ -79,6 +83,7 @@ manifest={'version':'N06.2' if N06 else 'N05 FLOW integration 2','not_complete_g
  'flow_object_sha256':sha(BUILD/'flow.o'),'frontend_sha256':sha(BUILD/'source/main.c'),'nitrofs_files':files,'segments':segments}
 if N06:manifest.update(renderer='DS 3D RGB555-alpha tiles',logical_viewport=[320,240],world_crop=[32,24,256,192],physical_viewport=[256,192],texture_cache_bytes=524288,palette_cache_bytes=0,melonDS_tested=False,
  gpu_submission='packed FIFO via DMA0; VTX16 then VTX_XY',gpu_compilation='ARM -O3',rng_startup_seed='0x0D37',log_commit='fclose/reopen per profile interval',
+ audio_effects='Calico ARM7 driver and native hardware channels 8..15; acknowledged ownership',sfx_pcm_cache_limit=4194304,
  pending=['30/60 FPS measurement and visual qualification on physical DSi','melonDS white-screen diagnosis','DS blending approximates some original effects','FMV and pending sound commands','Complete campaign and all Sigma phases'])
 (DIST/'build_manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
 assert sha(DIST/binary.name)==manifest['sha256']

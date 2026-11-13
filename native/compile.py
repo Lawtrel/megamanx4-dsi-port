@@ -13,7 +13,7 @@ logpath=LOGS/(datetime.datetime.now().strftime('compile_%Y%m%d_%H%M%S_%f')+'.log
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--n06',action='store_true',help='Compatibility alias: N06.2 is the only current target')
+    parser.add_argument('--n06',action='store_true',help='Compatibility alias: N06.3 is the only current target')
     parser.parse_args()
     if sys.platform!='linux':
         raise RuntimeError('Use COMPILAR_JOGO.cmd on Windows, or run under Linux/WSL.')
@@ -35,13 +35,13 @@ def main():
                 for line in process.stdout:
                     print(line,end='',flush=True);log.write(line);log.flush()
                 if process.wait():raise RuntimeError('Etapa interrompida: '+script)
-        say('N06.2 nativa: versao de desenvolvimento com falha ARM9 conhecida; 30 FPS sustentados pendentes.')
+        say('N06.3 nativa: versao de desenvolvimento com correcao de reinicio e efeitos no ARM7; validacao fisica pendente.')
         say('Log: '+str(logpath))
         run('native/build_gamecore.py')
         if not (ROOT/'build/native/full-content/manifest.json').is_file():run('native/prepare_full_content.py')
         for script in ('prepare_resource_index.py','prepare_music.py','prepare_sfx.py','prepare_sequences.py'):
             run('native/'+script)
-        for script in ('check_content.py','check_n05_tasks.py','check_music.py','check_save.py','check_sfx.py'):
+        for script in ('check_content.py','check_n05_tasks.py','check_music.py','check_save.py','check_sfx.py','check_n063_arm7_audio.py'):
             run('native/tests/'+script)
         run('native/probe_n05_flow.py')
         for script in ('check_n06_video.py','check_n061_gpu.py','check_n05_flow.py'):
@@ -52,7 +52,7 @@ def main():
         run('native/tests/n06_preview_png.py')
         run('native/build_n05_flow.py')
         run('native/package_n05_flow.py')
-        say('\nSUCESSO DE COMPILACAO (EM TESTE): '+str(ROOT/'dist/native-n062/mmx4_native_n062.nds'))
+        say('\nSUCESSO DE COMPILACAO (EM TESTE): '+str(ROOT/'dist/native-n063/mmx4_native_n063.nds'))
         say('Use somente no seu ambiente local. O NDS contem recursos extraidos do seu dump.')
 
 if __name__=='__main__':

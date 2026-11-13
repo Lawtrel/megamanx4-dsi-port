@@ -5,11 +5,11 @@ Port experimental do motor de Mega Man X4 para ARM9, baseado no código C de
 ao DSi. O executável nativo não inclui interpretador de CPU, BIOS ou emulador
 completo de PlayStation.
 
-**Em desenvolvimento: N06.2. Existe uma falha ARM9 conhecida ao iniciar uma
-área após uma sessão anterior. O desempenho ainda não sustenta 30 FPS.**
-O último teste físico registra gameplay entre 7 e 30 FPS, com média de 17,70
-nas 209 amostras desbloqueadas. Veja [testes no hardware](docs/HARDWARE_TESTS.md).
-Os testes no computador não substituem essa validação.
+**Em desenvolvimento: N06.3, com efeitos reproduzidos pelo ARM7/hardware de
+som, cache PCM, consulta de paletas por hash e correção do reinício de fase.**
+Os resultados de FPS desta revisão ainda dependem de medição física.
+A N06.2 anterior registrou gameplay entre 7 e 30 FPS e uma falha de reinício;
+veja [o registro histórico](docs/HARDWARE_TESTS.md).
 
 ## O que está aqui
 
@@ -35,7 +35,7 @@ python3 native/compile.py --n06
 
 O setup obtém o SDK e as fontes fixadas. O dump suportado é a edição USA
 SLUS-00561; o script verifica seu tamanho e SHA-256 antes de extrair dados.
-A saída é `dist/native-n062/mmx4_native_n062.nds`, para uso local em modo DSi.
+A saída é `dist/native-n063/mmx4_native_n063.nds`, para uso local em modo DSi.
 Não publique esse arquivo: ele inclui os recursos extraídos do jogo.
 
 No Windows, depois do setup, execute `COMPILAR_JOGO.cmd` ou `COMPILAR_N06.cmd`.
@@ -60,12 +60,13 @@ não representam um segundo produto ou um emulador.
 
 ## Estado e próximos passos
 
-O teste automatizado cobre 48 entradas de área e 16 cenários de sistemas,
-incluindo a luta do olho com Zero, pausa, transições e saída da introdução.
+O teste automatizado cobre 48 entradas de área e 17 cenários de sistemas,
+incluindo a luta do olho com Zero, pausa, transições, saída da introdução e
+seis sessões consecutivas no mesmo processo.
 A campanha completa permanece em validação. Vídeos, alguns comandos de áudio,
-fidelidade de efeitos, crash ARM9 e otimização continuam pendentes.
+fidelidade de efeitos, validação física das correções e otimização continuam pendentes.
 
-- [Estado e controles da N06.2](docs/STATUS_N062.md)
+- [Estado e controles da N06.3](docs/STATUS_N063.md)
 - [Resultado do último teste físico](docs/HARDWARE_TESTS.md)
 - [Prioridades](docs/ROADMAP.md)
 - [Arquitetura](native/README.md)

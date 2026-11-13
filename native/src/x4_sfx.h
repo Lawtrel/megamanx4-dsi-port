@@ -2,6 +2,16 @@
 #define X4_SFX_H
 #include <stdint.h>
 #include <stddef.h>
+/* PCM memory belongs to ARM9 and remains immutable until stop() acknowledges
+ * the ARM7/hardware reader has stopped. No FILE or game pointer crosses CPUs. */
+typedef struct {
+ int (*play)(unsigned voice,const int16_t* pcm,size_t samples,int loop);
+ void (*stop)(unsigned voice);
+ int (*active)(unsigned voice);
+} X4SfxBackend;
+typedef struct {unsigned hits,misses,bytes,starts,active;} X4SfxStats;
+void x4_sfx_set_backend(const X4SfxBackend* backend);
+X4SfxStats x4_sfx_stats(void);
 void x4_sfx_config(const char* root);
 void x4_sfx_character(unsigned character);
 void x4_sfx_close(void);

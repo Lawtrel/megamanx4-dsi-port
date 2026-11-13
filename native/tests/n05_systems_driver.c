@@ -33,6 +33,21 @@ static void check_native_boss_safety(void){
 extern int x4_flow_ui_pause_palette_active(void);
 int main(int argc,char** argv){
  assert(argc>=3);const char* mode=argv[2];unsigned character=argc>3?strtoul(argv[3],NULL,0):0;
+ if(!strcmp(mode,"restart")){
+  x4_video_enabled=getenv("X4_GPU")!=NULL;if(x4_video_enabled)x4_video_viewport(32,24,256,192);
+  for(unsigned session=0;session<6;++session){
+   x4_audio_init("../../full-audio/music","../../full-audio/sfx");
+   assert(!x4_flow_begin(argv[1],session&1,1,session&1));unsigned previous=0;
+   for(unsigned tick=0;tick<650;++tick){unsigned held=tick>300?X4_RIGHT:0;
+    assert(!x4_flow_step(held,held&~previous));previous=held;
+    x4_audio_update();int16_t pcm[315];x4_audio_read(pcm,315);
+    assert(!x4_audio_errors()&&!x4_flow_draw(screen));
+    if(x4_video_enabled){int dirty;for(unsigned i=0;i<X4_VIDEO_TILES;++i)x4_video_rgba_texture(i,&dirty);}
+   }
+   x4_flow_close();x4_audio_close();printf("RESTART session=%u PASS\n",session);fflush(stdout);
+  }
+  puts("PASS six native sessions, alternating X/Zero and areas in one process");return 0;
+ }
  x4_audio_init("../../full-audio/music","../../full-audio/sfx");
  int sigma=!strcmp(mode,"sigma"),introclear=!strcmp(mode,"introclear"),pausejungle=!strcmp(mode,"pausejungle"),ice=!strcmp(mode,"ice");
  assert(!(!strcmp(mode,"campaign")?x4_flow_new_game(argv[1]):x4_flow_begin(argv[1],character,sigma?12:pausejungle?1:ice?2:0,(sigma||introclear||pausejungle)?1:0)));

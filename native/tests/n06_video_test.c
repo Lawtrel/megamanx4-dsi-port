@@ -52,5 +52,15 @@ int main(void){
  for(unsigned i=0;i<512;++i)assert(!x4_video_tile(raw,128,4,palette,16,0,0,16,16,0,0,30000+i));
  for(unsigned i=0;i<512;++i){assert(!x4_video_tile(raw,128,4,palette,16,0,0,16,16,0,0,20000+i));assert(c[512+i].tile==protected_slots[i]);}
  assert(x4_video_stats().misses==512&&x4_video_stats().hits==512&&!x4_video_stats().overflow);
+ /* Interleaved CLUTs exercise hash collisions, reuse and animated versions. */
+ static uint16_t pool[X4_VIDEO_PALETTES][16];
+ for(unsigned i=0;i<X4_VIDEO_PALETTES;++i)for(unsigned j=0;j<16;++j)pool[i][j]=1+i+j;
+ x4_video_begin(0);x4_video_begin(0);raw[0]=0x11;
+ for(unsigned i=0;i<X4_VIDEO_PALETTES;++i)assert(!x4_video_tile(raw,128,4,pool[i],16,0,0,16,16,0,0,0));
+ for(unsigned i=0;i<X4_VIDEO_PALETTES;++i){unsigned k=(i*73)%X4_VIDEO_PALETTES;assert(!x4_video_tile(raw,128,4,pool[k],16,0,0,16,16,0,0,0));}
+ assert(x4_video_stats().hits==X4_VIDEO_PALETTES&&!x4_video_stats().overflow);
+ x4_video_begin(0);pool[13][1]=0x4321;
+ assert(!x4_video_tile(raw,128,4,pool[13],16,0,0,16,16,0,0,0));
+ assert(x4_video_rgba_texture(c[0].tile,&dirty)[0]==0xc321);
  puts("PASS N06 indexed tiles, opaque black, transparency, palettes, pose tags, viewport edges and geometry bounds");
 }

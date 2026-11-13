@@ -54,6 +54,7 @@ objects+=original+[str(ROOT/'build/native/n05-tasks/n05_tasks.arm9.o')]
 target=OUT/'flow.o';roots=['x4_flow_'+n for n in ('begin','new_game','step','state','draw','close')]
 roots+=['x4_audio_'+n for n in ('init','update','read','close','errors','track')]+['x4_save_set_root','x4_n05_missing_sfx']
 roots+=['x4_video_'+n for n in ('commands','texture','rgba_texture','palette','clear','alpha','stats','viewport','get_viewport')]
+roots+=['x4_sfx_set_backend','x4_sfx_stats']
 p=subprocess.run([str(SDK/'arm-none-eabi-ld'),'-r','--gc-sections',*[a for n in roots for a in ('-u',n)],'-o',str(target),*objects],capture_output=True,text=True)
 if p.returncode:raise RuntimeError(p.stderr[-4000:])
 def run(*cmd):return subprocess.check_output([str(a) for a in cmd],text=True)

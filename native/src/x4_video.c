@@ -12,6 +12,7 @@ static uint16_t rgba[X4_VIDEO_TILES][256] __attribute__((aligned(32)));
 static X4VideoCommand commands[X4_VIDEO_COMMANDS];
 /* Fixed hash buckets avoid scanning the full cache for every visible tile. */
 static int16_t buckets[4096],next[X4_VIDEO_TILES];
+static int16_t palette_buckets[256],palette_next[X4_VIDEO_PALETTES];
 static unsigned count,frame=1,alpha;static int draw_order;static uint16_t clear_color;static X4VideoStats stats;
 static int initialized;
 static unsigned eviction_cursor;
@@ -21,7 +22,7 @@ void x4_video_invalidate(void){
  ++x4_video_generation;
  /* Keep textures referenced by the preceding GPU frame alive. A generation
   * key rejects old resources without reusing their VRAM slots immediately. */
- if(!initialized){memset(tiles,0,sizeof tiles);memset(palettes,0,sizeof palettes);memset(buckets,0xff,sizeof buckets);memset(next,0xff,sizeof next);}
+ if(!initialized){memset(tiles,0,sizeof tiles);memset(palettes,0,sizeof palettes);memset(buckets,0xff,sizeof buckets);memset(next,0xff,sizeof next);memset(palette_buckets,0xff,sizeof palette_buckets);memset(palette_next,0xff,sizeof palette_next);}
  for(unsigned i=0;i<X4_VIDEO_PALETTES;++i)palettes[i].frame=0;
  initialized=1;
 }
@@ -35,14 +36,19 @@ void x4_video_order(int order){draw_order=order;}
 void x4_video_screen_space(int enabled){screen_space=!!enabled;}
 void x4_video_viewport(int x,int y,int w,int h){view_x=x;view_y=y;view_w=w;view_h=h;}
 void x4_video_get_viewport(int* x,int* y,int* w,int* h){*x=view_x;*y=view_y;*w=view_w;*h=view_h;}
+static unsigned palette_hash(const uint16_t* p,unsigned colors){uintptr_t v=(uintptr_t)p;return ((v>>5)^(v>>13)^colors*17u)&255;}
 static int palette_slot(const uint16_t* p,unsigned colors){
  if(last_palette>=0&&palettes[last_palette].source==p&&palettes[last_palette].colors==colors&&palettes[last_palette].frame==frame)return last_palette;
  unsigned slot=0,oldest=~0u;
+ unsigned hash=palette_hash(p,colors);
+ for(int i=palette_buckets[hash];i>=0;i=palette_next[i])if(palettes[i].source==p&&palettes[i].colors==colors){slot=i;goto found;}
  for(unsigned i=0;i<X4_VIDEO_PALETTES;++i){
-  if(palettes[i].source==p&&palettes[i].colors==colors){slot=i;goto found;}
   if(palettes[i].frame<oldest){oldest=palettes[i].frame;slot=i;}
  }
  if(oldest==frame){++stats.overflow;return -1;}
+ if(palettes[slot].source){unsigned oldhash=palette_hash(palettes[slot].source,palettes[slot].colors);
+  int16_t* link=&palette_buckets[oldhash];while(*link>=0&&*link!=(int)slot)link=&palette_next[*link];if(*link>=0)*link=palette_next[slot];}
+ palette_next[slot]=palette_buckets[hash];palette_buckets[hash]=slot;
 found:;
  last_palette=slot;Palette* q=&palettes[slot];if(q->frame==frame)return (int)slot;
  uint16_t data[256]={0};uint32_t zero[8]={0};unsigned swap=0;

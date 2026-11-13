@@ -1,6 +1,6 @@
 # Motor nativo ARM9
 
-O alvo atual é a N06.2, experimental. Estado do produto e resultado físico
+O alvo atual é a N06.3, experimental. Estado do produto e resultado físico
 estão em [README](../README.md) e [testes no console](../docs/HARDWARE_TESTS.md).
 
 ## Componentes
@@ -31,5 +31,7 @@ preservando as verificações de tamanho relevantes.
 `build_n05_flow.py` e `package_n05_flow.py`. O modelo de Makefile faz parte do
 código em `Makefile.nds`; `build/` é sempre gerado.
 
-A qualificação física é indispensável: a N06.2 passa os testes no computador,
-mas o console revelou uma falha dentro de `memcpy` ao iniciar outra área.
+A qualificação física é indispensável: a N06.3 passa os testes no computador,
+e corrige a falha de `memcpy` reproduzida ao reiniciar sessões. A nova
+reprodução de efeitos pelo ARM7 está em `dsi/n063_arm7_audio.c` e exige teste
+no console para confirmar som, comunicação e ganho de FPS.

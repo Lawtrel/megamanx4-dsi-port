@@ -1,8 +1,8 @@
 # Prioridades atuais
 
-1. **Crash ARM9 ao iniciar outra área.** A N06.2 falhou dentro de `memcpy`
-   no hardware. Obter todos os registradores e rastrear origem, destino e
-   tamanho da cópia; conferir vida útil dos bancos e reinício das tarefas.
+1. **Qualificar a N06.3 no DSi.** Confirmar a correção do reinício de sessões
+   e a reprodução dos oito canais de efeitos pelo ARM7/hardware. A falha da
+   N06.2 em `memcpy` foi reproduzida e corrigida no teste de memória.
 2. **30 FPS sustentados.** Usar perfis do DSi, com trechos comparáveis.
    Desenho e áudio têm picos maiores que a lógica no log atual. Reduzir
    conversões e trabalho repetido, acesso a arquivos e custo da mistura de áudio.
@@ -19,5 +19,5 @@
 - Registrar versão, identificador do executável e trechos usados na medição.
 - Tratar os resultados no computador e no console como evidências distintas.
 
-A N06.2 não cumpre esses critérios. Não há promessa de 30 ou 60 FPS em toda
+A N06.3 ainda precisa de confirmação física desses critérios. Não há promessa de 30 ou 60 FPS em toda
 a campanha na versão atual.

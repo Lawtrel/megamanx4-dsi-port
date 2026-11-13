@@ -58,6 +58,10 @@ void x4_flow_loading_close(void){
  x4_video_invalidate();
  for(unsigned i=0;i<11;++i){free(images[i].data);images[i].data=NULL;}
  for(unsigned i=0;i<6;++i){free(samples[i].data);samples[i].data=NULL;}
+ /* Size/type are part of ownership too. A stale canonical type and size
+  * made the next session copy the previous bank from a NULL data pointer. */
+ memset(images,0,sizeof images);memset(samples,0,sizeof samples);
+ memset(&view,0,sizeof view);memset(bank_sizes,0,sizeof bank_sizes);
 }
 int x4_flow_load(unsigned id,unsigned mode,void* destination){
  x4_video_invalidate(); /* Old arena/image addresses may be reused by this load. */

@@ -42,7 +42,7 @@ A compilação verifica os patches locais, prepara recursos e áudio, compila o
 código ARM9, executa os testes e verifica os cabeçalhos, símbolos e dados
 internos antes de criar o pacote local.
 
-Saída: `dist/native-n062/mmx4_native_n062.nds`.
+Saída: `dist/native-n063/mmx4_native_n063.nds`.
 Logs de compilação: `build/native/logs/compile_*.log`.
 Os objetos são reutilizados apenas quando as verificações de fontes,
 cabeçalhos e opções permitem.
@@ -87,8 +87,9 @@ não é requisito para iniciar uma compilação.
 
 ## Uso e limites
 
-Inicie o resultado em modo DSi. Consulte [os controles e limites](docs/STATUS_N062.md).
-A N06.2 tem crash conhecido e desempenho insuficiente em alguns trechos.
+Inicie o resultado em modo DSi. Consulte [os controles e limites](docs/STATUS_N063.md).
+A N06.3 tem correções verificadas no computador e ainda precisa de medição e
+qualificação física no DSi.
 Compilar com sucesso e passar testes no computador não confirmam estabilidade
 ou 30 FPS no hardware.
 

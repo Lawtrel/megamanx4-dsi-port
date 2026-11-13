@@ -13,6 +13,9 @@ p=subprocess.run([str(OUT/'sfx_test'),str(ROOT/'build/native/full-audio/sfx'),st
 (OUT/'result.log').write_text(p.stdout+p.stderr)
 print(p.stdout,end='')
 if p.returncode:raise RuntimeError(p.stderr[-3000:])
+p=subprocess.run([str(OUT/'sfx_test'),str(ROOT/'build/native/full-audio/sfx'),str(cases),'--arm7-cache'],capture_output=True,text=True)
+(OUT/'cache_result.log').write_text(p.stdout+p.stderr);print(p.stdout,end='')
+if p.returncode:raise RuntimeError(p.stderr[-3000:])
 subprocess.run([str(ROOT/'ambiente/sdk/devkitARM/bin/arm-none-eabi-gcc'),'-std=gnu11','-Os','-mcpu=arm946e-s','-mthumb','-I'+str(ROOT/'native/src'),'-c',str(source),'-o',str(OUT/'x4_sfx.arm9.o')],check=True)
 (OUT/'validation.json').write_text(json.dumps({'status':'passed','host_address_sanitizer':True,'banks':len(seen),'physical_dsi_tested':False,
  'sources':{str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in (source,driver)}},indent=2)+'\n')

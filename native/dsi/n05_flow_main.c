@@ -11,11 +11,13 @@
 #include "x4_n05_platform.h"
 #include "build_id.h"
 #include "x4_video.h"
+#include "x4_arm7_audio.h"
+#include "x4_sfx.h"
 #include <calico/system/tick.h>
 #ifdef X4_N06_GPU
 void x4_gpu_init(void);void x4_gpu_present(void);
-#define VERSION "N06.2"
-#define LOG_PREFIX "native_n062"
+#define VERSION "N06.3"
+#define LOG_PREFIX "native_n063"
 #else
 #define VERSION "N05"
 #define LOG_PREFIX "native_n05_flow"
@@ -39,6 +41,7 @@ static void crash_handler(ExcptContext* ctx,unsigned flags){
  iprintf("\x1b[2JX4 " VERSION " - falha ARM9\nFase execucao:%u flags:%x\nPC:%08lx LR:%08lx\nSP:%08lx CPSR:%08lx\nFase:%d/%d X:%d Y:%d\nTick:%u\nFotografe esta tela.\n",diagnostic_phase,flags,
   (unsigned long)ctx->r[15],(unsigned long)ctx->r[14],(unsigned long)ctx->r[13],(unsigned long)ctx->cpsr,
   diagnostic_state.stage,diagnostic_state.area,diagnostic_state.x,diagnostic_state.y,diagnostic_state.frames);
+ for(unsigned i=0;i<12;i+=2)iprintf("R%02u:%08lx R%02u:%08lx\n",i,(unsigned long)ctx->r[i],i+1,(unsigned long)ctx->r[i+1]);
  for(;;)__asm__ volatile("nop");
 }
 static const char* save_root;
@@ -134,7 +137,7 @@ int main(int argc,char** argv){
 #else
  videoSetMode(MODE_5_2D);vramSetBankA(VRAM_A_MAIN_BG);int bg=bgInit(3,BgType_Bmp16,BgSize_B16_256x256,0,0);
 #endif
- mm_ds_system system={0};mmInit(&system);irqSet(IRQ_VBLANK,on_vblank);irqEnable(IRQ_VBLANK);
+ mm_ds_system system={0};mmInit(&system);x4_arm7_audio_init();irqSet(IRQ_VBLANK,on_vblank);irqEnable(IRQ_VBLANK);
  for(;;){
   audio_stop();x4_flow_close();memset(pixels,0,sizeof pixels);
 #ifdef X4_N06_GPU
@@ -157,7 +160,7 @@ int main(int argc,char** argv){
    uint64_t t0=tickGetCount();x4_audio_update();if(audio_open)mmStreamUpdate();audio_ticks+=tickGetCount()-t0;
    scanKeys();unsigned held=keysHeld(),down=keysDown();
    if((held&(KEY_L|KEY_R|KEY_SELECT))==(KEY_L|KEY_R|KEY_SELECT))break;
-   if((held&KEY_SELECT)&&(down&KEY_X))muted^=1;
+   if((held&KEY_SELECT)&&(down&KEY_X)){muted^=1;x4_arm7_audio_mute(muted);}
    unsigned input=buttons(held);
    if((held&(KEY_SELECT|KEY_X))==(KEY_SELECT|KEY_X))input&=~((1u<<17)|32u);
    t0=tickGetCount();
@@ -191,16 +194,17 @@ int main(int argc,char** argv){
     X4FlowState s;x4_flow_state(&s);unsigned fps=frames*60/elapsed;last=vblanks;
     unsigned logic_us=logic_ticks*1000000/TICK_FREQ/frames,draw_us=draw_ticks*1000000/TICK_FREQ/frames;
     unsigned audio_us=audio_ticks*1000000/TICK_FREQ/frames,present_us=present_ticks*1000000/TICK_FREQ/frames,wait_us=wait_ticks*1000000/TICK_FREQ/frames;
-    X4VideoStats v=x4_video_stats();frames=0;logic_ticks=draw_ticks=audio_ticks=present_ticks=wait_ticks=0;
+    X4VideoStats v=x4_video_stats();X4SfxStats fx=x4_sfx_stats();frames=0;logic_ticks=draw_ticks=audio_ticks=present_ticks=wait_ticks=0;
     unsigned simulation_hz=(s.frames-last_simulation)*60/elapsed;last_simulation=s.frames;
     iprintf("\x1b[0;0HMEGA MAN X4 " VERSION "\n%s Fase %02d/%d  FPS:%2u    \nHP:%2d Checkpoint:%d          \n\n"
      "B:pulo A:dash Y:ataque\nX:especial L/R:arma\nSTART:menu\nL+R+SELECT:selecao de teste\n\n"
-     "Som:%s  Faixa:%2d            \nImagem:%u Audio:%u            \nEfeitos pendentes:%u          \nLog:%s                     \n\n"
+     "Som:%s  Faixa:%2d            \nImagem:%u Audio:%u            \nEfeitos pendentes:%u          \nARM7 FX:%u Cache:%uKB        \nLog:%s                     \n"
      "X:%5d Y:%5d              \nEstado:%d/%d Bloqueio:%d     \nCPU logica:%5uus          \nDesenho:%5uus GPU:%5uus    \nTiles:%u +%u  Limite:%u     \n",
-     s.character?"Zero":"X",s.stage,s.area+1,fps,s.hp,s.checkpoint,muted?"OFF":"ON",x4_audio_track(),gfx_errors,x4_audio_errors(),x4_n05_missing_sfx(),log_file?"ativo":"indisponivel",s.x,s.y,s.state,s.substate,s.locked,logic_us,draw_us,present_us,v.hits,v.misses,v.overflow);
+     s.character?"Zero":"X",s.stage,s.area+1,fps,s.hp,s.checkpoint,muted?"OFF":"ON",x4_audio_track(),gfx_errors,x4_audio_errors(),x4_n05_missing_sfx(),fx.active,fx.bytes/1024,log_file?"ativo":"indisponivel",s.x,s.y,s.state,s.substate,s.locked,logic_us,draw_us,present_us,v.hits,v.misses,v.overflow);
     if(log_file){fprintf(log_file,"frame=%u ticks=%u char=%d stage=%d area=%d fps=%u x=%d y=%d hp=%d checkpoint=%d engine=%d/%d player=%d locked=%d gfxerr=%u audioerr=%u missingfx=%u track=%d\n",
      vblanks,s.frames,s.character,s.stage,s.area,fps,s.x,s.y,s.hp,s.checkpoint,s.state,s.substate,s.player_state,s.locked,gfx_errors,x4_audio_errors(),x4_n05_missing_sfx(),x4_audio_track());
      fprintf(log_file,"PROFILE logic_us=%u draw_us=%u audio_us=%u present_us=%u wait_us=%u commands=%u hits=%u misses=%u palettes=%u upload=%u overflow=%u sim_hz=%u dropped_ticks=%u\n",logic_us,draw_us,audio_us,present_us,wait_us,v.commands,v.hits,v.misses,v.palette_uploads,v.uploaded_bytes,v.overflow,simulation_hz,dropped_ticks);
+     fprintf(log_file,"ARM7 voices=%u pcm_bytes=%u cache_hits=%u cache_misses=%u starts=%u\n",fx.active,fx.bytes,fx.hits,fx.misses,fx.starts);
      commit_log();}
    }
   }
