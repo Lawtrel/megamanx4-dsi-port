@@ -1,4 +1,38 @@
-# Último teste físico — N06.3
+# Último teste físico — N06.4
+
+Registro de 13/11/2026, fornecido pelo usuário: `native_n064_000.log` e
+`native_n064_001.log`, ambos com identificador `b2962dcbbcbe9fa8ff9d`.
+Hashes SHA-256 dos arquivos:
+
+- 000: `9a7239830ed5e29d381ec56748df820803f5ef762b7bd030d9e798a5a490bd98`.
+- 001: `72840789a31cb15bddaf83b2e612ae2a530cc385a495dd94e907646052501398`.
+
+O usuário confirmou a derrota do dragão, o diálogo com Colonel, a passagem
+pela base e seleção de fases, a derrota de Magma Dragoon e a apresentação
+de Rising Fire. A tela posterior à introdução ainda omitia os textos de
+salvar/continuar. As fotos mostram essa tela e o recebimento da arma.
+
+| Gameplay desbloqueado | Amostras | FPS mín./média/máx. | Desenho médio | Envio médio |
+| --- | ---: | --- | ---: | ---: |
+| Web Spider, área 2, log 000 | 15 | 24 / 27,73 / 34 | 14,52 ms | 7,83 ms |
+| Introdução, área 2, log 001 | 71 | 25 / 29,08 / 49 | 13,01 ms | 7,47 ms |
+| Magma Dragoon, área 1 | 49 | 16 / 19,84 / 27 | 28,18 ms | 8,66 ms |
+| Magma Dragoon, área 2 | 91 | 15 / 21,82 / 32 | 24,43 ms | 8,51 ms |
+| Gelo, área 1 | 50 | 27 / 29,50 / 32 | 11,36 ms | 9,19 ms |
+
+Recorte: `engine=6/0`, `locked=0`. As médias são aritméticas das amostras,
+sem ponderação pela duração do intervalo. Os contadores de comandos/misses
+descrevem o último quadro do intervalo; os tempos de perfil são médias por
+quadro nesse intervalo. Trechos e versões diferentes não são benchmarks
+controlados. Os 59 FPS das fotos pertencem a menus, não às fases.
+
+Em Magma Dragoon, o custo de desenho domina, com picos médios acima de 36 ms
+em um intervalo. O áudio fica perto de 1 ms por quadro. A simulação também
+cai em parte desses trechos, apesar da recuperação limitada de ticks.
+A N06.5 busca reduzir conversão de tiles, buscas de uploads e o trabalho
+gráfico feito depois da espera de vídeo. Ainda não há resultado físico dela.
+
+## Histórico — N06.3
 
 Registro de 13/11/2026, fornecido pelo usuário: `native_n063_000.log`.
 Identificador confirmado no cabeçalho: `0c98703e416352b68028`.

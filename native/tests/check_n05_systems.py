@@ -2,7 +2,7 @@ from pathlib import Path
 import subprocess,json,hashlib,concurrent.futures,os
 ROOT=Path(__file__).resolve().parents[2];HOST=ROOT/'build/native/n05-flow/host';binary=HOST/'systems_test'
 cases=[(m,c) for m in ('pause','respawn','transition','weapons','campaign') for c in range(2)]
-if os.environ.get('X4_GPU')=='1':cases.extend([('sigma',0),('sigma',1),('introclear',0),('introclear',1),('introleft',0),('pausejungle',1),('pauseoptions',0),('pauseoptions',1),('ice',1),('restart',0)])
+if os.environ.get('X4_GPU')=='1':cases.extend([('sigma',0),('sigma',1),('introclear',0),('introclear',1),('introleft',0),('pausejungle',1),('pauseoptions',0),('pauseoptions',1),('saveprompt',0),('saveprompt',1),('ice',1),('restart',0)])
 gpu=os.environ.get('X4_GPU')=='1';prefix='gpu_' if gpu else ''
 def check(case):
  mode,character=case

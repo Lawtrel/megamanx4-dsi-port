@@ -1,11 +1,12 @@
 # Prioridades atuais
 
-1. **Qualificar a N06.4 no DSi.** Repetir a morte do dragão e a entrada/saída
-   das opções com X e Zero. Conferir as correções da chamada ARM e das paletas.
+1. **Qualificar a N06.5 no DSi.** Comparar Magma Dragoon e gelo com a N06.4,
+   conferir efeitos e paletas e validar os textos de salvar/continuar.
 2. **30 FPS sustentados.** Usar perfis do DSi, com trechos comparáveis.
-   Na N06.3 o áudio já custa menos com os efeitos no ARM7. Na N06.4 foram
-   reduzidos comandos gráficos e publicações repetidas de PCM. Medir o ganho
-   e os piores intervalos antes de transferir novas tarefas entre CPUs.
+   Na N06.4 o desenho de Magma Dragoon foi o maior custo. A N06.5 acelera
+   a conversão dos tiles e prepara comandos antes da espera de vídeo. Somar
+   `prepare_us` aos demais tempos e medir os piores intervalos antes de
+   transferir novas tarefas entre CPUs.
 3. **Regressões de qualidade.** Manter escala 1:1, cores após pausa,
    animações, transparência, HUD e recursos adicionais dos chefes.
 4. **Campanha e áudio pendentes.** Completar qualificação das fases,
@@ -19,5 +20,5 @@
 - Registrar versão, identificador do executável e trechos usados na medição.
 - Tratar os resultados no computador e no console como evidências distintas.
 
-A N06.4 ainda precisa de confirmação física desses critérios. Não há promessa de 30 ou 60 FPS em toda
+A N06.5 ainda precisa de confirmação física desses critérios. Não há promessa de 30 ou 60 FPS em toda
 a campanha na versão atual.

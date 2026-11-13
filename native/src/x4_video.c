@@ -4,10 +4,17 @@ int x4_video_enabled;
 uint32_t x4_video_generation=1;
 typedef struct {
  const uint8_t* source;uint32_t tag,frame,generation,palette_version;unsigned stride;uint16_t palette;
- uint8_t bits,w,h,dirty,pixels[256];
+ uint8_t bits,w,h,dirty;
 } Tile;
 typedef struct {const uint16_t* source;uint32_t frame,version;unsigned colors;uint8_t swap,dirty;uint16_t data[256];uint32_t zero[8];} Palette;
 static Tile tiles[X4_VIDEO_TILES];static Palette palettes[X4_VIDEO_PALETTES];
+/* Keep the frequently queried keys separate from decoded pixel storage. */
+static uint8_t indexed[X4_VIDEO_TILES][256] __attribute__((aligned(4)));
+typedef union {uint32_t pairs[256];uint16_t single[256];} RgbaTable;
+typedef union {uint16_t pairs[256];uint8_t single[256];} IndexTable;
+static RgbaTable rgba_tables[X4_VIDEO_PALETTES];
+static IndexTable index_tables[X4_VIDEO_PALETTES];
+static uint32_t dirty_words[X4_VIDEO_TILES/32];
 static uint16_t rgba[X4_VIDEO_TILES][256] __attribute__((aligned(32)));
 static X4VideoCommand commands[X4_VIDEO_COMMANDS];
 /* Fixed hash buckets avoid scanning the full cache for every visible tile. */
@@ -58,7 +65,16 @@ found:;
  if(!p[0]||!swap)swap=0;
  if(swap){data[swap]=data[0];data[0]=0;}
  int changed=q->source!=p||q->colors!=colors||q->swap!=swap||memcmp(q->zero,zero,sizeof zero);
- if(changed||memcmp(q->data,data,sizeof data)){++q->version;memcpy(q->data,data,sizeof data);q->dirty=1;++stats.palette_uploads;}
+ if(changed||memcmp(q->data,data,sizeof data)){
+  ++q->version;memcpy(q->data,data,sizeof data);q->dirty=1;++stats.palette_uploads;
+  if(colors==16){
+   uint16_t rgb[16];uint8_t indices[16];
+   for(unsigned i=0;i<16;++i){rgb[i]=p[i]?(p[i]|0x8000):0;indices[i]=!p[i]?0:!i&&swap?swap:i;}
+   for(unsigned i=0;i<256;++i){rgba_tables[slot].pairs[i]=rgb[i&15]|((uint32_t)rgb[i>>4]<<16);index_tables[slot].pairs[i]=indices[i&15]|((uint16_t)indices[i>>4]<<8);}
+  }else if(colors==256){
+   for(unsigned i=0;i<256;++i){rgba_tables[slot].single[i]=p[i]?(p[i]|0x8000):0;index_tables[slot].single[i]=!p[i]?0:!i&&swap?swap:i;}
+  }
+ }
  memcpy(q->zero,zero,sizeof zero);q->source=p;q->colors=colors;q->swap=swap;q->frame=frame;
  return (int)slot;
 }
@@ -88,16 +104,29 @@ int x4_video_tile(const uint8_t* raw,unsigned stride,unsigned bits,const uint16_
    unsigned oldhash=hash_key(t->source,t->stride,t->bits,t->palette,t->w,t->h,t->tag,t->generation,t->palette_version);
    int16_t* link=&buckets[oldhash];while(*link>=0&&*link!=(int)slot)link=&next[*link];if(*link>=0)*link=next[slot];
   }
-  *t=(Tile){.source=raw,.tag=tag,.generation=x4_video_generation,.palette_version=version,.stride=stride,.palette=pi,.bits=bits,.w=w,.h=h,.dirty=1};
-  memset(rgba[slot],0,sizeof rgba[slot]);
+  *t=(Tile){.source=raw,.tag=tag,.generation=x4_video_generation,.palette_version=version,.stride=stride,.palette=pi,.bits=bits,.w=w,.h=h};
+  if(w!=16||h!=16){memset(rgba[slot],0,sizeof rgba[slot]);memset(indexed[slot],0,sizeof indexed[slot]);}
   Palette* q=&palettes[pi];
-  for(unsigned sy=0;sy<h;++sy)for(unsigned sx=0;sx<w;++sx){
+  if(bits==4&&colors==16&&w==16){
+   /* Two original 4bpp pixels per lookup; full tiles need no clearing.
+    * memcpy has fixed sizes and becomes aligned stores on ARM9. */
+   const uint32_t* pairs=rgba_tables[pi].pairs;const uint16_t* indices=index_tables[pi].pairs;
+   for(unsigned sy=0;sy<h;++sy)for(unsigned sx=0;sx<8;++sx){
+    unsigned byte=raw[sy*stride+sx];
+    memcpy(&rgba[slot][sy*16+sx*2],&pairs[byte],4);
+    memcpy(&indexed[slot][sy*16+sx*2],&indices[byte],2);
+   }
+  }else if(bits==8&&colors==256){
+   const uint16_t* rgb=rgba_tables[pi].single;const uint8_t* indices=index_tables[pi].single;
+   for(unsigned sy=0;sy<h;++sy)for(unsigned sx=0;sx<w;++sx){unsigned byte=raw[sy*stride+sx];rgba[slot][sy*16+sx]=rgb[byte];indexed[slot][sy*16+sx]=indices[byte];}
+  }else for(unsigned sy=0;sy<h;++sy)for(unsigned sx=0;sx<w;++sx){
    unsigned index=bits==4?(raw[sy*stride+sx/2]>>((sx&1)*4))&15:raw[sy*stride+sx];
    if(index>=colors){t->source=NULL;t->frame=0;return 1;}
    rgba[slot][sy*16+sx]=p[index]?(p[index]|0x8000):0;
    if(q->zero[index>>5]&(1u<<(index&31)))index=0;else if(!index&&q->swap)index=q->swap;
-   t->pixels[sy*16+sx]=index;
+   indexed[slot][sy*16+sx]=index;
   }
+  t->dirty=1;dirty_words[slot>>5]|=1u<<(slot&31);
   next[slot]=buckets[hash];buckets[hash]=slot;++stats.misses;
  }else ++stats.hits;
  tiles[slot].frame=frame;
@@ -121,8 +150,13 @@ int x4_video_quad(const int* x,const int* y,const uint16_t* colors,int semi){
 }
 void x4_video_fade(unsigned a){alpha=a>255?255:a;}
 const X4VideoCommand* x4_video_commands(unsigned* n){*n=count;return commands;}
-const uint8_t* x4_video_texture(unsigned slot,int* dirty){Tile* t=&tiles[slot];*dirty=t->dirty;t->dirty=0;if(*dirty)stats.uploaded_bytes+=256;return t->pixels;}
-const uint16_t* x4_video_rgba_texture(unsigned slot,int* dirty){Tile* t=&tiles[slot];*dirty=t->dirty;t->dirty=0;if(*dirty)stats.uploaded_bytes+=512;return rgba[slot];}
+unsigned x4_video_dirty_tiles(uint16_t* slots){
+ unsigned count=0;
+ for(unsigned i=0;i<X4_VIDEO_TILES/32;++i){uint32_t word=dirty_words[i];while(word){unsigned bit=__builtin_ctz(word);slots[count++]=i*32+bit;word&=word-1;}}
+ return count;
+}
+const uint8_t* x4_video_texture(unsigned slot,int* dirty){Tile* t=&tiles[slot];*dirty=t->dirty;t->dirty=0;dirty_words[slot>>5]&=~(1u<<(slot&31));if(*dirty)stats.uploaded_bytes+=256;return indexed[slot];}
+const uint16_t* x4_video_rgba_texture(unsigned slot,int* dirty){Tile* t=&tiles[slot];*dirty=t->dirty;t->dirty=0;dirty_words[slot>>5]&=~(1u<<(slot&31));if(*dirty)stats.uploaded_bytes+=512;return rgba[slot];}
 const uint16_t* x4_video_palette(unsigned slot,int* dirty){Palette* p=&palettes[slot];*dirty=p->dirty;p->dirty=0;if(*dirty)stats.uploaded_bytes+=512;return p->data;}
 uint16_t x4_video_clear(void){return clear_color;}
 unsigned x4_video_alpha(void){return alpha;}

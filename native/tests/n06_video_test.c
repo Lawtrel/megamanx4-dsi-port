@@ -62,5 +62,28 @@ int main(void){
  x4_video_begin(0);pool[13][1]=0x4321;
  assert(!x4_video_tile(raw,128,4,pool[13],16,0,0,16,16,0,0,0));
  assert(x4_video_rgba_texture(c[0].tile,&dirty)[0]==0xc321);
+ /* Compare fast 4bpp pairs and 8bpp lookup paths against the scalar rule,
+  * including every size, row padding, transparent colors and opaque black. */
+ uint32_t random=0x9e3779b9;unsigned cases=0;uint16_t slots[X4_VIDEO_TILES];
+ for(unsigned bits=4;bits<=8;bits+=4)for(unsigned h=1;h<=16;++h)for(unsigned w=1;w<=16;++w){
+  x4_video_begin(0);unsigned colors=bits==4?16:256,swap=0;
+  for(unsigned i=0;i<colors;++i){random=random*1664525+1013904223;palette[i]=i%11?random&32767:0;}
+  palette[0]=0x8000;
+  for(unsigned i=1;i<colors;++i)if(!palette[i]){swap=i;break;}
+  for(unsigned i=0;i<sizeof raw;++i){random=random*1664525+1013904223;raw[i]=random>>24;}
+  assert(!x4_video_tile(raw,128,bits,palette,colors,0,0,w,h,0,0,40000+cases++));
+  unsigned slot=c[0].tile;unsigned pending=x4_video_dirty_tiles(slots);assert(pending&&pending<=X4_VIDEO_TILES);
+  const uint16_t* rgba=x4_video_rgba_texture(slot,&dirty);const uint8_t* indices=x4_video_texture(slot,&dirty);
+  for(unsigned y=0;y<16;++y)for(unsigned x=0;x<16;++x){
+   unsigned value=0,index=0;
+   if(x<w&&y<h){index=bits==4?(raw[y*128+x/2]>>((x&1)*4))&15:raw[y*128+x];
+    value=palette[index]?palette[index]|0x8000:0;index=!palette[index]?0:!index&&swap?swap:index;}
+   assert(rgba[y*16+x]==value&&indices[y*16+x]==index);
+  }
+  for(unsigned i=0;i<pending;++i)x4_video_rgba_texture(slots[i],&dirty);
+  assert(!x4_video_dirty_tiles(slots));
+ }
+ assert(cases==512);
+ puts("PASS 512 scalar/lookup comparisons and dirty upload snapshots");
  puts("PASS N06 indexed tiles, opaque black, transparency, palettes, pose tags, viewport edges and geometry bounds");
 }

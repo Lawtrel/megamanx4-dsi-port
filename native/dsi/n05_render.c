@@ -165,7 +165,14 @@ int x4_n05_draw_actors(uint16_t* screen,const X4Archive* p,const X4Archive* s,in
     for(unsigned i=0;i<COUNT(shot_objects);++i)errors+=checked_draw(screen,p,s,ANIMATED_OBJECT(&shot_objects[i]),shot_objects[i].unk3C,cx,cy);
     for(unsigned i=0;i<COUNT(item_objects);++i)errors+=checked_draw(screen,p,s,ANIMATED_OBJECT(&item_objects[i]),item_objects[i].sprite_frames,cx,cy);
     for(unsigned i=0;i<COUNT(visual_objects);++i)errors+=checked_draw(screen,p,s,ANIMATED_OBJECT(&visual_objects[i]),visual_objects[i].unk3C,cx,cy);
-    for(unsigned i=0;i<COUNT(misc_objects);++i)errors+=checked_draw(screen,p,s,ANIMATED_OBJECT(&misc_objects[i]),misc_objects[i].unk3C,cx,cy);
+    for(unsigned i=0;i<COUNT(misc_objects);++i){
+        /* Save/continue prompts use Misc 31/32 rather than the Unk objects
+         * used by controller options. Both belong above the menu backdrop. */
+        struct MiscObj* o=&misc_objects[i];
+        if(o->bg_offset<0&&(o->id==31||o->id==32))drawing_hud=2;
+        errors+=checked_draw(screen,p,s,ANIMATED_OBJECT(o),o->unk3C,cx,cy);
+        drawing_hud=0;
+    }
     return errors;
 }
 int x4_n05_draw_ui_sprite(uint16_t* screen,const X4Archive* a,const struct AnimatedObj* object,const u8* frames){

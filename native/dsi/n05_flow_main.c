@@ -15,9 +15,9 @@
 #include "x4_sfx.h"
 #include <calico/system/tick.h>
 #ifdef X4_N06_GPU
-void x4_gpu_init(void);void x4_gpu_present(void);unsigned x4_gpu_words(void);
-#define VERSION "N06.4"
-#define LOG_PREFIX "native_n064"
+void x4_gpu_init(void);void x4_gpu_prepare(void);void x4_gpu_present(void);unsigned x4_gpu_words(void);
+#define VERSION "N06.5"
+#define LOG_PREFIX "native_n065"
 #else
 #define VERSION "N05"
 #define LOG_PREFIX "native_n05_flow"
@@ -152,7 +152,7 @@ int main(int argc,char** argv){
   int error=campaign?x4_flow_new_game("nitro:/content"):x4_flow_begin("nitro:/content",character,stage,area);
   if(error){fail("Carregamento",error);break;}
   audio_start();unsigned previous=0,frames=0,last=vblanks,gfx_errors=0;
-  uint64_t logic_ticks=0,draw_ticks=0,audio_ticks=0,wait_ticks=0,present_ticks=0;
+  uint64_t logic_ticks=0,draw_ticks=0,audio_ticks=0,wait_ticks=0,present_ticks=0,prepare_ticks=0;
   uint64_t simulation_clock=tickGetCount();unsigned last_simulation=0,dropped_ticks=0;
   iprintf("\x1b[2J");
   while(pmMainLoop()){
@@ -181,6 +181,9 @@ int main(int argc,char** argv){
    diagnostic_phase=3;t0=tickGetCount();x4_audio_update();audio_ticks+=tickGetCount()-t0;
    if(error){fail("Evento de fase",error);break;}
    diagnostic_phase=4;t0=tickGetCount();gfx_errors+=x4_flow_draw(pixels);draw_ticks+=tickGetCount()-t0;
+#ifdef X4_N06_GPU
+   diagnostic_phase=7;t0=tickGetCount();x4_gpu_prepare();prepare_ticks+=tickGetCount()-t0;
+#endif
    t0=tickGetCount();if(audio_open)mmStreamUpdate();audio_ticks+=tickGetCount()-t0;
    diagnostic_phase=5;t0=tickGetCount();swiWaitForVBlank();wait_ticks+=tickGetCount()-t0;t0=tickGetCount();
 #ifdef X4_N06_GPU
@@ -194,17 +197,19 @@ int main(int argc,char** argv){
     X4FlowState s;x4_flow_state(&s);unsigned fps=frames*60/elapsed;last=vblanks;
     unsigned logic_us=logic_ticks*1000000/TICK_FREQ/frames,draw_us=draw_ticks*1000000/TICK_FREQ/frames;
     unsigned audio_us=audio_ticks*1000000/TICK_FREQ/frames,present_us=present_ticks*1000000/TICK_FREQ/frames,wait_us=wait_ticks*1000000/TICK_FREQ/frames;
-    X4VideoStats v=x4_video_stats();X4SfxStats fx=x4_sfx_stats();frames=0;logic_ticks=draw_ticks=audio_ticks=present_ticks=wait_ticks=0;
+    unsigned prepare_us=prepare_ticks*1000000/TICK_FREQ/frames;
+    X4VideoStats v=x4_video_stats();X4SfxStats fx=x4_sfx_stats();frames=0;logic_ticks=draw_ticks=audio_ticks=present_ticks=wait_ticks=prepare_ticks=0;
     unsigned simulation_hz=(s.frames-last_simulation)*60/elapsed;last_simulation=s.frames;
     iprintf("\x1b[0;0HMEGA MAN X4 " VERSION "\n%s Fase %02d/%d  FPS:%2u    \nHP:%2d Checkpoint:%d          \n\n"
      "B:pulo A:dash Y:ataque\nX:especial L/R:arma\nSTART:menu\nL+R+SELECT:selecao de teste\n\n"
      "Som:%s  Faixa:%2d            \nImagem:%u Audio:%u            \nEfeitos pendentes:%u          \nARM7 FX:%u Cache:%uKB        \nLog:%s                     \n"
-     "X:%5d Y:%5d              \nEstado:%d/%d Bloqueio:%d     \nCPU logica:%5uus          \nDesenho:%5uus GPU:%5uus    \nTiles:%u +%u  Limite:%u     \n",
-     s.character?"Zero":"X",s.stage,s.area+1,fps,s.hp,s.checkpoint,muted?"OFF":"ON",x4_audio_track(),gfx_errors,x4_audio_errors(),x4_n05_missing_sfx(),fx.active,fx.bytes/1024,log_file?"ativo":"indisponivel",s.x,s.y,s.state,s.substate,s.locked,logic_us,draw_us,present_us,v.hits,v.misses,v.overflow);
+     "X:%5d Y:%5d              \nEstado:%d/%d Bloqueio:%d     \nCPU logica:%5uus          \nDesenho:%5uus GPU:%5uus    \nTiles:%u +%u  Limite:%u     \nPrep:%5uus                 \n",
+     s.character?"Zero":"X",s.stage,s.area+1,fps,s.hp,s.checkpoint,muted?"OFF":"ON",x4_audio_track(),gfx_errors,x4_audio_errors(),x4_n05_missing_sfx(),fx.active,fx.bytes/1024,log_file?"ativo":"indisponivel",s.x,s.y,s.state,s.substate,s.locked,logic_us,draw_us,present_us,v.hits,v.misses,v.overflow,prepare_us);
     if(log_file){fprintf(log_file,"frame=%u ticks=%u char=%d stage=%d area=%d fps=%u x=%d y=%d hp=%d checkpoint=%d engine=%d/%d player=%d locked=%d gfxerr=%u audioerr=%u missingfx=%u track=%d\n",
      vblanks,s.frames,s.character,s.stage,s.area,fps,s.x,s.y,s.hp,s.checkpoint,s.state,s.substate,s.player_state,s.locked,gfx_errors,x4_audio_errors(),x4_n05_missing_sfx(),x4_audio_track());
      fprintf(log_file,"PROFILE logic_us=%u draw_us=%u audio_us=%u present_us=%u wait_us=%u commands=%u hits=%u misses=%u palettes=%u upload=%u overflow=%u sim_hz=%u dropped_ticks=%u\n",logic_us,draw_us,audio_us,present_us,wait_us,v.commands,v.hits,v.misses,v.palette_uploads,v.uploaded_bytes,v.overflow,simulation_hz,dropped_ticks);
      fprintf(log_file,"ARM7 voices=%u pcm_bytes=%u cache_hits=%u cache_misses=%u starts=%u\n",fx.active,fx.bytes,fx.hits,fx.misses,fx.starts);
+     fprintf(log_file,"PIPELINE prepare_us=%u\n",prepare_us);
      char debug[256];x4_flow_debug(debug,sizeof debug);fprintf(log_file,"%s\n",debug);
 #ifdef X4_N06_GPU
      fprintf(log_file,"FIFO words=%u old_words=%u\n",x4_gpu_words(),21*v.commands);

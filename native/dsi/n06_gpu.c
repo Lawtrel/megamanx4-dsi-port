@@ -8,6 +8,8 @@ static uint16_t sorted[X4_VIDEO_COMMANDS],scratch[X4_VIDEO_COMMANDS];
  * DMA owns this buffer until glCallList returns; no END (libnds restriction). */
 static uint32_t list[1+21*X4_VIDEO_COMMANDS] __attribute__((aligned(32)));
 static unsigned used,opcode_word,opcode_lane,last_words;
+static uint16_t upload_slots[X4_VIDEO_TILES];
+static unsigned prepared,prepared_clear;
 static void emit(unsigned opcode,uint32_t a,uint32_t b,unsigned parameters){
  if(opcode_lane==4){opcode_word=used++;list[opcode_word]=0;opcode_lane=0;}
  list[opcode_word]|=opcode<<(opcode_lane++*8);
@@ -34,20 +36,12 @@ void x4_gpu_init(void){
  glMatrixMode(GL_MODELVIEW);glLoadIdentity();glMatrixMode(GL_TEXTURE);glLoadIdentity();
  x4_video_invalidate();x4_video_viewport(32,24,256,192);x4_video_enabled=1;
 }
-void x4_gpu_present(void){
- /* Contiguous native RGB555/alpha tiles avoid shared hardware palettes and
-  * atlas border sampling. Old frame versions retain their own VRAM slots. */
- vramSetBankA(VRAM_A_LCD);vramSetBankB(VRAM_B_LCD);vramSetBankC(VRAM_C_LCD);vramSetBankD(VRAM_D_LCD);
- for(unsigned i=0;i<X4_VIDEO_TILES;++i){
-  int dirty;const uint16_t* data=x4_video_rgba_texture(i,&dirty);if(!dirty)continue;
-  unsigned bank_index=i/256,offset=(i%256)*512;
-  uint8_t* bank=bank_index==0?(uint8_t*)VRAM_A:bank_index==1?(uint8_t*)VRAM_B:bank_index==2?(uint8_t*)VRAM_C:(uint8_t*)VRAM_D;
-  DC_FlushRange(data,512);dmaCopyWords(3,data,bank+offset,512);
- }
- vramSetBankA(VRAM_A_TEXTURE_SLOT0);vramSetBankB(VRAM_B_TEXTURE_SLOT1);vramSetBankC(VRAM_C_TEXTURE_SLOT2);vramSetBankD(VRAM_D_TEXTURE_SLOT3);
+void x4_gpu_prepare(void){
+ /* CPU-only work runs before waiting for VBlank. No hardware or texture
+  * ownership changes here; the preceding GPU frame may still be rendering. */
  unsigned gain=255-x4_video_alpha(),clear=x4_video_clear();
- glClearColor((clear&31)*gain/255,((clear>>5)&31)*gain/255,((clear>>10)&31)*gain/255,31);
- glMatrixMode(GL_MODELVIEW);glLoadIdentity();unsigned count;const X4VideoCommand* commands=x4_video_commands(&count);
+ prepared_clear=RGB15((clear&31)*gain/255,((clear>>5)&31)*gain/255,((clear>>10)&31)*gain/255);
+ unsigned count;const X4VideoCommand* commands=x4_video_commands(&count);
  sort_commands(commands,count);
  used=1;opcode_lane=4;
  unsigned last_texture=~0u,last_poly=~0u,last_color=~0u;
@@ -71,6 +65,26 @@ void x4_gpu_present(void){
   }
  }
  last_words=used-1;
+ prepared=1;
+}
+void x4_gpu_present(void){
+ if(!prepared)x4_gpu_prepare(); /* Small frontend frames retain this shortcut. */
+ unsigned uploads=x4_video_dirty_tiles(upload_slots);
+ /* Skip texture-bank remapping entirely on cache-only frames. Otherwise
+  * preserve the existing VBlank transfer and two-frame slot protection. */
+ if(uploads){
+  vramSetBankA(VRAM_A_LCD);vramSetBankB(VRAM_B_LCD);vramSetBankC(VRAM_C_LCD);vramSetBankD(VRAM_D_LCD);
+  for(unsigned j=0;j<uploads;++j){unsigned i=upload_slots[j];
+   int dirty;const uint16_t* data=x4_video_rgba_texture(i,&dirty);if(!dirty)continue;
+   unsigned bank_index=i/256,offset=(i%256)*512;
+   uint8_t* bank=bank_index==0?(uint8_t*)VRAM_A:bank_index==1?(uint8_t*)VRAM_B:bank_index==2?(uint8_t*)VRAM_C:(uint8_t*)VRAM_D;
+   DC_FlushRange(data,512);dmaCopyWords(3,data,bank+offset,512);
+  }
+  vramSetBankA(VRAM_A_TEXTURE_SLOT0);vramSetBankB(VRAM_B_TEXTURE_SLOT1);vramSetBankC(VRAM_C_TEXTURE_SLOT2);vramSetBankD(VRAM_D_TEXTURE_SLOT3);
+ }
+ glClearColor(prepared_clear&31,(prepared_clear>>5)&31,(prepared_clear>>10)&31,31);
+ glMatrixMode(GL_MODELVIEW);glLoadIdentity();
  if(used>1){list[0]=last_words;glCallList(list);}
  glFlush(GL_TRANS_MANUALSORT);
+ prepared=0;
 }

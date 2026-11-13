@@ -4,8 +4,8 @@ import hashlib,json,struct,subprocess,sys,shutil,os
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'tools'))
 from nds_header import crc16
 N06=True
-BUILD=ROOT/('build/native/n064-balanced' if N06 else 'build/native/n05-integrated');DIST=ROOT/('dist/native-n064' if N06 else 'dist/native-n05-flow');FLOW=ROOT/'build/native/n05-flow'
-target='mmx4_native_n064' if N06 else 'mmx4_native_n05_flow'
+BUILD=ROOT/('build/native/n065-tiles' if N06 else 'build/native/n05-integrated');DIST=ROOT/('dist/native-n065' if N06 else 'dist/native-n05-flow');FLOW=ROOT/'build/native/n05-flow'
+target='mmx4_native_n065' if N06 else 'mmx4_native_n05_flow'
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 inputs=json.loads((FLOW/'build_inputs.json').read_text())
 assert sha(FLOW/'flow.o')==inputs['flow_sha256']==sha(BUILD/'flow.o')
@@ -62,9 +62,9 @@ DIST.mkdir(parents=True,exist_ok=True)
 temporary=DIST/(binary.name+'.building');shutil.copyfile(binary,temporary);assert sha(temporary)==sha(binary)
 os.replace(temporary,DIST/binary.name)
 if N06:
- for required in ('x4_gpu_present','x4_video_tile','x4_n06_draw_hud','glInit'):assert required in symbols,required
+ for required in ('x4_gpu_prepare','x4_gpu_present','x4_video_dirty_tiles','x4_video_tile','x4_n06_draw_hud','glInit'):assert required in symbols,required
  for required in ('x4_arm7_audio_init','x4_sfx_set_backend','soundPreparePcm','soundSynchronize'):assert required in symbols,required
-shutil.copyfile(ROOT/'docs/STATUS_N064.md',DIST/'LEIA-ME.md')
+shutil.copyfile(ROOT/'docs/STATUS_N065.md',DIST/'LEIA-ME.md')
 shutil.copyfile(ROOT/'referencias/mmx4-decomp/LICENSE',DIST/'LICENSE-upstream.txt')
 for _,p in reports:shutil.copyfile(FLOW/'host'/p,DIST/p)
 if N06:shutil.copyfile(ROOT/'build/native/n06-video-tests/validation.json',DIST/'video_tests.json')
@@ -74,7 +74,8 @@ if N06:
  shutil.copyfile(ROOT/'docs/research/N06.md',DIST/'PESQUISA_N06_HISTORICO.md')
  for p in (FLOW/'host').glob('sigma*.png'):shutil.copyfile(p,DIST/('diagnostico_'+p.name))
  for p in (FLOW/'host').glob('jungle*.png'):shutil.copyfile(p,DIST/('diagnostico_'+p.name))
-manifest={'version':'N06.4' if N06 else 'N05 FLOW integration 2','not_complete_game':True,'physical_dsi_tested':False,
+ for p in (FLOW/'host').glob('menu*.png'):shutil.copyfile(p,DIST/('diagnostico_'+p.name))
+manifest={'version':'N06.5' if N06 else 'N05 FLOW integration 2','not_complete_game':True,'physical_dsi_tested':False,
  'binary':binary.name,'sha256':sha(binary),'build_id':build_id,'size':len(data),'unit_code':2,'bios_or_cpu_emulator_linked':False,
  'upstream':'https://github.com/sozud/mmx4','upstream_revision':'4e16dfc7c06597fd5719dd112654d8cf85d343c2',
  'host_stage_entry_cases':48,'host_system_cases':len(json.loads((FLOW/'host'/reports[1][1]).read_text())['cases']),
@@ -85,7 +86,15 @@ if N06:manifest.update(renderer='DS 3D RGB555-alpha tiles',logical_viewport=[320
  gpu_submission='packed four-opcode FIFO via DMA0; retained state; VTX16 then VTX_XY',gpu_compilation='ARM -O3',rng_startup_seed='0x0D37',log_commit='fclose/reopen per profile interval',
  audio_effects='Calico ARM7 driver and native hardware channels 8..15; acknowledged ownership',sfx_pcm_cache_limit=4194304,
  sfx_publication='cache insertion only; acknowledged stop before reuse',boss_trace=True,
+ graphics_pipeline='CPU preparation before VBlank; dirty-only texture uploads',tile_conversion='4bpp pair lookup and 8bpp color lookup; scalar reference validated',
  pending=['30/60 FPS measurement and visual qualification on physical DSi','melonDS white-screen diagnosis','DS blending approximates some original effects','FMV and pending sound commands','Complete campaign and all Sigma phases'])
 (DIST/'build_manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+benchmark=ROOT/'build/native/n065-video-benchmark/execution.json'
+if benchmark.is_file():
+ report=json.loads(benchmark.read_text());probe=report['probes']['after']
+ if (probe['source_sha256']==sha(ROOT/'native/src/x4_video.c') and
+     probe.get('fixture_sha256')==sha(ROOT/'native/tests/n065_video_benchmark.c') and
+     probe.get('header_sha256')==sha(ROOT/'native/src/x4_video.h')):
+  shutil.copyfile(benchmark,DIST/'tile_instruction_benchmark.json')
 assert sha(DIST/binary.name)==manifest['sha256']
 print(json.dumps({k:manifest[k] for k in ('binary','sha256','size','not_complete_game','physical_dsi_tested')},indent=2))

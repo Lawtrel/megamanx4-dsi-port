@@ -50,7 +50,7 @@ int main(int argc,char** argv){
   puts("PASS six native sessions, alternating X/Zero and areas in one process");return 0;
  }
  x4_audio_init("../../full-audio/music","../../full-audio/sfx");
- int sigma=!strcmp(mode,"sigma"),introleft=!strcmp(mode,"introleft"),introclear=!strcmp(mode,"introclear")||introleft,pauseoptions=!strcmp(mode,"pauseoptions"),pausejungle=!strcmp(mode,"pausejungle")||pauseoptions,ice=!strcmp(mode,"ice");
+ int saveprompt=!strcmp(mode,"saveprompt"),sigma=!strcmp(mode,"sigma"),introleft=!strcmp(mode,"introleft"),introclear=!strcmp(mode,"introclear")||introleft,pauseoptions=!strcmp(mode,"pauseoptions"),pausejungle=!strcmp(mode,"pausejungle")||pauseoptions,ice=!strcmp(mode,"ice");
  assert(!(!strcmp(mode,"campaign")?x4_flow_new_game(argv[1]):x4_flow_begin(argv[1],character,sigma?12:pausejungle?1:ice?2:0,(sigma||introclear||pausejungle)?1:0)));
  check_native_boss_safety();
  x4_video_enabled=getenv("X4_GPU")!=NULL;
@@ -62,7 +62,8 @@ int main(int argc,char** argv){
  uint16_t options_palette[512];int options_seen=0,options_restored=0;unsigned overlay_commands=0;
  for(unsigned tick=0;tick<(introclear?12000:ice?6000:sigma?3600:2400);++tick){
   unsigned held=0;
-  if(!strcmp(mode,"campaign")){if(tick%180==150)held=1u<<16;if(tick%40==10&&tick>150)held|=X4_JUMP;if(character&&tick==100)held|=X4_RIGHT;}
+  if(saveprompt){if(tick==400){engine_obj.state=9;engine_obj.unk1=engine_obj.unk2=engine_obj.unk3=0;}}
+  else if(!strcmp(mode,"campaign")){if(tick%180==150)held=1u<<16;if(tick%40==10&&tick>150)held|=X4_JUMP;if(character&&tick==100)held|=X4_RIGHT;}
   else if(!strcmp(mode,"pause")||pausejungle){
    if(pausejungle&&tick==300){engine_obj.checkpoint=2;engine_obj.state=5;engine_obj.unk1=0;engine_obj.unk1E=0;}
    if(tick==(pausejungle?800:400)||tick==(pausejungle?1100:700)||tick==(pausejungle?1500:1000))held=1u<<16;
@@ -141,6 +142,13 @@ int main(int argc,char** argv){
   if(tick>700&&seen_pause&&!bar_object.state&&!bar_object.unk5)seen_resume=1;
   if(tick%30==0){printf("%s tick=%u engine=%d/%d stage=%d/%d player=%d hp=%d bar=%d/%d lives=%d\n",mode,tick,s.state,s.substate,s.stage,s.area,s.player_state,s.hp,bar_object.state,bar_object.unk5,engine_obj.player_lives);fflush(stdout);}
   int errors=x4_flow_draw(screen);
+  if(saveprompt&&tick==900){
+   unsigned n;const X4VideoCommand* c=x4_video_commands(&n);unsigned labels=0;
+   for(unsigned i=0;i<COUNT(misc_objects);++i)if(misc_objects[i].active&&misc_objects[i].id==31)++labels;
+   assert(s.state==9&&labels);
+   for(unsigned i=0;i<n;++i)if(c[i].order== -8193&&c[i].screen_space)++overlay_commands;
+   if(x4_video_enabled){assert(overlay_commands);char name[64];snprintf(name,sizeof name,"menu_save_%u.ppm",character);n06_preview(name);}
+  }
   if(pauseoptions&&tick==1100){
    options_seen=bar_object.unk5==5&&bar_object.unk6==2;
    unsigned n;const X4VideoCommand* c=x4_video_commands(&n);
@@ -167,6 +175,7 @@ int main(int argc,char** argv){
  if(!strcmp(mode,"pause")||pausejungle)assert(seen_pause&&seen_resume);
  if(pausejungle)assert(palette_restores);
  if(pauseoptions){assert(options_seen&&options_restored);if(x4_video_enabled)assert(overlay_commands);}
+ if(saveprompt&&x4_video_enabled)assert(overlay_commands);
  if(!strcmp(mode,"transition"))assert(engine_obj.substage==1);
  if(!strcmp(mode,"respawn"))assert(g_Player.hp>0&&engine_obj.player_lives==1);
  if(!strcmp(mode,"weapons"))assert(changes>=9);

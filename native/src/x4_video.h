@@ -24,6 +24,8 @@ void x4_video_fade(unsigned alpha);
 const X4VideoCommand* x4_video_commands(unsigned* count);
 const uint8_t* x4_video_texture(unsigned slot,int* dirty);
 const uint16_t* x4_video_rgba_texture(unsigned slot,int* dirty);
+/* Snapshot of unconsumed uploads; callers provide X4_VIDEO_TILES slots. */
+unsigned x4_video_dirty_tiles(uint16_t* slots);
 const uint16_t* x4_video_palette(unsigned slot,int* dirty);
 uint16_t x4_video_clear(void);
 unsigned x4_video_alpha(void);

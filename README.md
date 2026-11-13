@@ -5,11 +5,12 @@ Port experimental do motor de Mega Man X4 para ARM9, baseado no código C de
 ao DSi. O executável nativo não inclui interpretador de CPU, BIOS ou emulador
 completo de PlayStation.
 
-**Em desenvolvimento: N06.4, com correção da chamada ARM na morte do dragão,
-restauração das opções, comandos gráficos compactos e cache PCM compartilhado.**
-Os efeitos continuam pelo ARM7/hardware. Na N06.3, o log físico registrou média
-de 27,87 FPS para X e 26,63 para Zero, em trechos distintos. A N06.4 ainda
-precisa de medição no console; veja [os testes físicos](docs/HARDWARE_TESTS.md).
+**Em desenvolvimento: N06.5, com conversão acelerada de texturas, preparação
+gráfica antes do VBlank e correção dos textos de salvar/continuar.**
+Os efeitos continuam pelo ARM7/hardware. Na N06.4, o usuário concluiu a intro
+e derrotou Magma Dragoon; o desempenho dessa fase ainda ficou perto de 20–22
+FPS. A N06.5 busca 30 FPS e ainda precisa de medição no console;
+veja [os testes físicos](docs/HARDWARE_TESTS.md).
 
 ## O que está aqui
 
@@ -35,7 +36,7 @@ python3 native/compile.py --n06
 
 O setup obtém o SDK e as fontes fixadas. O dump suportado é a edição USA
 SLUS-00561; o script verifica seu tamanho e SHA-256 antes de extrair dados.
-A saída é `dist/native-n064/mmx4_native_n064.nds`, para uso local em modo DSi.
+A saída é `dist/native-n065/mmx4_native_n065.nds`, para uso local em modo DSi.
 Não publique esse arquivo: ele inclui os recursos extraídos do jogo.
 
 No Windows, depois do setup, execute `COMPILAR_JOGO.cmd` ou `COMPILAR_N06.cmd`.
@@ -60,13 +61,13 @@ não representam um segundo produto ou um emulador.
 
 ## Estado e próximos passos
 
-O teste automatizado cobre 48 entradas de área e 20 cenários de sistemas,
+O teste automatizado cobre 48 entradas de área e 22 cenários de sistemas,
 incluindo a luta do olho com Zero, pausa, transições, saída da introdução e
 seis sessões consecutivas no mesmo processo.
 A campanha completa permanece em validação. Vídeos, alguns comandos de áudio,
 fidelidade de efeitos, validação física das correções e otimização continuam pendentes.
 
-- [Estado e controles da N06.4](docs/STATUS_N064.md)
+- [Estado e controles da N06.5](docs/STATUS_N065.md)
 - [Resultado do último teste físico](docs/HARDWARE_TESTS.md)
 - [Prioridades](docs/ROADMAP.md)
 - [Arquitetura](native/README.md)

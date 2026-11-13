@@ -1,6 +1,6 @@
 # Motor nativo ARM9
 
-O alvo atual é a N06.4, experimental. Estado do produto e resultado físico
+O alvo atual é a N06.5, experimental. Estado do produto e resultado físico
 estão em [README](../README.md) e [testes no console](../docs/HARDWARE_TESTS.md).
 
 ## Componentes
@@ -31,9 +31,11 @@ preservando as verificações de tamanho relevantes.
 `build_n05_flow.py` e `package_n05_flow.py`. O modelo de Makefile faz parte do
 código em `Makefile.nds`; `build/` é sempre gerado.
 
-A qualificação física é indispensável. A N06.4 mantém os efeitos pelo ARM7
+A qualificação física é indispensável. A N06.5 mantém os efeitos pelo ARM7
 em `dsi/n063_arm7_audio.c` e publica o PCM imutável apenas na entrada do cache.
-O teste `build_n064_arm_abi.py`, com execução opcional em
-`run_n064_arm_abi.py`, reproduz a chamada incompatível que preservava filtros
-na morte do chefe. O envio gráfico retém estados iguais e compacta opcodes;
-a validação registra vértices, cores, ordem, texturas e profundidade.
+As tabelas de pixels em `x4_video.c` aceleram a conversão de tiles novos.
+`x4_gpu_prepare` monta os comandos em RAM antes da espera de vídeo;
+`x4_gpu_present` transfere apenas texturas alteradas e envia os comandos.
+`benchmark_n065_video.py` compara instruções ARM com a N06.4 usando dados
+sintéticos; não mede FPS. A correção anterior do dragão permanece coberta
+pelo diagnóstico `build_n064_arm_abi.py` e `run_n064_arm_abi.py`.
