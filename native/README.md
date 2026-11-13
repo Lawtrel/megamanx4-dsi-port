@@ -1,0 +1,35 @@
+# Motor nativo ARM9
+
+O alvo atual é a N06.2, experimental. Estado do produto e resultado físico
+estão em [README](../README.md) e [testes no console](../docs/HARDWARE_TESTS.md).
+
+## Componentes
+
+- `dsi/n05_flow.c`: estado original do jogo e entrada nativa por fase/campanha.
+- `dsi/n05_flow_loading.c`: recursos locais, arena e carregamentos adicionais.
+- `dsi/n05_tasks.c`: tarefas cooperativas com Calico e guardas de pilha.
+- `dsi/n05_render.c`: composição de sprites, cenário e HUD.
+- `dsi/n05_flow_ui.c`: pausa, paletas e elementos de interface.
+- `dsi/n06_gpu.c`: comandos gráficos nativos enviados por DMA à GPU do DS.
+- `src/x4_video.c`: cache de texturas e proteção dos quadros em uso.
+- `src/x4_audio.c`, `x4_music.c`, `x4_sfx.c`: reprodução e mistura PCM nativas.
+- `tests/`: verificações de memória, fases, sistemas, cache e comandos gráficos.
+
+O código original C é compilado para ARM9. A ferramenta de áudio roda no
+computador para converter dados; ela não é vinculada ao executável do DSi.
+Os endereços e nomes históricos do código descompilado não representam uma
+CPU de PlayStation interpretada durante a execução.
+
+## Dependências e geração
+
+`tools/setup_native.py` fixa a revisão de `sozud/mmx4`, verifica o submódulo
+`psyz` e aplica os arquivos de `patches/` sem descartar mudanças desconhecidas.
+`build_gamecore.py` gera os cabeçalhos com os ajustes de layout 32 bits,
+preservando as verificações de tamanho relevantes.
+
+`compile.py` prepara os recursos privados, verifica os componentes e chama
+`build_n05_flow.py` e `package_n05_flow.py`. O modelo de Makefile faz parte do
+código em `Makefile.nds`; `build/` é sempre gerado.
+
+A qualificação física é indispensável: a N06.2 passa os testes no computador,
+mas o console revelou uma falha dentro de `memcpy` ao iniciar outra área.

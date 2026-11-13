@@ -1,0 +1,62 @@
+diff --git a/src/main/mains/main_08_eregion.c b/src/main/mains/main_08_eregion.c
+index 0077eb0..0031b74 100644
+--- a/src/main/mains/main_08_eregion.c
++++ b/src/main/mains/main_08_eregion.c
+@@ -726,6 +726,7 @@ void eregion_death_start(struct MainObj* self)
+     self->unk7C = 0x7F;
+     self->unk7E = 0x19;
+     self->ext.main_9.object_id = 0x19;
++    self->ext.main_9.effect = NULL; /* Native: no stale effect-pool owner. */
+     update_on_screen(BASE_OBJECT(self), 0x90, 0x90);
+ }
+ 
+@@ -738,6 +739,9 @@ void eregion_death_blink(struct MainObj* self)
+     if (--self->unk7C == 0) {
+         self->unk6++;
+         effect = find_free_effect_obj();
++        /* Native: retry next tick if effects are full; never advance to a
++         * state that dereferences an unallocated explosion. */
++        if (effect == NULL) { self->unk6--; self->unk7C = 1; return; }
+         if (effect != NULL) {
+             effect->active = 1;
+             effect->id = 0x1A;
+@@ -759,12 +763,12 @@ void eregion_death_blink(struct MainObj* self)
+ void eregion_death_wait_explosion(struct MainObj* self)
+ {
+     struct MiscObj* misc;
+-    s8* data;
++    struct EffectObj* effect;
+ 
+-    data = (s8*)self->ext.main_9.effect;
++    effect = self->ext.main_9.effect;
+     self->on_screen = 0;
+-    if (data[0] != 0) {
+-        if (data[7] == 0) {
++    if (effect != NULL && effect->active != 0 && effect->id == 0x1A) {
++        if (effect->unk7 == 0) {
+             if (self->unk7E-- == 0) {
+                 self->unk7E = 5;
+                 self->unk42 = self->unk42 ^ 0x8000;
+diff --git a/src/main/mains/main_18_ice_core.c b/src/main/mains/main_18_ice_core.c
+index ad9454d..1e26e03 100644
+--- a/src/main/mains/main_18_ice_core.c
++++ b/src/main/mains/main_18_ice_core.c
+@@ -1136,11 +1136,18 @@ void ice_core_shed_ice(struct MainObj* self)
+         timer--;
+         self->ext.main_18.shed_timer = timer;
+         if ((timer & 0x1F) == 0) {
++            /* Native safety: a damaged/zero RNG must not lock the scheduler.
++             * Keep the original rolls, then choose an existing piece. */
++            unsigned attempts = 0;
+             do {
+                 random = get_random();
+                 if (random) {
+                     random %= 10;
+                 }
++                if (++attempts == 32 && !(self->ext.main_18.ice_pieces & D_800FBEDC[random])) {
++                    for (random = 0; random < 10; ++random)
++                        if (self->ext.main_18.ice_pieces & D_800FBEDC[random]) break;
++                }
+             } while ((self->ext.main_18.ice_pieces & D_800FBEDC[random]) == 0);
+ 
+             self->ext.main_18.ice_pieces = self->ext.main_18.ice_pieces ^ D_800FBEDC[random];
