@@ -10,6 +10,9 @@ static uint32_t list[1+21*X4_VIDEO_COMMANDS] __attribute__((aligned(32)));
 static unsigned used,opcode_word,opcode_lane,last_words;
 static uint16_t upload_slots[X4_VIDEO_TILES];
 static unsigned prepared,prepared_clear;
+static unsigned upload_batches,uploaded_tiles;
+unsigned x4_gpu_upload_batches(void){return upload_batches;}
+unsigned x4_gpu_upload_tiles(void){return uploaded_tiles;}
 static void emit(unsigned opcode,uint32_t a,uint32_t b,unsigned parameters){
  if(opcode_lane==4){opcode_word=used++;list[opcode_word]=0;opcode_lane=0;}
  list[opcode_word]|=opcode<<(opcode_lane++*8);
@@ -70,15 +73,24 @@ void x4_gpu_prepare(void){
 void x4_gpu_present(void){
  if(!prepared)x4_gpu_prepare(); /* Small frontend frames retain this shortcut. */
  unsigned uploads=x4_video_dirty_tiles(upload_slots);
+ upload_batches=uploaded_tiles=0;
  /* Skip texture-bank remapping entirely on cache-only frames. Otherwise
   * preserve the existing VBlank transfer and two-frame slot protection. */
  if(uploads){
   vramSetBankA(VRAM_A_LCD);vramSetBankB(VRAM_B_LCD);vramSetBankC(VRAM_C_LCD);vramSetBankD(VRAM_D_LCD);
-  for(unsigned j=0;j<uploads;++j){unsigned i=upload_slots[j];
+  for(unsigned j=0;j<uploads;){unsigned i=upload_slots[j++];
    int dirty;const uint16_t* data=x4_video_rgba_texture(i,&dirty);if(!dirty)continue;
+   unsigned tiles=1;
+   /* Slots are reported in ascending order; both RAM pixels and LCD VRAM
+    * are contiguous within a bank. Merge only adjacent dirty slots, never
+    * cross a bank or include a clean/protected slot. Consume each flag. */
+   while(j<uploads&&upload_slots[j]==i+tiles&&(i+tiles)/256==i/256){
+    x4_video_rgba_texture(upload_slots[j++],&dirty);++tiles;
+   }
    unsigned bank_index=i/256,offset=(i%256)*512;
    uint8_t* bank=bank_index==0?(uint8_t*)VRAM_A:bank_index==1?(uint8_t*)VRAM_B:bank_index==2?(uint8_t*)VRAM_C:(uint8_t*)VRAM_D;
-   DC_FlushRange(data,512);dmaCopyWords(3,data,bank+offset,512);
+   DC_FlushRange(data,tiles*512);dmaCopyWords(3,data,bank+offset,tiles*512);
+   ++upload_batches;uploaded_tiles+=tiles;
   }
   vramSetBankA(VRAM_A_TEXTURE_SLOT0);vramSetBankB(VRAM_B_TEXTURE_SLOT1);vramSetBankC(VRAM_C_TEXTURE_SLOT2);vramSetBankD(VRAM_D_TEXTURE_SLOT3);
  }

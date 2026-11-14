@@ -84,6 +84,19 @@ int main(void){
   assert(!x4_video_dirty_tiles(slots));
  }
  assert(cases==512);
+ /* Raw-palette snapshots must not confuse the high alpha bit, transparent
+  * black and opaque black, or create new tiles for unchanged colors. */
+ x4_video_begin(0);x4_video_begin(0);memset(raw,0x11,sizeof raw);memset(palette,0,sizeof palette);palette[1]=31;
+ assert(!x4_video_tile(raw,128,4,palette,16,0,0,16,16,0,0,60000));
+ unsigned saved_slot=c[0].tile;x4_video_rgba_texture(saved_slot,&dirty);
+ for(unsigned i=0;i<8;++i){x4_video_begin(0);assert(!x4_video_tile(raw,128,4,palette,16,0,0,16,16,0,0,60000));assert(c[0].tile==saved_slot&&!x4_video_stats().palette_uploads);}
+ palette[1]|=0x8000;x4_video_begin(0);assert(!x4_video_tile(raw,128,4,palette,16,0,0,16,16,0,0,60000));
+ assert(c[0].tile==saved_slot&&!x4_video_stats().palette_uploads);
+ palette[1]=0;x4_video_begin(0);assert(!x4_video_tile(raw,128,4,palette,16,0,0,16,16,0,0,60000));
+ unsigned transparent_slot=c[0].tile;assert(x4_video_rgba_texture(transparent_slot,&dirty)[0]==0);
+ palette[1]=0x8000;x4_video_begin(0);assert(!x4_video_tile(raw,128,4,palette,16,0,0,16,16,0,0,60000));
+ assert(c[0].tile!=transparent_slot&&x4_video_rgba_texture(c[0].tile,&dirty)[0]==0x8000);
+ assert(x4_video_rgba_texture(transparent_slot,&dirty)[0]==0);
  puts("PASS 512 scalar/lookup comparisons and dirty upload snapshots");
  puts("PASS N06 indexed tiles, opaque black, transparency, palettes, pose tags, viewport edges and geometry bounds");
 }

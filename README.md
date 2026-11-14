@@ -5,11 +5,11 @@ Port experimental do motor de Mega Man X4 para ARM9, baseado no código C de
 ao DSi. O executável nativo não inclui interpretador de CPU, BIOS ou emulador
 completo de PlayStation.
 
-**Em desenvolvimento: N06.5, com conversão acelerada de texturas, preparação
-gráfica antes do VBlank e correção dos textos de salvar/continuar.**
+**Em desenvolvimento: N06.6, com transferências de texturas agrupadas e
+reaproveitamento de paletas inalteradas entre quadros.**
 Os efeitos continuam pelo ARM7/hardware. Na N06.4, o usuário concluiu a intro
 e derrotou Magma Dragoon; o desempenho dessa fase ainda ficou perto de 20–22
-FPS. A N06.5 busca 30 FPS e ainda precisa de medição no console;
+FPS. A N06.6 busca 30 FPS e ainda precisa de medição no console;
 veja [os testes físicos](docs/HARDWARE_TESTS.md).
 
 ## O que está aqui
@@ -36,7 +36,7 @@ python3 native/compile.py --n06
 
 O setup obtém o SDK e as fontes fixadas. O dump suportado é a edição USA
 SLUS-00561; o script verifica seu tamanho e SHA-256 antes de extrair dados.
-A saída é `dist/native-n065/mmx4_native_n065.nds`, para uso local em modo DSi.
+A saída é `dist/native-n066/mmx4_native_n066.nds`, para uso local em modo DSi.
 Não publique esse arquivo: ele inclui os recursos extraídos do jogo.
 
 No Windows, depois do setup, execute `COMPILAR_JOGO.cmd` ou `COMPILAR_N06.cmd`.
@@ -67,7 +67,7 @@ seis sessões consecutivas no mesmo processo.
 A campanha completa permanece em validação. Vídeos, alguns comandos de áudio,
 fidelidade de efeitos, validação física das correções e otimização continuam pendentes.
 
-- [Estado e controles da N06.5](docs/STATUS_N065.md)
+- [Estado e controles da N06.6](docs/STATUS_N066.md)
 - [Resultado do último teste físico](docs/HARDWARE_TESTS.md)
 - [Prioridades](docs/ROADMAP.md)
 - [Arquitetura](native/README.md)

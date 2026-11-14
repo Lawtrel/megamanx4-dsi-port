@@ -6,8 +6,11 @@ typedef struct {
  const uint8_t* source;uint32_t tag,frame,generation,palette_version;unsigned stride;uint16_t palette;
  uint8_t bits,w,h,dirty;
 } Tile;
-typedef struct {const uint16_t* source;uint32_t frame,version;unsigned colors;uint8_t swap,dirty;uint16_t data[256];uint32_t zero[8];} Palette;
-static Tile tiles[X4_VIDEO_TILES];static Palette palettes[X4_VIDEO_PALETTES];
+_Static_assert(sizeof(void*)!=4||sizeof(Tile)==32,"ARM tile metadata must occupy one cache line");
+typedef struct {const uint16_t* source;uint32_t frame,version;unsigned colors;uint8_t swap,dirty,transparent;uint16_t data[256],original[256];uint32_t zero[8];} Palette;
+/* ARM32 Tile is one 32-byte cache line; don't split keys across lines. */
+static Tile tiles[X4_VIDEO_TILES] __attribute__((aligned(32)));
+static Palette palettes[X4_VIDEO_PALETTES];
 /* Keep the frequently queried keys separate from decoded pixel storage. */
 static uint8_t indexed[X4_VIDEO_TILES][256] __attribute__((aligned(4)));
 typedef union {uint32_t pairs[256];uint16_t single[256];} RgbaTable;
@@ -58,8 +61,12 @@ static int palette_slot(const uint16_t* p,unsigned colors){
  palette_next[slot]=palette_buckets[hash];palette_buckets[hash]=slot;
 found:;
  last_palette=slot;Palette* q=&palettes[slot];if(q->frame==frame)return (int)slot;
- uint16_t data[256]={0};uint32_t zero[8]={0};unsigned swap=0;
- for(unsigned i=0;i<colors;++i){data[i]=p[i]&32767;if(!p[i]){zero[i>>5]|=1u<<(i&31);if(!swap&&i)swap=i;}}
+ /* A palette is checked again on its first use in each new frame. Most
+  * sources are unchanged: compare only their original colors, retaining
+  * remapped data, lookup tables and version without rebuilding them. */
+ if(q->source==p&&q->colors==colors&&!memcmp(q->original,p,colors*sizeof *p)){q->frame=frame;return (int)slot;}
+ uint16_t data[256]={0};uint32_t zero[8]={0};unsigned swap=0,transparent=0;
+ for(unsigned i=0;i<colors;++i){data[i]=p[i]&32767;if(!p[i]){transparent=1;zero[i>>5]|=1u<<(i&31);if(!swap&&i)swap=i;}}
  /* PS1 assets use zero COLOR, rather than a mandatory transparent index.
   * Swap an opaque index zero to the first transparent index when needed. */
  if(!p[0]||!swap)swap=0;
@@ -75,7 +82,8 @@ found:;
    for(unsigned i=0;i<256;++i){rgba_tables[slot].single[i]=p[i]?(p[i]|0x8000):0;index_tables[slot].single[i]=!p[i]?0:!i&&swap?swap:i;}
   }
  }
- memcpy(q->zero,zero,sizeof zero);q->source=p;q->colors=colors;q->swap=swap;q->frame=frame;
+ memcpy(q->original,p,colors*sizeof *p);memcpy(q->zero,zero,sizeof zero);
+ q->transparent=transparent;q->source=p;q->colors=colors;q->swap=swap;q->frame=frame;
  return (int)slot;
 }
 static unsigned hash_key(const uint8_t* p,unsigned stride,unsigned bits,unsigned palette,unsigned w,unsigned h,uint32_t tag,uint32_t generation,uint32_t version){
@@ -130,13 +138,13 @@ int x4_video_tile(const uint8_t* raw,unsigned stride,unsigned bits,const uint16_
   next[slot]=buckets[hash];buckets[hash]=slot;++stats.misses;
  }else ++stats.hits;
  tiles[slot].frame=frame;
- X4VideoCommand* c=&commands[count++];memset(c,0,sizeof *c);
+ X4VideoCommand* c=&commands[count++];
  c->order=draw_order;
  c->screen_space=screen_space;
  c->x[0]=c->x[3]=x;c->x[1]=c->x[2]=x+w;c->y[0]=c->y[1]=y;c->y[2]=c->y[3]=y+h;
  c->tile=slot;c->palette=pi;c->w=w;c->h=h;c->flip=flip;c->semi=!!semi;
  /* No transparent colors means index zero must be drawn normally. */
- c->textured=1;for(unsigned i=0;i<8;++i)if(palettes[pi].zero[i]){c->textured=2;break;}
+ c->textured=palettes[pi].transparent?2:1;
  for(unsigned i=0;i<4;++i)c->color[i]=32767;
  stats.commands=count;return 0;
 }

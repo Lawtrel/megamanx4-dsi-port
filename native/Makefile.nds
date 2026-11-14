@@ -1,4 +1,4 @@
-GAME_TITLE := X4 Native N06.5
+GAME_TITLE := X4 Native N06.6
 GAME_SUBTITLE1 := Native ARM9 engine
 GAME_SUBTITLE2 := Development - known issues
 #---------------------------------------------------------------------------------
@@ -17,7 +17,7 @@ include $(DEVKITARM)/ds_rules
 # SOURCES is a list of directories containing source code
 # INCLUDES is a list of directories containing extra header files
 #---------------------------------------------------------------------------------
-TARGET := mmx4_native_n065
+TARGET := mmx4_native_n066
 BUILD		:=	build
 SOURCES		:=	gfx source data
 INCLUDES	:=	include build

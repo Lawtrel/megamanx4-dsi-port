@@ -16,8 +16,9 @@
 #include <calico/system/tick.h>
 #ifdef X4_N06_GPU
 void x4_gpu_init(void);void x4_gpu_prepare(void);void x4_gpu_present(void);unsigned x4_gpu_words(void);
-#define VERSION "N06.5"
-#define LOG_PREFIX "native_n065"
+unsigned x4_gpu_upload_batches(void);unsigned x4_gpu_upload_tiles(void);
+#define VERSION "N06.6"
+#define LOG_PREFIX "native_n066"
 #else
 #define VERSION "N05"
 #define LOG_PREFIX "native_n05_flow"
@@ -213,6 +214,7 @@ int main(int argc,char** argv){
      char debug[256];x4_flow_debug(debug,sizeof debug);fprintf(log_file,"%s\n",debug);
 #ifdef X4_N06_GPU
      fprintf(log_file,"FIFO words=%u old_words=%u\n",x4_gpu_words(),21*v.commands);
+     fprintf(log_file,"UPLOAD tiles=%u batches=%u\n",x4_gpu_upload_tiles(),x4_gpu_upload_batches());
 #endif
      commit_log();}
    }
