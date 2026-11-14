@@ -1,23 +1,17 @@
 # Prioridades atuais
 
-1. **Qualificar a N07 no DSi.** Destruir o vagão com a Ride Armor, concluir
-   uma fase, salvar pelo menu original, reiniciar e carregar a campanha.
-   Conferir as armaduras, armas, melhorias e fases vencidas de X/Zero.
-2. **Campanha completa.** Qualificar os oito Mavericks, progressão da história,
-   rotas finais e todas as formas de Sigma. Ter o código integrado não prova
-   que todas essas sequências foram concluídas no port.
-3. **30 FPS sustentados.** O log da N06.7 apresentou médias de 47,63/39,19 nas
-   áreas do trem, com personagens diferentes e quedas abaixo de 30. Usar
-   percursos equivalentes para comparar; considerar preparação, lógica,
-   desenho e envio antes de transferir novas tarefas entre CPUs.
-4. **Áudio e vídeos.** Integrar vídeos e comandos sonoros restantes e melhorar
-   a fidelidade dos efeitos após a qualificação de campanha, menus e saves.
+1. **Qualificar os novos recursos de mídia da N08 no DSi.** Imagem e som dos
+   vídeos, botão de pular, término natural e retorno às cores/áudio do jogo.
+   A N07 foi confirmada funcionando pelo usuário em 14/11/2026.
+2. **Áudio e fidelidade gráfica restantes.** Investigar seis comandos de
+   sequência, panning/reverb, loops e modos de transparência do compositor.
+3. **30 FPS sustentados.** Preservar as otimizações e medir percursos
+   equivalentes. Os vídeos usam 15 quadros/s e têm orçamento próprio de leitura;
+   não confundir a taxa do filme com o contador do laço do jogo.
+4. **Validação completa da campanha — ao final.** Por escolha explícita do
+   usuário, deixar os oito Mavericks, todas as rotas de X/Zero, salvamento ao
+   longo da campanha e todas as formas de Sigma para a revisão geral final.
 
-## Critérios de estabilidade
-
-- Repetir introdução de X, olho de gelo com Zero, pausa, trem e transições.
-- Verificar gravação e carregamento após fechar e reabrir o jogo.
-- Preservar logs e registrar versão, identificador e trecho usado.
-- Distinguir testes no computador de testes no DSi.
-
-A N07 permanece experimental. Não há promessa de 30 ou 60 FPS em toda a campanha.
+Testes automatizados de regressão continuam sendo executados durante o
+trabalho. Eles não equivalem à qualificação física de uma campanha inteira.
+Não há promessa de 30 ou 60 FPS em todas as fases na versão atual.

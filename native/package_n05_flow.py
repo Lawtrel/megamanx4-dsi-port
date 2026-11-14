@@ -4,8 +4,8 @@ import hashlib,json,struct,subprocess,sys,shutil,os
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'tools'))
 from nds_header import crc16
 N06=True
-BUILD=ROOT/('build/native/n07-campaign' if N06 else 'build/native/n05-integrated');DIST=ROOT/('dist/native-n07' if N06 else 'dist/native-n05-flow');FLOW=ROOT/'build/native/n05-flow'
-target='mmx4_native_n07' if N06 else 'mmx4_native_n05_flow'
+BUILD=ROOT/('build/native/n08-media' if N06 else 'build/native/n05-integrated');DIST=ROOT/('dist/native-n08' if N06 else 'dist/native-n05-flow');FLOW=ROOT/'build/native/n05-flow'
+target='mmx4_native_n08' if N06 else 'mmx4_native_n05_flow'
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 inputs=json.loads((FLOW/'build_inputs.json').read_text())
 assert sha(FLOW/'flow.o')==inputs['flow_sha256']==sha(BUILD/'flow.o')
@@ -19,9 +19,10 @@ for name,report in reports:
  assert validation['binary_sha256']==source['binary_sha256']==sha(FLOW/'host'/name)
  assert validation['cases'] and all(r['returncode']==0 for r in validation['cases']),report
  for path,digest in source['sources'].items():assert sha(ROOT/path)==digest,path
-for p in ('music-tests','sfx-tests','save-tests'):
+for p in ('music-tests','sfx-tests','save-tests','movie-tests'):
  report=json.loads((ROOT/'build/native'/p/'validation.json').read_text());assert report['status']=='passed'
  for path,digest in report.get('sources',report.get('source_sha256',{})).items():assert sha(ROOT/path)==digest,path
+assert json.loads((ROOT/'build/native/movie-tests/validation.json').read_text())['assets_manifest_sha256']==sha(ROOT/'build/native/movies/manifest.json')
 if N06:
  video=json.loads((ROOT/'build/native/n06-video-tests/validation.json').read_text());assert video['status']=='passed'
  for path,digest in video['sources'].items():assert sha(ROOT/path)==digest,path
@@ -56,7 +57,7 @@ expected={r['path']:r['sha256'] for r in json.loads((BUILD/'assets.json').read_t
 symbols=subprocess.check_output([str(ROOT/'ambiente/sdk/devkitARM/bin/arm-none-eabi-nm'),str(BUILD/(target+'.elf'))],text=True)
 for banned in ('Psyz','psyz','CPUState','psx_dispatch','cpu_run','dyn_run','CdControl','SpuGet','SsUt','SsSep','DrawSync','MoveImage','unused_flow_','UNIMPLEMENTED'):
  assert banned not in symbols,banned
-for required in ('player_update_normal','update_main_objects','engine_update_funcs','x4_flow_begin','x4_flow_title','layout_gate_apply_layout','func_8001C210','x4_audio_read','x4_sfx_mix','mmx4_pc_card_write','mmStreamOpen','threadPrepare'):
+for required in ('player_update_normal','update_main_objects','engine_update_funcs','x4_flow_begin','x4_flow_title','layout_gate_apply_layout','func_8001C210','x4_audio_read','x4_movie_start','x4_movie_tick','x4_movie_decode','x4_sfx_mix','mmx4_pc_card_write','mmStreamOpen','threadPrepare'):
  assert required in symbols,required
 DIST.mkdir(parents=True,exist_ok=True)
 temporary=DIST/(binary.name+'.building');shutil.copyfile(binary,temporary);assert sha(temporary)==sha(binary)
@@ -64,12 +65,13 @@ os.replace(temporary,DIST/binary.name)
 if N06:
  for required in ('x4_gpu_prepare','x4_gpu_present','x4_gpu_upload_batches','x4_video_dirty_tiles','x4_video_tile','x4_n06_draw_hud','glInit'):assert required in symbols,required
  for required in ('x4_arm7_audio_init','x4_sfx_set_backend','soundPreparePcm','soundSynchronize'):assert required in symbols,required
-shutil.copyfile(ROOT/'docs/STATUS_N07.md',DIST/'LEIA-ME.md')
+shutil.copyfile(ROOT/'docs/STATUS_N08.md',DIST/'LEIA-ME.md')
 shutil.copyfile(ROOT/'referencias/mmx4-decomp/LICENSE',DIST/'LICENSE-upstream.txt')
 for _,p in reports:shutil.copyfile(FLOW/'host'/p,DIST/p)
 if N06:shutil.copyfile(ROOT/'build/native/n06-video-tests/validation.json',DIST/'video_tests.json')
 if N06:shutil.copyfile(ROOT/'build/native/n061-gpu-tests/validation.json',DIST/'gpu_backend_tests.json')
 if N06:shutil.copyfile(ROOT/'build/native/n063-arm7-tests/validation.json',DIST/'arm7_audio_tests.json')
+shutil.copyfile(ROOT/'build/native/movie-tests/validation.json',DIST/'movie_tests.json')
 if N06:
  shutil.copyfile(ROOT/'docs/research/N06.md',DIST/'PESQUISA_N06_HISTORICO.md')
  for p in (FLOW/'host').glob('sigma*.png'):shutil.copyfile(p,DIST/('diagnostico_'+p.name))
@@ -77,20 +79,21 @@ if N06:
  for p in (FLOW/'host').glob('menu*.png'):shutil.copyfile(p,DIST/('diagnostico_'+p.name))
  for pattern in ('train_[01]_*.png','train_car_broken_[01].png','armor*.png','title_[01]_*.png'):
   for p in (FLOW/'host').glob(pattern):shutil.copyfile(p,DIST/('diagnostico_'+p.name))
-manifest={'version':'N07' if N06 else 'N05 FLOW integration 2','not_complete_game':True,'physical_dsi_tested':False,
+ for p in (ROOT/'build/native/movie-tests').glob('movie_*.png'):shutil.copyfile(p,DIST/('diagnostico_'+p.name))
+manifest={'version':'N08' if N06 else 'N05 FLOW integration 2','not_complete_game':True,'physical_dsi_tested':False,
  'binary':binary.name,'sha256':sha(binary),'build_id':build_id,'size':len(data),'unit_code':2,'bios_or_cpu_emulator_linked':False,
  'upstream':'https://github.com/sozud/mmx4','upstream_revision':'4e16dfc7c06597fd5719dd112654d8cf85d343c2',
  'host_stage_entry_cases':48,'host_system_cases':len(json.loads((FLOW/'host'/reports[1][1]).read_text())['cases']),
- 'assets':{'arc':138,'music_voice_tracks':80,'sfx_banks':79,'short_sequences':20},
- 'pending':['Full physical DSi qualification and complete playthrough','FMV playback','Ten unsupported sound commands and precise looping/reverb/panning','Complete graphics priority/filter fidelity','Original title/load menu qualification','30/60 FPS optimization'],
+ 'assets':{'arc':138,'music_voice_tracks':80,'sfx_banks':79,'short_sequences':20,'native_movies':11},
+ 'pending':['Full physical DSi qualification and complete playthrough','Physical movie playback and synchronization qualification','Ten unsupported sound commands and precise looping/reverb/panning','Complete graphics priority/filter fidelity','Original title/load menu qualification','30/60 FPS optimization'],
  'flow_object_sha256':sha(BUILD/'flow.o'),'frontend_sha256':sha(BUILD/'source/main.c'),'nitrofs_files':files,'segments':segments}
-if N06:manifest.update(renderer='DS 3D RGB555-alpha tiles',logical_viewport=[320,240],world_crop=[32,24,256,192],physical_viewport=[256,192],texture_cache_bytes=524288,palette_cache_bytes=0,melonDS_tested=False,
+if N06:manifest.update(movies='11 independent LZ10 RGB555 clips at 256x192/15fps and PCM16 mono; source decoding offline',renderer='DS 3D RGB555-alpha tiles',logical_viewport=[320,240],world_crop=[32,24,256,192],physical_viewport=[256,192],texture_cache_bytes=524288,palette_cache_bytes=0,melonDS_tested=False,
  gpu_submission='packed four-opcode FIFO via DMA0; retained state; VTX16 then VTX_XY',gpu_compilation='ARM -O3',rng_startup_seed='0x0D37',log_commit='fclose/reopen per profile interval',
  audio_effects='Calico ARM7 driver and native hardware channels 8..15; acknowledged ownership',sfx_pcm_cache_limit=4194304,
  sfx_publication='cache insertion only; acknowledged stop before reuse',boss_trace=True,
  graphics_pipeline='CPU preparation before VBlank; adjacent dirty uploads batched within each bank',tile_conversion='4bpp pair lookup and 8bpp color lookup; scalar reference validated',palette_reuse='raw color snapshot checked on first use in each new frame',
  campaign_menu='original animated title, new-game/load menus and native two-bank save journal',mutable_layout='shared original D_80141BE8 for stage events, drawing and collision',train_background='original camera-wrap rule and repeated-map seam sampling',player_armor='original part assemblies and palettes composed over shared player pose',
- pending=['30/60 FPS measurement and visual qualification on physical DSi','melonDS white-screen diagnosis','DS blending approximates some original effects','FMV and pending sound commands','Complete campaign and all Sigma phases'])
+ pending=['30/60 FPS measurement and visual qualification on physical DSi','melonDS white-screen diagnosis','DS blending approximates some original effects','Six remaining sound commands and audio effect fidelity','Complete campaign and all Sigma phases'])
 (DIST/'build_manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
 benchmark=ROOT/'build/native/n066-video-benchmark/execution.json'
 if benchmark.is_file():

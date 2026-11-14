@@ -23,7 +23,7 @@ else:
 for n in json.loads((OUT/'replaced_sources.json').read_text()):selected.discard(REF/'src/main'/n)
 selected.update(ROOT/n for n in json.loads((OUT/'adapter_sources.json').read_text()))
 selected.update([ROOT/'native/dsi/n05_tasks.c',ROOT/'native/tests/thread_host_shim/shim.c',ROOT/'native/tests'/('n05_systems_driver.c' if systems else 'n05_flow_driver.c')])
-standard={'abort','memcpy','memmove','memset','memcmp','fopen','fclose','fflush','fgetc','fread','fwrite','fprintf','fseek','ftell','rewind','malloc','free','snprintf','strlen','strcpy','strcmp','strtoul','getenv','__assert_func','__getreent',
+standard={'abort','memcpy','memmove','memset','memcmp','fopen','fclose','fflush','fgetc','fread','fwrite','fprintf','fseek','ftell','rewind','malloc','free','snprintf','strlen','strcpy','strcmp','strrchr','strtoul','getenv','__assert_func','__getreent',
  'calloc','setjmp','longjmp','setvbuf','condvarSignal','condvarWait','mutexLock','mutexUnlock','threadAttachLocalStorage','threadPrepare','threadStart'}
 names=[n for n in json.loads((OUT/'required_services.json').read_text()) if n not in standard and not n.startswith(('__aeabi_','__gnu_'))]
 trap=HOST/'diagnostic_traps.c';trap.write_text('#include <stdio.h>\n#include <stdlib.h>\n'+

@@ -5,11 +5,11 @@ Port experimental do motor de Mega Man X4 para ARM9, baseado no código C de
 ao DSi. O executável nativo não inclui interpretador de CPU, BIOS ou emulador
 completo de PlayStation.
 
-**Em desenvolvimento: N07, com vagões destrutíveis, título original e
-menus para iniciar e carregar a campanha, mantendo as otimizações anteriores.**
+**Em desenvolvimento: N08, com 11 cenas de vídeo nativas, áudio das cenas
+e quatro efeitos corrigidos, mantendo menus, saves e otimizações anteriores.**
 Os efeitos continuam pelo ARM7/hardware. O log físico da N06.7 registrou
 médias de 47,63 FPS com X na primeira área do trem e 39,19 com Zero na segunda,
-em trechos distintos. Há quedas abaixo de 30 FPS. A N07 precisa de teste físico;
+em trechos distintos. Há quedas abaixo de 30 FPS. A N08 precisa de teste físico;
 veja [os testes físicos](docs/HARDWARE_TESTS.md).
 
 ## O que está aqui
@@ -26,20 +26,20 @@ Os dados extraídos e os binários gerados permanecem nas pastas ignoradas pelo 
 
 ## Preparar e compilar
 
-Use Linux ou WSL com Python 3.11+, GCC, Git, Make e Tar.
+Use Linux ou WSL com Python 3.11+, GCC, Git, Make, Tar e FFmpeg.
 No Linux/WSL, a partir da raiz:
 
 ```sh
 python3 tools/setup_native.py --disc '/caminho/Mega Man X4.bin' --cue '/caminho/Mega Man X4.cue'
-python3 native/compile.py --n07
+python3 native/compile.py --n08
 ```
 
 O setup obtém o SDK e as fontes fixadas. O dump suportado é a edição USA
 SLUS-00561; o script verifica seu tamanho e SHA-256 antes de extrair dados.
-A saída é `dist/native-n07/mmx4_native_n07.nds`, para uso local em modo DSi.
+A saída é `dist/native-n08/mmx4_native_n08.nds`, para uso local em modo DSi.
 Não publique esse arquivo: ele inclui os recursos extraídos do jogo.
 
-No Windows, depois do setup, execute `COMPILAR_JOGO.cmd` ou `COMPILAR_N07.cmd`.
+No Windows, depois do setup, execute `COMPILAR_JOGO.cmd` ou `COMPILAR_N08.cmd`.
 As duas opções compilam o mesmo alvo atual. Detalhes em
 [COMO_COMPILAR.md](COMO_COMPILAR.md).
 
@@ -61,14 +61,14 @@ não representam um segundo produto ou um emulador.
 
 ## Estado e próximos passos
 
-O teste automatizado cobre 48 entradas de área e 34 cenários de sistemas,
+O teste automatizado cobre 48 entradas de área e 36 cenários de sistemas,
 incluindo a luta do olho com Zero, pausa, transições, saída da introdução e
 seis sessões consecutivas no mesmo processo, sete tipos de vagão e
 salvar/carregar pelos menus originais com X e Zero.
-A campanha completa permanece em validação. Vídeos, alguns comandos de áudio,
+A validação completa da campanha fica para o final. Alguns comandos de áudio,
 fidelidade de efeitos, validação física das correções e otimização continuam pendentes.
 
-- [Estado e controles da N07](docs/STATUS_N07.md)
+- [Estado e controles da N08](docs/STATUS_N08.md)
 - [Resultado do último teste físico](docs/HARDWARE_TESTS.md)
 - [Prioridades](docs/ROADMAP.md)
 - [Arquitetura](native/README.md)

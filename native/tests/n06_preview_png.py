@@ -3,7 +3,7 @@ from pathlib import Path
 import struct,zlib
 ROOT=Path(__file__).resolve().parents[2];HOST=ROOT/'build/native/n05-flow/host'
 def chunk(tag,data):return struct.pack('>I',len(data))+tag+data+struct.pack('>I',zlib.crc32(tag+data)&0xffffffff)
-for path in sorted([*HOST.glob('sigma*.ppm'),*HOST.glob('jungle*.ppm'),*HOST.glob('menu*.ppm'),*HOST.glob('train*.ppm'),*HOST.glob('armor*.ppm'),*HOST.glob('title*.ppm')]):
+for path in sorted([*HOST.glob('sigma*.ppm'),*HOST.glob('jungle*.ppm'),*HOST.glob('menu*.ppm'),*HOST.glob('train*.ppm'),*HOST.glob('armor*.ppm'),*HOST.glob('title*.ppm'),*(ROOT/'build/native/movie-tests').glob('movie*.ppm')]):
  header,w_h,maximum,rgb=path.read_bytes().split(b'\n',3)
  assert header==b'P6' and maximum==b'255';w,h=map(int,w_h.split());assert len(rgb)==w*h*3
  raw=b''.join(b'\0'+rgb[y*w*3:(y+1)*w*3] for y in range(h))

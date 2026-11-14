@@ -1,3 +1,10 @@
+# Retorno físico — N07
+
+Em 14/11/2026, o usuário confirmou que a N07 está funcionando corretamente.
+Não foi enviado novo log nesse retorno. A validação completa da campanha foi
+reservada para o final a pedido do usuário. A N08 ainda requer teste físico
+específico de reprodução, sincronismo e retorno dos vídeos.
+
 # Último teste físico — N06.7
 
 Log recebido em 14/11/2026: `native_n067_000.log`, identificador

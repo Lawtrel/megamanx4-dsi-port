@@ -1,6 +1,6 @@
 # Motor nativo ARM9
 
-O alvo atual é a N07, experimental. Estado do produto e resultado físico
+O alvo atual é a N08, experimental. Estado do produto e resultado físico
 estão em [README](../README.md) e [testes no console](../docs/HARDWARE_TESTS.md).
 
 ## Componentes
@@ -52,3 +52,10 @@ página completa que ele usa. O carregamento passa pelos menus e pela rotina
 original de restauração do personagem. Cenário e colisão usam o mesmo mapa
 mutável `D_80141BE8` modificado pelos eventos; não há cópia paralela do mapa.
 Os testes de integração de menus e eventos estão em `tests/n07_systems.h`.
+
+Na N08, `dsi/n08_media.c` liga as chamadas originais às cenas convertidas por
+`prepare_movies.py`. `src/x4_movie.c` lê bitmaps LZ10 independentes e PCM em
+memória limitada. O frontend muda temporariamente a tela superior para bitmap
+RGB555, reinicia o fluxo PCM nas transições e reinicializa o compositor ao
+retornar. A escala do gameplay permanece intacta. A qualificação física da
+sincronia e velocidade de leitura permanece pendente.

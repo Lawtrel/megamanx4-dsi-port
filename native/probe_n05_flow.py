@@ -11,6 +11,7 @@ replacements={'55C4.c':['stop_sound','func_8001663C','func_80016F0C','func_80016
  '3D88.c':['func_80013AD8','func_80013890'], '323C.c':['func_80012A3C'],
  '144A4.c':['func_80023CE0','func_80023D68','init_objects'],'165A0.c':['func_80026118'],'E47C.c':['func_8001E980'],
  '102FC.c':[], '1EC20.c':[], '11184.c':[], 'game_info.c':[], '14A60.c':['func_80024260','func_80024E70']}
+replacements['55C4.c'].append('func_80018000')
 sources=[]
 for name,names in replacements.items():
  text=(REF/'src/main'/name).read_text()
@@ -28,8 +29,8 @@ p=OUT/'portable_game.c';text=(REF/'src/pc/placeholder.c').read_text()
 for n in ('func_8001540C','func_80028FEC','func_800175AC'):
  text,count=re.subn(r'(?m)^((?:void|s32) )'+n+r'(?=\([^;]*\)\s*\{)',r'\1unused_flow_'+n,text);assert count==1,(n,count)
 p.write_text(text);sources.append(p)
-sources += [ROOT/'native/dsi'/n for n in ('n05_flow.c','n05_flow_loading.c','n05_flow_ui.c','n05_platform.c','n05_render.c','stage_spawn.c','n05_save.c')]
-sources += [ROOT/'native/src'/n for n in ('x4_archive.c','x4_content.c','x4_graphics_decode.c','x4_music.c','x4_sfx.c','x4_audio.c','x4_video.c')]+[REF/'src/pc/scratchpad.c']
+sources += [ROOT/'native/dsi'/n for n in ('n05_flow.c','n05_flow_loading.c','n05_flow_ui.c','n05_platform.c','n05_render.c','stage_spawn.c','n05_save.c','n08_media.c')]
+sources += [ROOT/'native/src'/n for n in ('x4_archive.c','x4_content.c','x4_graphics_decode.c','x4_music.c','x4_sfx.c','x4_audio.c','x4_video.c','x4_movie.c')]+[REF/'src/pc/scratchpad.c']
 objects=[]
 def source_flags(source):return flags+(['-O3','-marm'] if source.name in ('n05_render.c','n05_flow_ui.c','x4_video.c') else [])
 def dependency_key(source,dependencies):
@@ -55,6 +56,7 @@ target=OUT/'flow.o';roots=['x4_flow_'+n for n in ('begin','new_game','title','st
 roots+=['x4_audio_'+n for n in ('init','update','read','close','errors','track')]+['x4_save_set_root','x4_n05_missing_sfx']
 roots+=['x4_video_'+n for n in ('commands','texture','rgba_texture','dirty_tiles','palette','clear','alpha','stats','viewport','get_viewport')]
 roots+=['x4_sfx_set_backend','x4_sfx_stats']
+roots+=['x4_movie_'+n for n in ('active','id','frame','generation')]
 p=subprocess.run([str(SDK/'arm-none-eabi-ld'),'-r','--gc-sections',*[a for n in roots for a in ('-u',n)],'-o',str(target),*objects],capture_output=True,text=True)
 if p.returncode:raise RuntimeError(p.stderr[-4000:])
 def run(*cmd):return subprocess.check_output([str(a) for a in cmd],text=True)

@@ -14,6 +14,7 @@
 #include "x4_stage_spawn.h"
 #include "x4_sfx.h"
 #include "x4_video.h"
+#include "x4_movie.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -75,12 +76,16 @@ void func_80028FEC(s16 l,s16 r,s16 t,s16 b,u8 direction){
  assert(x4_stage_spawn_visible(l,r,t,b,direction)>=0);
 }
 void x4_flow_close(void){
+ x4_movie_close();
  x4_flow_ui_reset();
  x4_n05_set_common_graphics(NULL);x4_flow_loading_close();x4_n05_platform_close();
 }
 int x4_flow_begin(const char* root,unsigned character,unsigned stage,unsigned area){
  if(!root||strlen(root)>=sizeof root_path||character>1||stage>12||area>1||((stage==9||stage==10)&&area))return -1;
  x4_flow_close();strcpy(root_path,root);x4_n05_platform_init(root_path);x4_flow_loading_init(root_path);x4_sfx_character(character);
+ char media_root[1024];const char* slash=strrchr(root,'/');
+ if(!slash||(size_t)(slash-root)+18>=sizeof media_root)return -4;
+ memcpy(media_root,root,slash-root);strcpy(media_root+(slash-root),"/movies/converted");x4_movie_config(media_root);
  mmx4_pc_threads_init();reset_game_engine();reset_objects();
  /* The native entry bypasses func_8001213C's device setup, including its
   * RNG seed. Zero is an absorbing state and hangs ice_core_shed_ice when
@@ -98,10 +103,14 @@ int x4_flow_begin(const char* root,unsigned character,unsigned stage,unsigned ar
  func_80012740(0,func_8001FB50);return 0;
 }
 int x4_flow_new_game(const char* root){int result=x4_flow_begin(root,0,0,0);if(!result)engine_obj.state=0;return result;}
+static void native_title_task(void){
+ extern void func_80018000(arg_u8),func_8001DAF8(void);
+ func_80018000(0);func_8001DAF8();
+}
 int x4_flow_title(const char* root){
  int result=x4_flow_begin(root,0,0,0);if(result)return result;
  extern void func_8001DC30(void);
- memset(&game_info,0,sizeof game_info);func_8001DC30();return 0;
+ memset(&game_info,0,sizeof game_info);game_info.unk0=1;func_80012740(0,native_title_task);return 0;
 }
 int x4_flow_step(unsigned held,unsigned pressed){
  controller_input.previous=controller_input.held;
@@ -110,8 +119,10 @@ int x4_flow_step(unsigned held,unsigned pressed){
  /* Dedicated native frontend buttons, outside the original action table. */
  if(held&(1u<<16))controller_input.held|=PADstart;if(pressed&(1u<<16))controller_input.pressed|=PADstart;
  if(held&(1u<<17))controller_input.held|=PADselect;if(pressed&(1u<<17))controller_input.pressed|=PADselect;
+ int was_movie=x4_movie_active();x4_movie_tick();
  ++main_bss_state.frame_counter;++frames;x4_flow_ui_begin_frame();clear_vram_rect_ptrs();func_800169D8();func_80012600();
- return x4_flow_load_error()?x4_flow_load_error():x4_n05_platform_error();
+ if(was_movie&&!x4_movie_active())draw_requested=1;
+ return x4_movie_error()?x4_movie_error():x4_flow_load_error()?x4_flow_load_error():x4_n05_platform_error();
 }
 void x4_flow_state(X4FlowState* out){
  *out=(X4FlowState){engine_obj.state,engine_obj.unk1,engine_obj.stage,engine_obj.substage,engine_obj.cur_character,
@@ -129,6 +140,7 @@ void x4_flow_debug(char* text,unsigned capacity){
   death,timer,g_FilterAmountR,g_FilterAmountG,g_FilterAmountB,g_Player.script_state,abc_object.unkC,bar_object.state,bar_object.unk5,bar_object.unk6,bg[0],bg[1],bg[2],armor,(u8)g_Player.armor_parts);
 }
 int x4_flow_draw(uint16_t* screen){
+ if(x4_movie_active()){memcpy(screen,x4_movie_pixels(),256*192*2);x4_video_begin(0);return 0;}
  if(!draw_requested)return 0;
  draw_requested=0;const X4Archive* a=x4_flow_archive();
  int errors=x4_n05_draw_scene(screen,a,a,background_objects[0].x_pos.i.hi,background_objects[0].y_pos.i.hi);

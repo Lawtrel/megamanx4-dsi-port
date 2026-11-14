@@ -86,8 +86,21 @@ def main():
      if not c:descriptors.append(descriptor);continue
      packed=c.to_bytes(4,'little');which=packed[0]>>6
      if which<2:
-      descriptor['status']='sequence_pending';missing.append({'resource':r['id'],'bank':bank,'index':index,'command':c});descriptors.append(descriptor);continue
+      access=c>>8&127;sequence=c>>24&31
+      descriptor['status']='sequence_external'
+      if which!=1 or access>1 or sequence>=(2 if access else 8):
+       descriptor['status']='sequence_pending';missing.append({'resource':r['id'],'bank':bank,'index':index,'command':c})
+      descriptors.append(descriptor);continue
      target=bankmap.get(packed[0]&63)
+     if target is None:
+      # These overlays keep the character banks already loaded by the engine.
+      retained={(0x6b,0):0x4d,(0x71,1):0x4b}.get((r['id'],packed[0]&63))
+      if retained is not None:
+       base=next(item for item in resources if item['id']==retained);base_header=None
+       for base_kind,base_data in members(base):
+        if base_kind in (4,6,7,8):base_header=base_data
+        elif base_kind>>16==2 and u32(base_header,0)>>24==packed[0]&63:
+         target=(base_header,base_data,instruments(base_header,base_data));descriptor['retained_resource']=retained;break
      if target is None:
       descriptor['status']='cross_bank_pending';missing.append({'resource':r['id'],'bank':bank,'index':index,'command':c});descriptors.append(descriptor);continue
      h,body,progs=target;program=packed[1]&127;tone=packed[2]>>4;voices=1+((packed[3]>>5)&3)
@@ -131,7 +144,7 @@ def main():
     records.append({'resource':r['id'],'name':r['name'],'bank':bank,'file':filename,'sha256':hashlib.sha256(payload).hexdigest(),'bytes':len(payload),'entries':descriptors})
   print('Prepared SFX',r['name'],flush=True)
  report={'bank_count':len(records),'bytes':total,'banks':records,'pending':missing,
-  'limitations':['Sequence commands not converted yet','Looped direct effects use an approximate three-second PCM cycle','Mono conversion; reverb and spatial panning pending'],
+  'limitations':['Six single-SEQ/out-of-range sequence commands remain unsupported','Looped direct effects use an approximate three-second PCM cycle','Mono conversion; reverb and spatial panning pending'],
   'runtime':'Native PCM mixing; host synthesizer excluded from NDS'}
  (OUT/'sfx_manifest.json').write_text(json.dumps(report,indent=2)+'\n')
  print('SFX banks',len(records),'bytes',total,'pending',len(missing),flush=True)
