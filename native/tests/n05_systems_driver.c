@@ -5,6 +5,7 @@
 #include "x4_scene.h"
 #include "x4_audio.h"
 #include "x4_video.h"
+#include "x4_n05_actors.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +14,20 @@
 static uint16_t screen[256*192];
 extern void ice_core_shed_ice(struct MainObj*);
 extern void eregion_death_blink(struct MainObj*);
+extern void func_80027344(s32,s32,s32);
+static void check_background_wrap_reference(void){
+ struct BackgroundObj saved[3];memcpy(saved,background_objects,sizeof saved);
+ int first=saved[1].unk4D,last=saved[1].unk4E;
+ int points[]={-512,-256,-16,0,(first-1)*256,first*256-1,first*256,(last+1)*256-1,(last+1)*256,(last+1)*256+16};
+ for(unsigned i=0;i<COUNT(points);++i){
+  memcpy(background_objects,saved,sizeof saved);background_objects[1].x_pos.i.hi=points[i];
+  func_80027344(1,points[i]-16,0);func_80027344(1,points[i]+336,0);
+  int expected=background_objects[1].x_pos.i.hi;
+  memcpy(background_objects,saved,sizeof saved);background_objects[1].x_pos.i.hi=points[i];
+  x4_n05_background_wrap();assert(background_objects[1].x_pos.i.hi==expected);
+ }
+ memcpy(background_objects,saved,sizeof saved);puts("PASS native camera wrap matches original cache-update side effects at all 10 boundaries");
+}
 static void check_native_boss_safety(void){
  assert(cur_random==0xD37);unsigned first=get_random(),different=0;
  for(unsigned i=0;i<64;++i)different|=get_random()!=first;
@@ -50,8 +65,9 @@ int main(int argc,char** argv){
   puts("PASS six native sessions, alternating X/Zero and areas in one process");return 0;
  }
  x4_audio_init("../../full-audio/music","../../full-audio/sfx");
+ int train=!strcmp(mode,"train0")||!strcmp(mode,"train1"),capsule=!strcmp(mode,"capsule"),armorparts=!strcmp(mode,"armorparts");
  int saveprompt=!strcmp(mode,"saveprompt"),sigma=!strcmp(mode,"sigma"),introleft=!strcmp(mode,"introleft"),introclear=!strcmp(mode,"introclear")||introleft,pauseoptions=!strcmp(mode,"pauseoptions"),pausejungle=!strcmp(mode,"pausejungle")||pauseoptions,ice=!strcmp(mode,"ice");
- assert(!(!strcmp(mode,"campaign")?x4_flow_new_game(argv[1]):x4_flow_begin(argv[1],character,sigma?12:pausejungle?1:ice?2:0,(sigma||introclear||pausejungle)?1:0)));
+ assert(!(!strcmp(mode,"campaign")?x4_flow_new_game(argv[1]):x4_flow_begin(argv[1],character,train?8:capsule?6:armorparts?1:sigma?12:pausejungle?1:ice?2:0,(sigma||introclear||pausejungle||armorparts||!strcmp(mode,"train1"))?1:0)));
  check_native_boss_safety();
  x4_video_enabled=getenv("X4_GPU")!=NULL;
  if(x4_video_enabled)x4_video_viewport(32,24,256,192);
@@ -60,9 +76,22 @@ int main(int argc,char** argv){
  unsigned ice_ticks=0,ice_damage=0,ice_shed=0;int ice_hp=0;
  uint16_t palette_before[512],pause_expected[512];unsigned palette_restores=0;
  uint16_t options_palette[512];int options_seen=0,options_restored=0;unsigned overlay_commands=0;
- for(unsigned tick=0;tick<(introclear?12000:ice?6000:sigma?3600:2400);++tick){
+ unsigned armor_checks=0,acquired=0,train_background_frames=0,train_wraps=0;int last_train_x=0;
+ for(unsigned tick=0;tick<(introclear?12000:(ice||capsule)?6000:train?3600:sigma?3600:2400);++tick){
   unsigned held=0;
-  if(saveprompt){if(tick==400){engine_obj.state=9;engine_obj.unk1=engine_obj.unk2=engine_obj.unk3=0;}}
+  if(train){g_Player.hp=32;g_Player.invincibility_timer=120;}
+  else if(capsule){
+   if(tick==300){engine_obj.checkpoint=5;engine_obj.state=5;engine_obj.unk1=0;engine_obj.unk1E=0;}
+   g_Player.hp=32;g_Player.invincibility_timer=120;
+   if(tick>600){
+    struct ItemObj* target=NULL;for(unsigned i=0;i<COUNT(item_objects);++i)if(item_objects[i].active&&item_objects[i].id==26&&item_objects[i].unk2<6){target=&item_objects[i];break;}
+    if(!g_Player.armor_parts){if(!target||g_Player.x_pos.i.hi<target->x_pos.i.hi)held|=X4_RIGHT;else if(g_Player.x_pos.i.hi>target->x_pos.i.hi)held|=X4_LEFT;}
+    if(!g_Player.armor_parts&&!engine_obj.gameplay_locked&&tick%90<20)held|=X4_JUMP;
+    if(abc_object.unkC&&tick%30==0)held|=X4_JUMP;
+   }
+  }
+  else if(armorparts){if(tick==300){engine_obj.checkpoint=2;engine_obj.state=5;engine_obj.unk1=0;engine_obj.unk1E=0;}}
+  else if(saveprompt){if(tick==400){engine_obj.state=9;engine_obj.unk1=engine_obj.unk2=engine_obj.unk3=0;}}
   else if(!strcmp(mode,"campaign")){if(tick%180==150)held=1u<<16;if(tick%40==10&&tick>150)held|=X4_JUMP;if(character&&tick==100)held|=X4_RIGHT;}
   else if(!strcmp(mode,"pause")||pausejungle){
    if(pausejungle&&tick==300){engine_obj.checkpoint=2;engine_obj.state=5;engine_obj.unk1=0;engine_obj.unk1E=0;}
@@ -142,6 +171,31 @@ int main(int argc,char** argv){
   if(tick>700&&seen_pause&&!bar_object.state&&!bar_object.unk5)seen_resume=1;
   if(tick%30==0){printf("%s tick=%u engine=%d/%d stage=%d/%d player=%d hp=%d bar=%d/%d lives=%d\n",mode,tick,s.state,s.substate,s.stage,s.area,s.player_state,s.hp,bar_object.state,bar_object.unk5,engine_obj.player_lives);fflush(stdout);}
   int errors=x4_flow_draw(screen);
+  if(train&&tick==700)check_background_wrap_reference();
+  if(train&&tick>600){
+   unsigned bg[3],armor;x4_n05_render_counts(bg,&armor);
+   if(bg[1]&&bg[2])++train_background_frames;
+   if(background_objects[1].x_pos.i.hi<last_train_x)++train_wraps;last_train_x=background_objects[1].x_pos.i.hi;
+   if(tick%600==0){fprintf(stderr,"TRAIN tick=%u backgrounds=%u/%u/%u camera=%d,%d wrap=%d..%d\n",tick,bg[0],bg[1],bg[2],background_objects[1].x_pos.i.hi,background_objects[2].x_pos.i.hi,background_objects[1].unk4D,background_objects[1].unk4E);
+    if(x4_video_enabled&&(tick==1200||tick==3000)){char name[64];snprintf(name,sizeof name,"train_%u_%u_%u.ppm",character,!strcmp(mode,"train1"),tick);n06_preview(name);}}
+  }
+  if(capsule){
+   if(tick%300==0){fprintf(stderr,"CAPSULE tick=%u x=%d y=%d lock=%d script=%d armor=%x itemstep=%d\n",tick,s.x,s.y,s.locked,g_Player.script_state,(u8)g_Player.armor_parts,g_Player.item_step);
+    for(unsigned i=0;i<COUNT(item_objects);++i)if(item_objects[i].active&&item_objects[i].id==26)fprintf(stderr,"CAP item=%d state=%d/%d x=%d y=%d collision=%x\n",item_objects[i].unk2,item_objects[i].state,item_objects[i].unk5,item_objects[i].x_pos.i.hi,item_objects[i].y_pos.i.hi,(u8)item_objects[i].unk72);}
+   if(g_Player.armor_parts&&!s.locked){unsigned bg[3],armor;x4_n05_render_counts(bg,&armor);assert(armor&&engine_obj.armor_parts==g_Player.armor_parts);++acquired;if(x4_video_enabled&&acquired==30)n06_preview("armor_capsule.ppm");}
+  }
+  if(armorparts&&tick==800){
+   struct PlayerObj saved=g_Player;const X4Archive* a=x4_flow_archive();
+   for(unsigned type=1;type<=2;++type)for(unsigned facing=0;facing<2;++facing)for(unsigned mask=0;mask<16;++mask){
+    g_Player.armor_parts=mask;g_Player.arm_type=type;g_Player.unk15=facing?PLAYER_FACING_RIGHT:0;g_Player.on_screen=1;
+    g_Player.x_pos.i.hi=background_objects[0].x_pos.i.hi+160;g_Player.y_pos.i.hi=background_objects[0].y_pos.i.hi+144;
+    assert(!x4_n05_draw_scene(screen,a,a,background_objects[0].x_pos.i.hi,background_objects[0].y_pos.i.hi));
+    unsigned bg[3],armor;x4_n05_render_counts(bg,&armor);assert(mask?armor>0:!armor);++armor_checks;
+    if(x4_video_enabled&&type==2&&(mask==0||mask==15)){char name[64];snprintf(name,sizeof name,"armor_%u_%u.ppm",mask,facing);n06_preview(name);}
+    if(x4_video_enabled){int dirty;for(unsigned i=0;i<X4_VIDEO_TILES;++i)x4_video_rgba_texture(i,&dirty);}
+   }
+   g_Player=saved;
+  }
   if(saveprompt&&tick==900){
    unsigned n;const X4VideoCommand* c=x4_video_commands(&n);unsigned labels=0;
    for(unsigned i=0;i<COUNT(misc_objects);++i)if(misc_objects[i].active&&misc_objects[i].id==31)++labels;
@@ -168,6 +222,9 @@ int main(int argc,char** argv){
   if(errors){fprintf(stderr,"DRAW FAILED mode=%s tick=%u errors=%d\n",mode,tick,errors);return 2;}
  }
  if(sigma)assert(seen_boss&&seen_boss_actor);
+ if(train){fprintf(stderr,"TRAIN backgrounds=%u wraps=%u\n",train_background_frames,train_wraps);assert(train_background_frames>100&&train_wraps>2);}
+ if(capsule)assert(acquired>30);
+ if(armorparts)assert(armor_checks==64);
  if(ice){fprintf(stderr,"ICE fight_ticks=%u damage_ticks=%u shed_ticks=%u max_hp=%d\n",ice_ticks,ice_damage,ice_shed,ice_hp);assert(ice_ticks>300&&ice_damage&&ice_shed);}
  if(introclear)assert(left_intro);
  assert(seen_game);

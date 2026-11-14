@@ -1,4 +1,34 @@
-# Último teste físico — N06.4
+# Último teste físico — N06.5
+
+Log recebido: `native_n065_001.log`, identificador `94aaed7d38aeff58e9d9`.
+SHA-256: `b7473c4e0606acef884204de1ca808655e77550d424a17237bc8bc1750cba4f7`.
+O arquivo contém 15 sessões de teste, com mudanças de área dentro de algumas
+sessões. As fotos e o relato apontam fundo ausente na fase interna 8 e X com
+aparência básica após adquirir uma peça na cápsula da fase interna 6.
+
+| Gameplay desbloqueado | Amostras | FPS mín./média/máx. |
+| --- | ---: | --- |
+| X, gelo, área 1 | 123 | 25 / 29,95 / 49 |
+| X, Magma Dragoon, área 1 | 44 | 23 / 26,34 / 42 |
+| X, Magma Dragoon, área 2 | 66 | 24 / 30,15 / 50 |
+| X, fase interna 6, área 1 | 83 | 27 / 38,41 / 59 |
+| Zero, trem, área 1 | 47 | 41 / 58,40 / 60 |
+| Zero, trem, área 2 | 24 | 31 / 54,71 / 60 |
+
+São médias aritméticas das amostras com `engine=6/0`, `locked=0`. A média de
+uma fase não significa 30 FPS sustentados. Os trechos diferem dos registros
+anteriores; não são uma comparação controlada entre versões. Os resultados
+do trem não qualificam o cenário completo, devido à falha de fundo.
+
+Em Magma Dragoon, a simulação ficou próxima de 60 ticks/s nas amostras,
+enquanto a primeira área ainda ficou abaixo de 30 FPS de desenho. O log
+separa preparação e envio gráfico; os dois tempos devem ser considerados.
+
+As correções da N06.7 foram verificadas no computador: repetição da câmera
+e do cenário do trem, composição das peças de armadura e evento original de
+aquisição. A confirmação física dessas correções ainda está pendente.
+
+## Histórico — N06.4
 
 Registro de 13/11/2026, fornecido pelo usuário: `native_n064_000.log` e
 `native_n064_001.log`, ambos com identificador `b2962dcbbcbe9fa8ff9d`.

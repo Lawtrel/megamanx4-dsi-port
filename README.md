@@ -5,11 +5,11 @@ Port experimental do motor de Mega Man X4 para ARM9, baseado no código C de
 ao DSi. O executável nativo não inclui interpretador de CPU, BIOS ou emulador
 completo de PlayStation.
 
-**Em desenvolvimento: N06.6, com transferências de texturas agrupadas e
-reaproveitamento de paletas inalteradas entre quadros.**
-Os efeitos continuam pelo ARM7/hardware. Na N06.4, o usuário concluiu a intro
-e derrotou Magma Dragoon; o desempenho dessa fase ainda ficou perto de 20–22
-FPS. A N06.6 busca 30 FPS e ainda precisa de medição no console;
+**Em desenvolvimento: N06.7, com correção do fundo repetido da fase do trem
+e composição das peças de armadura de X, mantendo a base otimizada da N06.6.**
+Os efeitos continuam pelo ARM7/hardware. O log físico da N06.5 registrou
+médias de 26,34/30,15 FPS nas duas áreas de Magma Dragoon e 29,95 no gelo,
+em trechos distintos. A N06.7 busca 30 FPS e ainda precisa de medição no console;
 veja [os testes físicos](docs/HARDWARE_TESTS.md).
 
 ## O que está aqui
@@ -36,7 +36,7 @@ python3 native/compile.py --n06
 
 O setup obtém o SDK e as fontes fixadas. O dump suportado é a edição USA
 SLUS-00561; o script verifica seu tamanho e SHA-256 antes de extrair dados.
-A saída é `dist/native-n066/mmx4_native_n066.nds`, para uso local em modo DSi.
+A saída é `dist/native-n067/mmx4_native_n067.nds`, para uso local em modo DSi.
 Não publique esse arquivo: ele inclui os recursos extraídos do jogo.
 
 No Windows, depois do setup, execute `COMPILAR_JOGO.cmd` ou `COMPILAR_N06.cmd`.
@@ -61,13 +61,13 @@ não representam um segundo produto ou um emulador.
 
 ## Estado e próximos passos
 
-O teste automatizado cobre 48 entradas de área e 22 cenários de sistemas,
+O teste automatizado cobre 48 entradas de área e 28 cenários de sistemas,
 incluindo a luta do olho com Zero, pausa, transições, saída da introdução e
 seis sessões consecutivas no mesmo processo.
 A campanha completa permanece em validação. Vídeos, alguns comandos de áudio,
 fidelidade de efeitos, validação física das correções e otimização continuam pendentes.
 
-- [Estado e controles da N06.6](docs/STATUS_N066.md)
+- [Estado e controles da N06.7](docs/STATUS_N067.md)
 - [Resultado do último teste físico](docs/HARDWARE_TESTS.md)
 - [Prioridades](docs/ROADMAP.md)
 - [Arquitetura](native/README.md)

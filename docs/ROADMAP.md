@@ -1,11 +1,11 @@
 # Prioridades atuais
 
-1. **Qualificar a N06.6 no DSi.** Comparar Magma Dragoon e gelo com a N06.5,
-   se houver medição dessa revisão; o último log recebido ainda é da N06.4.
-   Conferir efeitos, paletas, transições e textos de salvar/continuar.
+1. **Qualificar as correções da N06.7 no DSi.** Jogar as duas áreas do trem
+   com fundo completo e adquirir peças na cápsula, conferindo o visual de X.
+   O último log recebido é da N06.5; conferir também pausa e transições.
 2. **30 FPS sustentados.** Usar perfis do DSi, com trechos comparáveis.
-   Na N06.4 o desenho de Magma Dragoon foi o maior custo. A N06.5 acelerou
-   conversão e preparação; a N06.6 agrupa uploads e reaproveita paletas. Somar
+   Na N06.5, Magma Dragoon teve médias de 26,34/30,15 FPS e o gelo de 29,95,
+   com oscilações. A N06.6 agrupou uploads e reaproveitou paletas. Somar
    `prepare_us` aos demais tempos e medir os piores intervalos antes de
    transferir novas tarefas entre CPUs.
 3. **Regressões de qualidade.** Manter escala 1:1, cores após pausa,
@@ -21,5 +21,5 @@
 - Registrar versão, identificador do executável e trechos usados na medição.
 - Tratar os resultados no computador e no console como evidências distintas.
 
-A N06.6 ainda precisa de confirmação física desses critérios. Não há promessa de 30 ou 60 FPS em toda
+A N06.7 ainda precisa de confirmação física desses critérios. Não há promessa de 30 ou 60 FPS em toda
 a campanha na versão atual.

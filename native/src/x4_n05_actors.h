@@ -13,4 +13,6 @@ void x4_n05_set_common_graphics(const X4Archive* common);
 int x4_n05_install_ui(const X4Archive* common,const void* window_data,unsigned length);
 int x4_n05_draw_actors(uint16_t* screen,const X4Archive* player,const X4Archive* stage,int camera_x,int camera_y);
 int x4_n05_draw_scene(uint16_t* screen,const X4Archive* player,const X4Archive* stage,int camera_x,int camera_y);
+void x4_n05_background_wrap(void);
+void x4_n05_render_counts(unsigned backgrounds[3],unsigned* armor);
 #endif

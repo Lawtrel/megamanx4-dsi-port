@@ -42,8 +42,8 @@ void x4_flow_copy_layout(void){
 /* Native rendering reads the live layout, rather than creating Sony GPU
  * primitives. These engine entry points request a native frame submission. */
 void func_80023CE0(void){x4_flow_copy_layout();draw_requested=1;}
-void func_80023D68(void){draw_requested=1;}
-void init_objects(void){draw_requested=1;}
+void func_80023D68(void){x4_n05_background_wrap();draw_requested=1;}
+void init_objects(void){x4_n05_background_wrap();draw_requested=1;}
 void func_80024260(void){draw_requested=1;}
 void func_80024E70(void){extern void func_80017100(void),func_80017340(void);func_80017100();func_80017340();draw_requested=1;}
 void func_80026118(void){x4_flow_copy_layout();}
@@ -117,9 +117,10 @@ void x4_flow_debug(char* text,unsigned capacity){
  struct MainObj* boss=engine_obj.enable_boss?engine_obj.boss_ptr:NULL;
  int death=-1,timer=0;
  for(unsigned i=0;i<COUNT(effect_objects);++i)if(effect_objects[i].active&&effect_objects[i].id==26){death=effect_objects[i].state;timer=effect_objects[i].ext.effect_26.timer;break;}
- snprintf(text,capacity,"BOSS enabled=%d hp=%d state=%d/%d/%d death=%d timer=%d filter=%u/%u/%u script=%d dialogue=%d menu=%d/%d/%d",
+ unsigned bg[3],armor;x4_n05_render_counts(bg,&armor);
+ snprintf(text,capacity,"BOSS enabled=%d hp=%d state=%d/%d/%d death=%d timer=%d filter=%u/%u/%u script=%d dialogue=%d menu=%d/%d/%d bg=%u/%u/%u armor=%u mask=%u",
   engine_obj.enable_boss,boss?boss->hp:-1,boss?boss->state:-1,boss?boss->unk5:-1,boss?boss->unk6:-1,
-  death,timer,g_FilterAmountR,g_FilterAmountG,g_FilterAmountB,g_Player.script_state,abc_object.unkC,bar_object.state,bar_object.unk5,bar_object.unk6);
+  death,timer,g_FilterAmountR,g_FilterAmountG,g_FilterAmountB,g_Player.script_state,abc_object.unkC,bar_object.state,bar_object.unk5,bar_object.unk6,bg[0],bg[1],bg[2],armor,(u8)g_Player.armor_parts);
 }
 int x4_flow_draw(uint16_t* screen){
  if(!draw_requested)return 0;

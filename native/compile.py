@@ -13,7 +13,7 @@ logpath=LOGS/(datetime.datetime.now().strftime('compile_%Y%m%d_%H%M%S_%f')+'.log
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--n06',action='store_true',help='Compatibility alias: N06.6 is the only current target')
+    parser.add_argument('--n06',action='store_true',help='Compatibility alias: N06.7 is the only current target')
     parser.parse_args()
     if sys.platform!='linux':
         raise RuntimeError('Use COMPILAR_JOGO.cmd on Windows, or run under Linux/WSL.')
@@ -35,7 +35,7 @@ def main():
                 for line in process.stdout:
                     print(line,end='',flush=True);log.write(line);log.flush()
                 if process.wait():raise RuntimeError('Etapa interrompida: '+script)
-        say('N06.6 nativa: transferencias agrupadas de texturas e reaproveitamento de paletas; validacao fisica pendente.')
+        say('N06.7 nativa: fundo repetido do trem e pecas de armadura de X; base otimizada mantida; validacao fisica pendente.')
         say('Log: '+str(logpath))
         run('native/build_gamecore.py')
         if not (ROOT/'build/native/full-content/manifest.json').is_file():run('native/prepare_full_content.py')
@@ -52,7 +52,7 @@ def main():
         run('native/tests/n06_preview_png.py')
         run('native/build_n05_flow.py')
         run('native/package_n05_flow.py')
-        say('\nSUCESSO DE COMPILACAO (EM TESTE): '+str(ROOT/'dist/native-n066/mmx4_native_n066.nds'))
+        say('\nSUCESSO DE COMPILACAO (EM TESTE): '+str(ROOT/'dist/native-n067/mmx4_native_n067.nds'))
         say('Use somente no seu ambiente local. O NDS contem recursos extraidos do seu dump.')
 
 if __name__=='__main__':

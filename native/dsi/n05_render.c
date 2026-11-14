@@ -20,8 +20,26 @@ static const X4Archive* common_graphics;
 static struct {const u8* bank;unsigned pose,age;uint32_t generation,tag;size_t size;u8 data[16384];} poses[24];
 static unsigned pose_age;static uint32_t pose_tag;
 static int drawing_hud;
-/* Private bridge switch: full engine owns all three camera transforms. */
 int x4_original_camera_mode;
+static unsigned background_tiles[3],armor_tiles;
+void x4_n05_render_counts(unsigned backgrounds[3],unsigned* armor){memcpy(backgrounds,background_tiles,sizeof background_tiles);*armor=armor_tiles;}
+void x4_n05_background_wrap(void){
+    /* The original func_80027344 wraps the scrolling camera while refreshing
+     * its tile cache. Native drawing bypasses that cache, so retain this
+     * state update explicitly (also used by the train's looping scenery). */
+    if(!x4_original_camera_mode)return;
+    for(unsigned i=0;i<3;++i){struct BackgroundObj* bg=&background_objects[i];
+        int first=bg->unk4D,last=bg->unk4E;
+        if(!bg->unk3||first>last||last>=layout_width)continue;
+        int x=bg->x_pos.i.hi;static const int edges[2]={-16,336};
+        for(unsigned edge=0;edge<2;++edge){int sample=x+edges[edge];if(sample<0)continue;
+            int block=sample/256;
+            if(block<first&&bg->x_pos.i.hi<=(first-1)*256)bg->x_pos.i.hi=last*256;
+            else if(block>last&&bg->x_pos.i.hi>=(last+1)*256)bg->x_pos.i.hi=first*256;
+        }
+    }
+}
+/* Private bridge switch: full engine owns all three camera transforms. */
 extern struct DialogueGlyphData D_801396C8;
 extern u32 D_800F2F38[2];
 extern s8 D_80173C6C[4];
@@ -159,6 +177,23 @@ static int checked_draw(uint16_t* screen,const X4Archive* p,const X4Archive* s,
 #endif
     return error;
 }
+static int player_armor(uint16_t* screen,const X4Archive* p,const X4Archive* s){
+    if(g_Player.unk2||!g_Player.active||!g_Player.on_screen||!g_Player.armor_parts)return 0;
+    const u8* archive=(const u8*)SP_SPRITE_FRAMES;size_t size=available(p,s,archive);
+    if(size<9*4)return 1;
+    /* Same table indices, bit order and arm palettes as func_800257BC and
+     * func_8002588C. Each armor assembly shares the player's decoded pose. */
+    static const u8 bits[4]={8,1,4,2},parts[4]={3,0,2,1};int errors=0;
+    for(unsigned i=0;i<4;++i)if(g_Player.armor_parts&bits[i]){
+        unsigned offset=le32(archive+(parts[i]+5)*4);if(offset>=size){++errors;continue;}
+        struct AnimatedObj armor=*ANIMATED_OBJECT(&g_Player);
+        armor.unk42=parts[i]==2&&g_Player.arm_type==2?0x7844:0x7843;
+        unsigned before=0,after=0;if(x4_video_enabled)x4_video_commands(&before);
+        errors+=checked_draw(screen,p,s,&armor,archive+offset,0,0);
+        if(x4_video_enabled){x4_video_commands(&after);armor_tiles+=after-before;}
+    }
+    return errors;
+}
 int x4_n05_draw_actors(uint16_t* screen,const X4Archive* p,const X4Archive* s,int cx,int cy){
     int errors=0;
     for(unsigned i=0;i<COUNT(main_objects);++i)errors+=checked_draw(screen,p,s,ANIMATED_OBJECT(&main_objects[i]),main_objects[i].sprite_frames,cx,cy);
@@ -253,6 +288,7 @@ static int draw_flat_quads(uint16_t* screen){
 /* Read live map/palette banks. Palette animators and stage geometry writes
  * must affect the same data used for both graphics and terrain collision. */
 static int background(uint16_t* screen,const X4Archive* stage,int cx,int cy){
+    memset(background_tiles,0,sizeof background_tiles);armor_tiles=0;
     uint16_t clear=(engine_obj.stage==0&&engine_obj.substage==0)?0x9861:0x8000;
     if(x4_video_enabled)x4_video_begin(clear);else for(unsigned i=0;i<256*192;++i)screen[i]=clear;
     if(x4_original_camera_mode&&!background_objects[0].unk3&&!background_objects[1].unk3&&!background_objects[2].unk3)return 0;
@@ -264,22 +300,34 @@ static int background(uint16_t* screen,const X4Archive* stage,int cx,int cy){
     int vx=0,vy=0,vw=256,vh=192;
     if(x4_video_enabled)x4_video_get_viewport(&vx,&vy,&vw,&vh);
     for(int layer=2;layer>=0;--layer){
+    int first=0,end=layout_width*16,repeat=0;
     if(x4_original_camera_mode){
         if(!background_objects[layer].unk3)continue;
         cx=background_objects[layer].x_pos.i.hi+(x4_video_enabled?0:32);cy=background_objects[layer].y_pos.i.hi+(x4_video_enabled?0:24);
+        int lo=background_objects[layer].unk4D,hi=background_objects[layer].unk4E;
+        if(lo<=hi&&hi<layout_width){
+            first=lo*16;end=(hi+1)*16;repeat=end-first;
+            /* Read both sides of the seam without changing object/collision
+             * coordinates. Camera reset remains in the logic draw bridge. */
+            int x=cx-first*16,period=repeat*16;
+            if(x<0||x>=period){x%=period;if(x<0)x+=period;cx=first*16+x;}
+        }
     }
     /* Cull before map/attribute lookup as well as before texture decoding. */
     for(int ty=(cy+vy)/16;ty<=(cy+vy+vh-1)/16;++ty)for(int tx=(cx+vx)/16;tx<=(cx+vx+vw-1)/16;++tx){
-        if(tx<0||ty<0||tx>=layout_width*16||ty>=layout_height*16)continue;
-        unsigned block=SP_BG_TILEMAP[layer*layout_size+(ty/16)*layout_width+tx/16];
+        int source_x=tx;
+        if(repeat&&source_x>=end){source_x-=repeat;if(source_x>=end)source_x-=repeat;}
+        if(source_x<0||ty<0||source_x>=layout_width*16||ty>=layout_height*16)continue;
+        unsigned block=SP_BG_TILEMAP[layer*layout_size+(ty/16)*layout_width+source_x/16];
         if(!block)continue;
-        unsigned pos=block*256+(ty&15)*16+(tx&15);
+        unsigned pos=block*256+(ty&15)*16+(source_x&15);
         if((pos+1)*2>map->size)return 1;
         unsigned entry=SP_BG_TILE_PIXELS[pos],tile=entry&0x3fff;if(!tile)continue;
         if((tile+1)*4>attributes->size)return 1;
         unsigned val=SP_BG_TILE_ATTRS[tile],page=(val>>24)&15,ox=(val>>16)&15,oy=(val>>20)&15,clut=(val>>8)&255;
         if(page>=12)return 1;
         int dx=tx*16-cx,dy=ty*16-cy;
+        ++background_tiles[layer];
         if(x4_video_enabled){
             unsigned offset,bits=page<8?4:8,pi=(clut+64)*16;
             if(page<8)offset=page*32768+oy*16*128+ox*8;
@@ -314,6 +362,7 @@ int x4_n05_draw_scene(uint16_t* screen,const X4Archive* p,const X4Archive* s,int
     int errors=background(screen,s,cx,cy);
     errors+=draw_flat_quads(screen);
     errors+=checked_draw(screen,p,s,ANIMATED_OBJECT(&g_Player),g_Player.unk3C,cx,cy);
+    errors+=player_armor(screen,p,s);
     if(x4_original_camera_mode){
         errors+=checked_draw(screen,p,s,ANIMATED_OBJECT(&g_Entity),g_Entity.unk3C,cx,cy);
         for(unsigned i=0;i<COUNT(baz_objects);++i)errors+=checked_draw(screen,p,s,ANIMATED_OBJECT(&baz_objects[i]),baz_objects[i].unk3C,cx,cy);

@@ -1,6 +1,6 @@
 # Motor nativo ARM9
 
-O alvo atual é a N06.6, experimental. Estado do produto e resultado físico
+O alvo atual é a N06.7, experimental. Estado do produto e resultado físico
 estão em [README](../README.md) e [testes no console](../docs/HARDWARE_TESTS.md).
 
 ## Componentes
@@ -31,7 +31,7 @@ preservando as verificações de tamanho relevantes.
 `build_n05_flow.py` e `package_n05_flow.py`. O modelo de Makefile faz parte do
 código em `Makefile.nds`; `build/` é sempre gerado.
 
-A qualificação física é indispensável. A N06.6 mantém os efeitos pelo ARM7
+A qualificação física é indispensável. A N06.7 mantém os efeitos pelo ARM7
 em `dsi/n063_arm7_audio.c` e publica o PCM imutável apenas na entrada do cache.
 As tabelas de pixels em `x4_video.c` aceleram a conversão de tiles novos.
 `x4_gpu_prepare` monta os comandos em RAM antes da espera de vídeo;
@@ -39,5 +39,10 @@ As tabelas de pixels em `x4_video.c` aceleram a conversão de tiles novos.
 limpas ou bancos de VRAM. Paletas estáticas são comparadas com uma cópia
 das cores originais antes de reconstruir as tabelas.
 `benchmark_n065_video.py` aceita uma revisão-base e um cenário de teste;
-a N06.6 usa a N06.5 como base. Ele não mede FPS. A correção anterior do dragão permanece coberta
+a N06.7 usa a N06.5 como base. Ele não mede FPS. A correção anterior do dragão permanece coberta
 pelo diagnóstico `build_n064_arm_abi.py` e `run_n064_arm_abi.py`.
+
+A N06.7 recompõe as peças equipadas usando as tabelas originais de X e a
+mesma pose já descomprimida. A atualização de retorno das câmeras de fundo,
+que antes era feita no cache gráfico original, agora é executada pela ponte
+de desenho. O mapa também é amostrado dos dois lados da faixa repetida.
