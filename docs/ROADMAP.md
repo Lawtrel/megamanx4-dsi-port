@@ -1,25 +1,23 @@
 # Prioridades atuais
 
-1. **Qualificar as correções da N06.7 no DSi.** Jogar as duas áreas do trem
-   com fundo completo e adquirir peças na cápsula, conferindo o visual de X.
-   O último log recebido é da N06.5; conferir também pausa e transições.
-2. **30 FPS sustentados.** Usar perfis do DSi, com trechos comparáveis.
-   Na N06.5, Magma Dragoon teve médias de 26,34/30,15 FPS e o gelo de 29,95,
-   com oscilações. A N06.6 agrupou uploads e reaproveitou paletas. Somar
-   `prepare_us` aos demais tempos e medir os piores intervalos antes de
-   transferir novas tarefas entre CPUs.
-3. **Regressões de qualidade.** Manter escala 1:1, cores após pausa,
-   animações, transparência, HUD e recursos adicionais dos chefes.
-4. **Campanha e áudio pendentes.** Completar qualificação das fases,
-   comandos sonoros restantes, fidelidade de efeitos e vídeos depois da
-   estabilidade e do desempenho mínimos.
+1. **Qualificar a N07 no DSi.** Destruir o vagão com a Ride Armor, concluir
+   uma fase, salvar pelo menu original, reiniciar e carregar a campanha.
+   Conferir as armaduras, armas, melhorias e fases vencidas de X/Zero.
+2. **Campanha completa.** Qualificar os oito Mavericks, progressão da história,
+   rotas finais e todas as formas de Sigma. Ter o código integrado não prova
+   que todas essas sequências foram concluídas no port.
+3. **30 FPS sustentados.** O log da N06.7 apresentou médias de 47,63/39,19 nas
+   áreas do trem, com personagens diferentes e quedas abaixo de 30. Usar
+   percursos equivalentes para comparar; considerar preparação, lógica,
+   desenho e envio antes de transferir novas tarefas entre CPUs.
+4. **Áudio e vídeos.** Integrar vídeos e comandos sonoros restantes e melhorar
+   a fidelidade dos efeitos após a qualificação de campanha, menus e saves.
 
-## Critérios para chamar uma revisão de estável
+## Critérios de estabilidade
 
-- Repetir no DSi introdução de X, olho de gelo com Zero, pausa e troca de fase.
-- Preservar logs anteriores ao encerramento ou à falha.
-- Registrar versão, identificador do executável e trechos usados na medição.
-- Tratar os resultados no computador e no console como evidências distintas.
+- Repetir introdução de X, olho de gelo com Zero, pausa, trem e transições.
+- Verificar gravação e carregamento após fechar e reabrir o jogo.
+- Preservar logs e registrar versão, identificador e trecho usado.
+- Distinguir testes no computador de testes no DSi.
 
-A N06.7 ainda precisa de confirmação física desses critérios. Não há promessa de 30 ou 60 FPS em toda
-a campanha na versão atual.
+A N07 permanece experimental. Não há promessa de 30 ou 60 FPS em toda a campanha.

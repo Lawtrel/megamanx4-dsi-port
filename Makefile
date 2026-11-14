@@ -2,7 +2,7 @@ PYTHON ?= python3
 .PHONY: all build setup test
 all: build
 build:
-	$(PYTHON) native/compile.py --n06
+	$(PYTHON) native/compile.py --n07
 setup:
 	$(PYTHON) tools/setup_native.py
 test:

@@ -1,4 +1,27 @@
-# Último teste físico — N06.5
+# Último teste físico — N06.7
+
+Log recebido em 14/11/2026: `native_n067_000.log`, identificador
+`bf41f25d60a76c48a974`, modo DSi. SHA-256 do log:
+`9998768a7ed17941d73be847c685b762edd88d9d2ebea431bc48b8b7f0585da0`.
+O usuário confirmou funcionamento e relatou que o vagão mostra explosões,
+mas permanece intacto na segunda área do trem.
+
+| Gameplay desbloqueado | Amostras | FPS mín./média/máx. |
+| --- | ---: | --- |
+| X, Web Spider, área 1 | 40 | 26 / 38,98 / 59 |
+| X, trem, área 1 | 43 | 30 / 47,63 / 60 |
+| Zero, trem, área 2 | 178 | 28 / 39,19 / 59 |
+
+As três sessões não registraram erros de imagem, áudio ou efeitos pendentes.
+As médias são aritméticas das amostras `engine=6/0`, `locked=0`; há quedas
+abaixo de 30 FPS. Percursos e personagens diferem: não são uma comparação
+controlada entre versões. O relato não qualifica toda a campanha.
+
+A N07 corrige o mapa separado que impedia a alteração dos vagões e integra
+o título e seus menus de novo jogo/carregamento. Falta testar esses caminhos
+no DSi; as verificações locais são registradas separadamente.
+
+# Histórico — N06.5
 
 Log recebido: `native_n065_001.log`, identificador `94aaed7d38aeff58e9d9`.
 SHA-256: `b7473c4e0606acef884204de1ca808655e77550d424a17237bc8bc1750cba4f7`.

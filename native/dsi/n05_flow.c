@@ -24,7 +24,6 @@ extern u8* D_8010FFDC[17][2];
 extern u16 D_800EE430[16];
 static unsigned frames,draw_errors,draw_requested;
 static unsigned fade_alpha;
-static u8 live_layout[0x1000];
 static char root_path[1024];
 extern int x4_original_camera_mode;
 extern void x4_flow_ui_begin_frame(void);
@@ -34,10 +33,12 @@ extern int x4_n05_draw_ui_overlay(uint16_t*,const X4Archive*);
 extern int x4_n06_draw_hud(uint16_t*,const X4Archive*);
 void x4_flow_copy_layout(void){
  assert((unsigned)engine_obj.stage<17&&(unsigned)engine_obj.substage<2);
- assert(layout_size>=0&&(unsigned)layout_size*3<=sizeof live_layout);
+ assert(layout_size>=0&&(unsigned)layout_size*3<=PC_TILEMAP_SIZE);
  assert(D_8010FFDC[(u8)engine_obj.stage][(u8)engine_obj.substage]);
- memcpy(live_layout,D_8010FFDC[(u8)engine_obj.stage][(u8)engine_obj.substage],layout_size*3);
- SP_BG_TILEMAP=live_layout;
+ /* Original stage scripts address D_80141BE8 directly (train cars, ice
+  * effects). Drawing and collision must share that same writable map. */
+ memcpy(D_80141BE8,D_8010FFDC[(u8)engine_obj.stage][(u8)engine_obj.substage],layout_size*3);
+ SP_BG_TILEMAP=D_80141BE8;
 }
 /* Native rendering reads the live layout, rather than creating Sony GPU
  * primitives. These engine entry points request a native frame submission. */
@@ -97,6 +98,11 @@ int x4_flow_begin(const char* root,unsigned character,unsigned stage,unsigned ar
  func_80012740(0,func_8001FB50);return 0;
 }
 int x4_flow_new_game(const char* root){int result=x4_flow_begin(root,0,0,0);if(!result)engine_obj.state=0;return result;}
+int x4_flow_title(const char* root){
+ int result=x4_flow_begin(root,0,0,0);if(result)return result;
+ extern void func_8001DC30(void);
+ memset(&game_info,0,sizeof game_info);func_8001DC30();return 0;
+}
 int x4_flow_step(unsigned held,unsigned pressed){
  controller_input.previous=controller_input.held;
  controller_input.held=controller_input.pressed=0;

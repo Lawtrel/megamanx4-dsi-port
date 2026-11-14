@@ -1,6 +1,8 @@
 #include "common.h"
 #include "main/1AC84.h"
 #include "main/object_motion.h"
+#include "main/stage_objects.h"
+#include "main/tile_effects.h"
 #include "x4_flow.h"
 #include "x4_scene.h"
 #include "x4_audio.h"
@@ -12,6 +14,7 @@
 #include <string.h>
 #include "n06_preview.h"
 static uint16_t screen[256*192];
+#include "n07_systems.h"
 extern void ice_core_shed_ice(struct MainObj*);
 extern void eregion_death_blink(struct MainObj*);
 extern void func_80027344(s32,s32,s32);
@@ -49,6 +52,7 @@ static void check_native_boss_safety(void){
 extern int x4_flow_ui_pause_palette_active(void);
 int main(int argc,char** argv){
  assert(argc>=3);const char* mode=argv[2];unsigned character=argc>3?strtoul(argv[3],NULL,0):0;
+ if(n07_system(argv[1],mode,character))return 0;
  if(!strcmp(mode,"restart")){
   x4_video_enabled=getenv("X4_GPU")!=NULL;if(x4_video_enabled)x4_video_viewport(32,24,256,192);
   for(unsigned session=0;session<6;++session){

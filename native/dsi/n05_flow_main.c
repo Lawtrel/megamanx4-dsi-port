@@ -17,8 +17,8 @@
 #ifdef X4_N06_GPU
 void x4_gpu_init(void);void x4_gpu_prepare(void);void x4_gpu_present(void);unsigned x4_gpu_words(void);
 unsigned x4_gpu_upload_batches(void);unsigned x4_gpu_upload_tiles(void);
-#define VERSION "N06.7"
-#define LOG_PREFIX "native_n067"
+#define VERSION "N07"
+#define LOG_PREFIX "native_n07"
 #else
 #define VERSION "N05"
 #define LOG_PREFIX "native_n05_flow"
@@ -104,14 +104,15 @@ static int select_stage(void){
   if(stage==9||stage==10)area=0;
   if(down&KEY_START)return 1;
   if(campaign)iprintf("\x1b[0;0HMEGA MAN X4 - " VERSION "\nIntegracao nativa\n\n"
-   "NOVO JOGO\n\nSTART: iniciar\n\n"
+   "MENU ORIGINAL\n\nSTART: abrir titulo\n\n"
+   "Novo jogo e carregar campanha.\n"
    "Escolha X/Zero na tela do jogo.\nB confirma e avanca dialogos.\n\n"
    "SELECT: escolher fase de teste\n\nB:pulo A:dash Y:ataque\nX:especial L/R:arma\n"
    "START:menu do jogo\n\nL+R+SELECT:voltar aqui\nSELECT+X:alternar som\n\n"
    "Versao em desenvolvimento.\nVideos ainda indisponiveis.\n");
   else iprintf("\x1b[0;0HMEGA MAN X4 - " VERSION "\nTeste de integracao nativa\n\n"
    "Personagem: %-4s            \nFase: %02u  Area: %u            \n\n"
-   "Esq/dir: X ou Zero\nCima/baixo: fase\nL/R: area\nSTART:jogar SELECT:novo jogo\n\n"
+   "Esq/dir: X ou Zero\nCima/baixo: fase\nL/R: area\nSTART:jogar SELECT:menu original\n\n"
    "B: pulo  A: dash  Y: ataque\nX: arma especial\nL/R: trocar arma\nSTART: menu do jogo\n\n"
    "L+R+SELECT: voltar aqui\nSELECT+X: ligar/desligar som\n\n"
    "Fases e chefes em validacao.\nVideos ainda indisponiveis.\n",character?"Zero":"X",stage,area+1);
@@ -150,7 +151,7 @@ int main(int argc,char** argv){
   x4_audio_init("nitro:/music","nitro:/sfx");
   iprintf("\x1b[2JCarregando %s fase %02u/%u...",character?"Zero":"X",stage,area);
   if(log_file){fprintf(log_file,"BEGIN campaign=%u character=%u stage=%u area=%u\n",campaign,character,stage,area);commit_log();}
-  int error=campaign?x4_flow_new_game("nitro:/content"):x4_flow_begin("nitro:/content",character,stage,area);
+  int error=campaign?x4_flow_title("nitro:/content"):x4_flow_begin("nitro:/content",character,stage,area);
   if(error){fail("Carregamento",error);break;}
   audio_start();unsigned previous=0,frames=0,last=vblanks,gfx_errors=0;
   uint64_t logic_ticks=0,draw_ticks=0,audio_ticks=0,wait_ticks=0,present_ticks=0,prepare_ticks=0;

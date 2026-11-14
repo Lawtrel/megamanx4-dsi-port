@@ -123,9 +123,20 @@ cached_pose:
             else if(page==0x1d){image=x4_archive_find(p,0x10007,0);if(!image&&common_graphics)image=x4_archive_find(common_graphics,0x10007,0);tile=local;}
             else if(page==0x1e&&common_graphics){image=x4_archive_find(common_graphics,0x10008,0);tile=local;}
             else if(page==0x1f&&common_graphics){image=x4_archive_find(common_graphics,0x10001,0);tile=local;}
+            /* Title images use full pages rather than the stage's eleven
+             * sprite rows followed by five rows of player graphics. */
+            else if(page>=6&&page<=15&&x4_archive_find(s,0x10002,0)){
+                image=x4_archive_find(s,0x10002,0);tile=(page-6)*256+local;
+            }
             else if(page>=6&&page<=15&&local<176){image=x4_archive_find(s,0x10102,0);tile=(page-6)*176+local;}
             else if(page>=5&&page<=15&&local>=176){image=x4_archive_find(p,0x10206,0);tile=(page-5)*80+local-176;}
-            if(!image)return 1;raw=image->data;size=image->size;tiles=size/128;
+            if(!image){
+#ifdef __linux__
+                fprintf(stderr,"UNRESOLVED ATLAS page=%x local=%u\n",page,local);
+                for(unsigned j=0;j<s->count;++j)fprintf(stderr,"BANK type=%x size=%zu\n",s->members[j].type,s->members[j].size);
+#endif
+                return 1;
+            }raw=image->data;size=image->size;tiles=size/128;
         }
         if(tile>=tiles){
 #ifdef __linux__
@@ -201,10 +212,10 @@ int x4_n05_draw_actors(uint16_t* screen,const X4Archive* p,const X4Archive* s,in
     for(unsigned i=0;i<COUNT(item_objects);++i)errors+=checked_draw(screen,p,s,ANIMATED_OBJECT(&item_objects[i]),item_objects[i].sprite_frames,cx,cy);
     for(unsigned i=0;i<COUNT(visual_objects);++i)errors+=checked_draw(screen,p,s,ANIMATED_OBJECT(&visual_objects[i]),visual_objects[i].unk3C,cx,cy);
     for(unsigned i=0;i<COUNT(misc_objects);++i){
-        /* Save/continue prompts use Misc 31/32 rather than the Unk objects
-         * used by controller options. Both belong above the menu backdrop. */
+        /* Prompts and the memory-card slot labels/icons all belong above
+         * the native menu backdrop, as do the Unk option labels. */
         struct MiscObj* o=&misc_objects[i];
-        if(o->bg_offset<0&&(o->id==31||o->id==32))drawing_hud=2;
+        if(o->bg_offset<0&&(o->id==31||o->id==32||o->id==42))drawing_hud=2;
         errors+=checked_draw(screen,p,s,ANIMATED_OBJECT(o),o->unk3C,cx,cy);
         drawing_hud=0;
     }

@@ -10,6 +10,7 @@ typedef struct {
  * qualified; errors remain visible until the complete game is implemented. */
 int x4_flow_begin(const char* content_root,unsigned character,unsigned stage,unsigned area);
 int x4_flow_new_game(const char* content_root);
+int x4_flow_title(const char* content_root);
 int x4_flow_step(unsigned held,unsigned pressed);
 void x4_flow_state(X4FlowState* out);
 void x4_flow_debug(char* text,unsigned capacity);
