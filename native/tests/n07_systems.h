@@ -1,12 +1,7 @@
 /* N07 integration checks: original stage events and persistent game menus. */
 #include "main/menu.h"
 #include "x4_save.h"
-#include "x4_movie.h"
 static void n07_tick(unsigned held,unsigned* previous){
- static unsigned tick;
- /* These regression routes exercise skip/return. Full movie playback is
-  * separately verified for every converted clip by movie_driver.c. */
- if(x4_movie_active())held=++tick&1?1u<<16:0;
  assert(!x4_flow_step(held,held&~*previous));*previous=held;
  x4_audio_update();int16_t pcm[315];x4_audio_read(pcm,315);
  assert(!x4_audio_errors());assert(!x4_flow_draw(screen));
@@ -18,16 +13,26 @@ static void n07_menu_image(const char* kind,unsigned character){
  assert(foreground>10);char p[64];snprintf(p,sizeof p,"menu_%s_slot_%u.ppm",kind,character);n06_preview(p);
 }
 static int n07_system(const char* root,const char* mode,unsigned character){
- if(!strcmp(mode,"movieflow")){
-  x4_audio_init("../../full-audio/music","../../full-audio/sfx");assert(!x4_flow_title(root));
-  x4_video_enabled=1;unsigned seen=0,ended=0;
-  for(unsigned tick=0;tick<700;++tick){
-   assert(!x4_flow_step(0,0));x4_audio_update();int16_t pcm[315];x4_audio_read(pcm,315);assert(!x4_flow_draw(screen));
-   if(x4_movie_active()){assert(x4_movie_id()==0);if(x4_movie_frame()>100)seen=1;}
-   else if(seen){ended=1;assert(game_info.unk0==1);}
+ if(!strcmp(mode,"nocutscenes")){
+  extern void func_80018000(arg_u8);
+  x4_audio_init("../../full-audio/music","../../full-audio/sfx");
+  assert(!x4_flow_begin(root,character,0,0));x4_video_enabled=1;
+  unsigned previous=0;for(unsigned t=0;t<600;++t)n07_tick(0,&previous);
+  X4FlowState before,after;x4_flow_state(&before);
+  int track=x4_audio_track();unsigned held=controller_input.held,pressed=controller_input.pressed;
+  /* Every original movie ID must return immediately even without a movies
+   * directory. Keep tasks, controls and current music untouched. */
+  for(unsigned id=0;id<11;++id){
+   func_80018000((arg_u8)id);x4_flow_state(&after);
+   assert(before.frames==after.frames&&before.state==after.state&&before.substate==after.substate);
+   assert(before.stage==after.stage&&before.area==after.area&&before.character==after.character);
+   assert(controller_input.held==held&&controller_input.pressed==pressed);
+   assert(x4_audio_track()==track&&!x4_audio_errors());
   }
-  assert(seen&&ended&&!x4_movie_error());x4_flow_close();x4_audio_close();
-  puts("PASS original movie call, natural Capcom completion, title task resumed and native draw restored");return 1;
+  for(unsigned t=0;t<120;++t)n07_tick(0,&previous);
+  x4_flow_state(&after);assert(after.frames==before.frames+120&&!after.load_errors&&!after.draw_errors);
+  x4_flow_close();x4_audio_close();
+  puts("PASS all 11 cutscene calls skipped immediately; music, controls and gameplay continue");return 1;
  }
  if(!strcmp(mode,"titlemenu")){
   x4_audio_init("../../full-audio/music","../../full-audio/sfx");assert(!x4_flow_title(root));

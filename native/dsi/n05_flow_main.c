@@ -13,13 +13,12 @@
 #include "x4_video.h"
 #include "x4_arm7_audio.h"
 #include "x4_sfx.h"
-#include "x4_movie.h"
 #include <calico/system/tick.h>
 #ifdef X4_N06_GPU
 void x4_gpu_init(void);void x4_gpu_prepare(void);void x4_gpu_present(void);unsigned x4_gpu_words(void);
 unsigned x4_gpu_upload_batches(void);unsigned x4_gpu_upload_tiles(void);
-#define VERSION "N08"
-#define LOG_PREFIX "native_n08"
+#define VERSION "N08.1"
+#define LOG_PREFIX "native_n081"
 #else
 #define VERSION "N05"
 #define LOG_PREFIX "native_n05_flow"
@@ -71,7 +70,7 @@ static void initialize_logs(void){
  if(save_root)x4_save_set_root(save_root);
  if(log_file){
   fprintf(log_file,VERSION "; native ARM9; DSi=%d; id=%s; build=%s %s\n",isDSiMode(),X4_BUILD_ID,__DATE__,__TIME__);
-  fprintf(log_file,"Development, incomplete qualification. All stage resources; 80 PCM tracks; native PCM effects. 11 native movies; six sound commands and effect fidelity pending.\n");commit_log();
+  fprintf(log_file,"Development, incomplete qualification. All stage resources; 80 PCM tracks; native PCM effects. Cutscenes disabled; six sound commands and effect fidelity pending.\n");commit_log();
  }
 }
 static void fail(const char* text,int code){
@@ -110,13 +109,13 @@ static int select_stage(void){
    "Escolha X/Zero na tela do jogo.\nB confirma e avanca dialogos.\n\n"
    "SELECT: escolher fase de teste\n\nB:pulo A:dash Y:ataque\nX:especial L/R:arma\n"
    "START:menu do jogo\n\nL+R+SELECT:voltar aqui\nSELECT+X:alternar som\n\n"
-   "Versao em desenvolvimento.\nCenas de video integradas.\n");
+   "Versao em desenvolvimento.\nCutscenes desativadas.\n");
   else iprintf("\x1b[0;0HMEGA MAN X4 - " VERSION "\nTeste de integracao nativa\n\n"
    "Personagem: %-4s            \nFase: %02u  Area: %u            \n\n"
    "Esq/dir: X ou Zero\nCima/baixo: fase\nL/R: area\nSTART:jogar SELECT:menu original\n\n"
    "B: pulo  A: dash  Y: ataque\nX: arma especial\nL/R: trocar arma\nSTART: menu do jogo\n\n"
    "L+R+SELECT: voltar aqui\nSELECT+X: ligar/desligar som\n\n"
-   "Fases e chefes em validacao.\nCenas de video integradas.\n",character?"Zero":"X",stage,area+1);
+   "Fases e chefes em validacao.\nCutscenes desativadas.\n",character?"Zero":"X",stage,area+1);
   swiWaitForVBlank();
  }
  return 0;
@@ -144,7 +143,7 @@ int main(int argc,char** argv){
  for(;;){
   audio_stop();x4_flow_close();memset(pixels,0,sizeof pixels);
 #ifdef X4_N06_GPU
-  x4_gpu_init();x4_video_begin(0);swiWaitForVBlank();x4_gpu_present();
+  x4_video_begin(0);swiWaitForVBlank();x4_gpu_present();
 #else
   DC_FlushRange(pixels,sizeof pixels);dmaCopy(pixels,bgGetGfxPtr(bg),sizeof pixels);
 #endif
@@ -155,8 +154,6 @@ int main(int argc,char** argv){
   int error=campaign?x4_flow_title("nitro:/content"):x4_flow_begin("nitro:/content",character,stage,area);
   if(error){fail("Carregamento",error);break;}
   audio_start();unsigned previous=0,frames=0,last=vblanks,gfx_errors=0;
-  unsigned movie_mode=0,movie_frame=~0u,movie_generation=0;
-  int movie_bg=-1;
   uint64_t logic_ticks=0,draw_ticks=0,audio_ticks=0,wait_ticks=0,present_ticks=0,prepare_ticks=0;
   uint64_t simulation_clock=tickGetCount();unsigned last_simulation=0,dropped_ticks=0;
   iprintf("\x1b[2J");
@@ -185,34 +182,14 @@ int main(int argc,char** argv){
    logic_ticks+=tickGetCount()-t0;
    diagnostic_phase=3;t0=tickGetCount();x4_audio_update();audio_ticks+=tickGetCount()-t0;
    if(error){fail("Evento de fase",error);break;}
-   unsigned movie=x4_movie_active();
-   if(movie!=movie_mode||(movie&&movie_generation!=x4_movie_generation())){
-    if(audio_open){mmStreamClose();audio_open=0;}
-    swiWaitForVBlank();
-    if(movie){
-     videoSetMode(MODE_5_2D);vramSetBankA(VRAM_A_MAIN_BG);
-     movie_bg=bgInit(3,BgType_Bmp16,BgSize_B16_256x256,0,0);movie_frame=~0u;
-    }else{
-#ifdef X4_N06_GPU
-     x4_gpu_init();x4_video_begin(0);
-#endif
-    }
-    movie_mode=movie;audio_start();
-   }
    diagnostic_phase=4;t0=tickGetCount();gfx_errors+=x4_flow_draw(pixels);draw_ticks+=tickGetCount()-t0;
 #ifdef X4_N06_GPU
-   diagnostic_phase=7;t0=tickGetCount();if(!movie_mode)x4_gpu_prepare();prepare_ticks+=tickGetCount()-t0;
+   diagnostic_phase=7;t0=tickGetCount();x4_gpu_prepare();prepare_ticks+=tickGetCount()-t0;
 #endif
    t0=tickGetCount();if(audio_open)mmStreamUpdate();audio_ticks+=tickGetCount()-t0;
    diagnostic_phase=5;t0=tickGetCount();swiWaitForVBlank();wait_ticks+=tickGetCount()-t0;t0=tickGetCount();
 #ifdef X4_N06_GPU
-   diagnostic_phase=6;
-   if(movie_mode){
-    if(movie_frame!=x4_movie_frame()||movie_generation!=x4_movie_generation()){
-     DC_FlushRange(pixels,sizeof pixels);dmaCopy(pixels,bgGetGfxPtr(movie_bg),sizeof pixels);
-     movie_frame=x4_movie_frame();movie_generation=x4_movie_generation();
-    }
-   }else x4_gpu_present();
+   diagnostic_phase=6;x4_gpu_present();
 #else
    DC_FlushRange(pixels,sizeof pixels);dmaCopy(pixels,bgGetGfxPtr(bg),sizeof pixels);
 #endif
@@ -235,7 +212,6 @@ int main(int argc,char** argv){
      fprintf(log_file,"PROFILE logic_us=%u draw_us=%u audio_us=%u present_us=%u wait_us=%u commands=%u hits=%u misses=%u palettes=%u upload=%u overflow=%u sim_hz=%u dropped_ticks=%u\n",logic_us,draw_us,audio_us,present_us,wait_us,v.commands,v.hits,v.misses,v.palette_uploads,v.uploaded_bytes,v.overflow,simulation_hz,dropped_ticks);
      fprintf(log_file,"ARM7 voices=%u pcm_bytes=%u cache_hits=%u cache_misses=%u starts=%u\n",fx.active,fx.bytes,fx.hits,fx.misses,fx.starts);
      fprintf(log_file,"PIPELINE prepare_us=%u\n",prepare_us);
-     fprintf(log_file,"MOVIE active=%u id=%u frame=%u error=%d\n",x4_movie_active(),x4_movie_id(),x4_movie_frame(),x4_movie_error());
      char debug[256];x4_flow_debug(debug,sizeof debug);fprintf(log_file,"%s\n",debug);
 #ifdef X4_N06_GPU
      fprintf(log_file,"FIFO words=%u old_words=%u\n",x4_gpu_words(),21*v.commands);

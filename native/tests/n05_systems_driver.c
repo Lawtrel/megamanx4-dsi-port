@@ -7,7 +7,6 @@
 #include "x4_scene.h"
 #include "x4_audio.h"
 #include "x4_video.h"
-#include "x4_movie.h"
 #include "x4_n05_actors.h"
 #include <assert.h>
 #include <stdio.h>
@@ -155,7 +154,6 @@ int main(int argc,char** argv){
     }
    }
   }else abort();
-  if(x4_movie_active())held=tick&1?1u<<16:0;
   int palette_was_active=x4_flow_ui_pause_palette_active();
   if(pausejungle&&!palette_was_active&&SP_PALETTE)memcpy(palette_before,SP_PALETTE+1024,sizeof palette_before);
   assert(!x4_flow_step(held,held&~previous));previous=held;

@@ -1,9 +1,15 @@
+# Retorno físico — N08
+
+Em 15/11/2026, o usuário informou que o `.nds` tinha aproximadamente 785 MiB,
+os vídeos estavam lentos e o áudio fora de sincronia. Pediu retirar as
+cutscenes. Não foi fornecido um novo log nesta mensagem. A N08.1 remove
+filmes e seu áudio do pacote; esta revisão ainda requer teste no console.
+
 # Retorno físico — N07
 
 Em 14/11/2026, o usuário confirmou que a N07 está funcionando corretamente.
 Não foi enviado novo log nesse retorno. A validação completa da campanha foi
-reservada para o final a pedido do usuário. A N08 ainda requer teste físico
-específico de reprodução, sincronismo e retorno dos vídeos.
+reservada para o final a pedido do usuário.
 
 # Último teste físico — N06.7
 

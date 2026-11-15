@@ -1,5 +1,10 @@
 # Mega Man X4 nativo — N08
 
+Registro histórico: substituído pela [N08.1 sem cutscenes](STATUS_N081.md).
+Após teste no DSi, o usuário relatou vídeos lentos e áudio fora de sincronia
+e pediu sua retirada em 15/11/2026. Os resultados abaixo são os testes no
+computador da versão anterior, não confirmação da reprodução no hardware.
+
 Saída local: `dist/native-n08/mmx4_native_n08.nds`. Requer modo DSi.
 A N07 permanece preservada. A qualificação completa da campanha fica para
 o final, conforme a orientação do usuário em 14/11/2026.

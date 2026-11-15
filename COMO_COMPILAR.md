@@ -3,7 +3,7 @@
 ## Requisitos
 
 - Linux x86-64 ou WSL com uma distribuição Linux x86-64.
-- Python 3.11 ou superior, GCC, Git, Make, Tar e FFmpeg.
+- Python 3.11 ou superior, GCC, Git, Make e Tar.
 - Acesso à internet no primeiro setup para obter as dependências fixadas.
 - Seu próprio BIN/CUE USA de Mega Man X4, SLUS-00561.
 
@@ -35,14 +35,14 @@ outra edição exige adaptação e verificação; renomear o arquivo não basta.
 ## Compilar
 
 ```sh
-python3 native/compile.py --n08
+python3 native/compile.py --n081
 ```
 
 A compilação verifica os patches locais, prepara recursos e áudio, compila o
 código ARM9, executa os testes e verifica os cabeçalhos, símbolos e dados
 internos antes de criar o pacote local.
 
-Saída: `dist/native-n08/mmx4_native_n08.nds`.
+Saída: `dist/native-n081/mmx4_native_n081.nds`.
 Logs de compilação: `build/native/logs/compile_*.log`.
 Os objetos são reutilizados apenas quando as verificações de fontes,
 cabeçalhos e opções permitem.
@@ -53,7 +53,7 @@ No Windows, depois do setup:
 .\COMPILAR_JOGO.cmd --no-pause
 ```
 
-`COMPILAR_N08.cmd` é um atalho equivalente; `COMPILAR_N06.cmd` mantém compatibilidade. A distribuição WSL padrão desses
+`COMPILAR_N081.cmd` é um atalho equivalente; `COMPILAR_N06.cmd` mantém compatibilidade. A distribuição WSL padrão desses
 atalhos é `Arch`, usada no ambiente de desenvolvimento. Para outra:
 
 ```powershell
@@ -87,8 +87,8 @@ não é requisito para iniciar uma compilação.
 
 ## Uso e limites
 
-Inicie o resultado em modo DSi. Consulte [os controles e limites](docs/STATUS_N08.md).
-A N08 tem correções verificadas no computador e ainda precisa de medição e
+Inicie o resultado em modo DSi. Consulte [os controles e limites](docs/STATUS_N081.md).
+A N08.1 tem correções verificadas no computador e ainda precisa de medição e
 qualificação física no DSi.
 Compilar com sucesso e passar testes no computador não confirmam estabilidade
 ou 30 FPS no hardware.
@@ -97,14 +97,8 @@ O `.nds`, os arquivos de `build/` e todo conteúdo extraído do dump são para u
 local e ficam fora do Git. O pacote gerado inclui gráficos e áudio originais;
 não o anexe ao repositório público ou a uma release.
 
-## Preparação dos vídeos
+## Cutscenes desativadas
 
-O FFmpeg é usado somente no computador para converter as onze cenas do dump.
-No Linux/WSL, instale-o pela distribuição ou indique um executável local:
-
-```sh
-X4_FFMPEG=/caminho/ffmpeg python3 native/compile.py --n08
-```
-
-Os quadros preparados são comparados com a saída do decodificador nativo.
-Vídeos e arquivos temporários permanecem em `build/native/movies/`, fora do Git.
+A N08.1 não prepara nem inclui vídeos, e não requer FFmpeg. As chamadas
+originais seguem imediatamente para o próximo evento. Os arquivos e
+ferramentas históricos da N08 não entram na compilação atual.

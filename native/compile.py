@@ -13,7 +13,7 @@ logpath=LOGS/(datetime.datetime.now().strftime('compile_%Y%m%d_%H%M%S_%f')+'.log
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--n08','--n07','--n06',action='store_true',help='Compile the current N08 native target')
+    parser.add_argument('--n081','--n08','--n07','--n06',action='store_true',help='Compile the current N08.1 native target (without cutscenes)')
     parser.parse_args()
     if sys.platform!='linux':
         raise RuntimeError('Use COMPILAR_JOGO.cmd on Windows, or run under Linux/WSL.')
@@ -35,7 +35,7 @@ def main():
                 for line in process.stdout:
                     print(line,end='',flush=True);log.write(line);log.flush()
                 if process.wait():raise RuntimeError('Etapa interrompida: '+script)
-        say('N08 nativa: videos nativos, audio e retorno ao jogo; validacao fisica pendente.')
+        say('N08.1 nativa: sem cutscenes; audio, menus e saves preservados; validacao fisica pendente.')
         say('Log: '+str(logpath))
         run('native/build_gamecore.py')
         if not (ROOT/'build/native/full-content/manifest.json').is_file():run('native/prepare_full_content.py')
@@ -43,8 +43,6 @@ def main():
             run('native/'+script)
         for script in ('check_content.py','check_n05_tasks.py','check_music.py','check_save.py','check_sfx.py','check_n063_arm7_audio.py'):
             run('native/tests/'+script)
-        run('native/prepare_movies.py')
-        run('native/tests/check_movies.py')
         run('native/probe_n05_flow.py')
         for script in ('check_n06_video.py','check_n061_gpu.py','check_n05_flow.py'):
             run('native/tests/'+script)
@@ -54,7 +52,7 @@ def main():
         run('native/tests/n06_preview_png.py')
         run('native/build_n05_flow.py')
         run('native/package_n05_flow.py')
-        say('\nSUCESSO DE COMPILACAO (EM TESTE): '+str(ROOT/'dist/native-n08/mmx4_native_n08.nds'))
+        say('\nSUCESSO DE COMPILACAO (EM TESTE): '+str(ROOT/'dist/native-n081/mmx4_native_n081.nds'))
         say('Use somente no seu ambiente local. O NDS contem recursos extraidos do seu dump.')
 
 if __name__=='__main__':

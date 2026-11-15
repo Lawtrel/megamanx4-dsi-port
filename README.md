@@ -5,11 +5,13 @@ Port experimental do motor de Mega Man X4 para ARM9, baseado no código C de
 ao DSi. O executável nativo não inclui interpretador de CPU, BIOS ou emulador
 completo de PlayStation.
 
-**Em desenvolvimento: N08, com 11 cenas de vídeo nativas, áudio das cenas
-e quatro efeitos corrigidos, mantendo menus, saves e otimizações anteriores.**
+**Em desenvolvimento: N08.1, sem cutscenes, mantendo as quatro correções
+de efeitos da N08, menus, saves e otimizações anteriores.**
 Os efeitos continuam pelo ARM7/hardware. O log físico da N06.7 registrou
 médias de 47,63 FPS com X na primeira área do trem e 39,19 com Zero na segunda,
-em trechos distintos. Há quedas abaixo de 30 FPS. A N08 precisa de teste físico;
+em trechos distintos. Há quedas abaixo de 30 FPS. Após relato de vídeos lentos
+e áudio fora de sincronia na N08, as cenas foram retiradas a pedido do usuário.
+A N08.1 precisa de teste físico;
 veja [os testes físicos](docs/HARDWARE_TESTS.md).
 
 ## O que está aqui
@@ -26,20 +28,20 @@ Os dados extraídos e os binários gerados permanecem nas pastas ignoradas pelo 
 
 ## Preparar e compilar
 
-Use Linux ou WSL com Python 3.11+, GCC, Git, Make, Tar e FFmpeg.
+Use Linux ou WSL com Python 3.11+, GCC, Git, Make e Tar.
 No Linux/WSL, a partir da raiz:
 
 ```sh
 python3 tools/setup_native.py --disc '/caminho/Mega Man X4.bin' --cue '/caminho/Mega Man X4.cue'
-python3 native/compile.py --n08
+python3 native/compile.py --n081
 ```
 
 O setup obtém o SDK e as fontes fixadas. O dump suportado é a edição USA
 SLUS-00561; o script verifica seu tamanho e SHA-256 antes de extrair dados.
-A saída é `dist/native-n08/mmx4_native_n08.nds`, para uso local em modo DSi.
+A saída é `dist/native-n081/mmx4_native_n081.nds`, para uso local em modo DSi.
 Não publique esse arquivo: ele inclui os recursos extraídos do jogo.
 
-No Windows, depois do setup, execute `COMPILAR_JOGO.cmd` ou `COMPILAR_N08.cmd`.
+No Windows, depois do setup, execute `COMPILAR_JOGO.cmd` ou `COMPILAR_N081.cmd`.
 As duas opções compilam o mesmo alvo atual. Detalhes em
 [COMO_COMPILAR.md](COMO_COMPILAR.md).
 
@@ -68,7 +70,7 @@ salvar/carregar pelos menus originais com X e Zero.
 A validação completa da campanha fica para o final. Alguns comandos de áudio,
 fidelidade de efeitos, validação física das correções e otimização continuam pendentes.
 
-- [Estado e controles da N08](docs/STATUS_N08.md)
+- [Estado e controles da N08.1](docs/STATUS_N081.md)
 - [Resultado do último teste físico](docs/HARDWARE_TESTS.md)
 - [Prioridades](docs/ROADMAP.md)
 - [Arquitetura](native/README.md)
