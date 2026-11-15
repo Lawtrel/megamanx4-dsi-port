@@ -2,6 +2,10 @@
 
 Saída local: `dist/native-n081/mmx4_native_n081.nds`. Requer modo DSi.
 
+O usuário decidiu não testar esta revisão separadamente em 15/11/2026.
+Sua verificação no console fica junto com a futura
+[beta 8.2](PLANO_BETA_82.md); ela não foi confirmada no hardware.
+
 Em 15/11/2026, o usuário relatou vídeos lentos e áudio fora de sincronia
 na N08 e pediu para retirar as cutscenes. Esta revisão pula imediatamente
 as onze chamadas originais de vídeo, incluindo logo, história e finais.

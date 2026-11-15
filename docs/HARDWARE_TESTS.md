@@ -1,5 +1,9 @@
 # Retorno físico — N08
 
+Atualização em 15/11/2026: o usuário decidiu não testar a N08.1 separadamente.
+A retirada dos filmes será conferida junto com a futura beta 8.2. A N08.1
+continua sem qualificação física; ver [o plano da próxima beta](PLANO_BETA_82.md).
+
 Em 15/11/2026, o usuário informou que o `.nds` tinha aproximadamente 785 MiB,
 os vídeos estavam lentos e o áudio fora de sincronia. Pediu retirar as
 cutscenes. Não foi fornecido um novo log nesta mensagem. A N08.1 remove

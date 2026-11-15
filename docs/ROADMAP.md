@@ -1,11 +1,13 @@
 # Prioridades atuais
 
-1. **Qualificar a N08.1 sem cutscenes no DSi.** Confirmar título, retorno
-   direto ao jogo, diálogos, menus e salvar/carregar. Vídeos retirados a pedido
-   do usuário em 15/11/2026 por lentidão e áudio fora de sincronia na N08.
-2. **30 FPS sustentados.** Preservar as otimizações e medir percursos
-   equivalentes. Remover filmes reduz o pacote, sem comprovar aumento dos
-   FPS de gameplay.
+1. **Planejar a beta 8.2 com foco em desempenho e estabilidade.** A N08.1
+   não terá teste físico separado por decisão do usuário em 15/11/2026.
+   O próximo teste reunirá a retirada dos vídeos e as alterações da 8.2.
+   Ver [escopo proposto e critérios de entrega](PLANO_BETA_82.md).
+2. **30 FPS sustentados.** Medir as quedas e otimizar os trechos responsáveis,
+   preservando escala, animações e velocidade da simulação. Confirmar título,
+   diálogos, menus e salvar/carregar na próxima rodada no DSi. Remover filmes
+   reduz o pacote, sem comprovar aumento dos FPS de gameplay.
 3. **Áudio e fidelidade gráfica restantes.** Investigar seis comandos de
    sequência, panning/reverb, loops e transparências do compositor.
 4. **Validação completa da campanha — ao final.** Por escolha explícita do
