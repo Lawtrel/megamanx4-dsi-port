@@ -35,8 +35,10 @@ fontes, relatórios e hashes internos antes da entrega.
 
 Esta revisão ainda precisa de teste no DSi. A campanha completa continua
 reservada para o final. O teste aleatório da 8.3 foi descrito pelo usuário
-como funcionando bem; o log ainda contém ocorrências de desenho que estão
-registradas separadamente, sem causa atribuída por suposição.
+como funcionando bem, e ele confirmou em 16/11/2026 que as ocorrências
+gráficas estavam corrigidas nessa versão. A 8.4 mantém essas correções;
+seus novos controles ainda precisam de teste no DSi. Os contadores antigos
+continuam documentados, sem serem tratados como uma falha visual pendente.
 
 Controles: B pula, A dash, Y ataque, X especial, L/R troca de arma, START
 abre o menu e SELECT aciona Giga. L+R+SELECT retorna ao seletor.

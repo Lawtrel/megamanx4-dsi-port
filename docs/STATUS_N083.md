@@ -3,6 +3,10 @@
 Saída local: `dist/native-n083/mmx4_native_n083.nds`. Requer modo DSi.
 Compile com `COMPILAR_JOGO.cmd` ou `COMPILAR_N083.cmd`.
 
+Atualização de 16/11/2026: o usuário confirmou que as ocorrências gráficas
+estavam corrigidas no teste da beta 8.3. Esta é uma confirmação visual
+relatada pelo usuário, sem qualificar a campanha inteira ou todos os FPS.
+
 Pacote de 15/11/2026: 236.006.400 bytes (aproximadamente 225 MiB), build
 `c0da08be8754468257a2`. A beta 8.2 permanece preservada separadamente.
 

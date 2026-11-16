@@ -6,6 +6,10 @@ O teste cobre trechos de Zero na fase 11 e X na fase 5, introdução e trem.
 Há quedas abaixo de 30 FPS e nove ocorrências de desenho na sessão de X,
 com detalhe de erro de tile durante pausa na introdução. Áudio não registrou
 erro. Não é uma medição controlada contra a 8.2, nem teste de Sigma.
+Em esclarecimento posterior no mesmo dia, o usuário confirmou que as
+ocorrências gráficas estavam corrigidas no teste da beta 8.3. A validação
+visual fica confirmada por esse relato; os contadores do log permanecem
+registrados sem manter, por si só, uma pendência de defeito visual.
 Veja [tabela, origem e limites](TESTE_N083_ALEATORIO.md).
 
 # Retorno físico — beta 8.2

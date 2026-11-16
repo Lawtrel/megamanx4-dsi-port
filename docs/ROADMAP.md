@@ -1,13 +1,12 @@
 # Prioridades atuais
 
 1. **Testar SELECT/Giga da beta 8.4 no DSi.** Conferir X e Zero, energia e
-   atalhos de som/retorno. O teste aleatório da 8.3 foi relatado funcionando
-   bem; [o log](TESTE_N083_ALEATORIO.md) registra falhas de tile numa pausa
-   da introdução, que permanecem pendentes de reprodução. A N08.1
+   atalhos de som/retorno. O usuário confirmou as correções gráficas na 8.3;
+   [o registro do teste](TESTE_N083_ALEATORIO.md) mantém os contadores
+   históricos sem abrir uma pendência visual baseada apenas neles. A N08.1
    não terá teste físico separado por decisão do usuário em 15/11/2026.
    Já há [teste parcial da fase 12](TESTE_N082_FASE12.md). Priorizar os
-   checkpoints 5/7/9 com X, onde houve quedas abaixo de 30 FPS, e diagnosticar
-   as nove ocorrências de desenho em Sigma. O maior custo medido está na
+   checkpoints 5/7/9 com X, onde houve quedas abaixo de 30 FPS. O maior custo medido está na
    composição e preparação gráfica.
    Ver [controles e limites da beta 8.4](STATUS_N084.md). A integração de
    [armas de X5 no debug](X5_ARMAS_DEBUG.md) permanece como extensão futura.

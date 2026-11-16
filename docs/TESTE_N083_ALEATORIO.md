@@ -42,9 +42,12 @@ A nona ocorrência não tem detalhe de objeto registrado nessa linha.
 quadro anterior ao instante amostrado. Esses contadores são por quadro,
 enquanto o contador de desenho acumula ocorrências durante a sessão.
 
-O usuário não relatou falha visual nesta mensagem. A ocorrência na pausa
-permanece pendente de reprodução e diagnóstico. O log não percorre Sigma,
-portanto não confirma fisicamente a correção do diálogo feita na 8.3.
+Em esclarecimento posterior de 16/11/2026, o usuário confirmou que as
+ocorrências gráficas já estavam corrigidas e que fez a validação na beta 8.3.
+A correção visual fica registrada como confirmada pelo usuário nessa versão.
+Os contadores acima são preservados como dados do log; isoladamente não
+mantêm um defeito visual aberto nem invalidam essa confirmação. O arquivo
+não percorre Sigma, portanto não documenta por si só essa rota específica.
 
 ## Solicitação de controle
 
