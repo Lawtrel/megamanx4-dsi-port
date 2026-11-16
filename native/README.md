@@ -1,6 +1,6 @@
 # Motor nativo ARM9
 
-O alvo atual é a beta 8.3, sem cutscenes e com equipamento debug completo, experimental. Estado do produto e resultado físico
+O alvo atual é a beta 8.4, sem cutscenes e com equipamento debug completo, experimental. Estado do produto e resultado físico
 estão em [README](../README.md) e [testes no console](../docs/HARDWARE_TESTS.md).
 
 ## Componentes
@@ -77,3 +77,9 @@ de bits, preservando os comandos anteriores. A comparação ARM946 em
 `tests/benchmark_n083_gpu.py` mede instruções e igualdade do FIFO, não FPS.
 Ela pode ser executada com o pacote opcional Unicorn; não é requisito para
 a compilação normal do jogo.
+
+Na beta 8.4, `src/x4_controls.h` compartilha o mapeamento dos botões físicos
+com o teste do motor. SELECT envia a ação Giga/R2, enquanto as combinações
+completas de som/retorno são consumidas pelo frontend. O SDK é conferido
+por assert de compilação. A identificação do build inclui os cabeçalhos
+locais, além dos objetos, frontend e manifesto dos recursos.

@@ -1,3 +1,13 @@
+# Retorno físico — beta 8.3
+
+Em 16/11/2026, o usuário informou que a 8.3 rodou bem num teste aleatório e
+enviou `native_n083_000.log`, build `c0da08be8754468257a2`, modo DSi.
+O teste cobre trechos de Zero na fase 11 e X na fase 5, introdução e trem.
+Há quedas abaixo de 30 FPS e nove ocorrências de desenho na sessão de X,
+com detalhe de erro de tile durante pausa na introdução. Áudio não registrou
+erro. Não é uma medição controlada contra a 8.2, nem teste de Sigma.
+Veja [tabela, origem e limites](TESTE_N083_ALEATORIO.md).
+
 # Retorno físico — beta 8.2
 
 Em 15/11/2026, recebido `native_n082_000.log`, build `f876e6285bcd22521168`,

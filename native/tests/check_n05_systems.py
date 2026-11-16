@@ -8,6 +8,7 @@ if os.environ.get('X4_GPU')=='1':cases.extend([(m,c) for m in ('titlemenu','trai
 if os.environ.get('X4_GPU')=='1':cases.extend([('nocutscenes',0),('nocutscenes',1)])
 if os.environ.get('X4_GPU')=='1':cases.extend([('debugloadout',0),('debugloadout',1)])
 if os.environ.get('X4_GPU')=='1':cases.extend([(m,c) for m in ('sigmagear','refight5','refight7','refight9') for c in range(2)])
+if os.environ.get('X4_GPU')=='1':cases.extend([('selectgiga',0),('selectgiga',1)])
 
 gpu=os.environ.get('X4_GPU')=='1';prefix='gpu_' if gpu else ''
 def check(case):

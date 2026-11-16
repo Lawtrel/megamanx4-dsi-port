@@ -14,12 +14,16 @@
 #include "x4_video.h"
 #include "x4_arm7_audio.h"
 #include "x4_sfx.h"
+#include "x4_controls.h"
 #include <calico/system/tick.h>
+_Static_assert(KEY_A==X4_NDS_A&&KEY_B==X4_NDS_B&&KEY_SELECT==X4_NDS_SELECT&&KEY_START==X4_NDS_START&&
+ KEY_RIGHT==X4_NDS_RIGHT&&KEY_LEFT==X4_NDS_LEFT&&KEY_UP==X4_NDS_UP&&KEY_DOWN==X4_NDS_DOWN&&
+ KEY_L==X4_NDS_L&&KEY_R==X4_NDS_R&&KEY_X==X4_NDS_X&&KEY_Y==X4_NDS_Y,"Native controls must match the SDK keypad ABI");
 #ifdef X4_N06_GPU
 void x4_gpu_init(void);void x4_gpu_prepare(void);void x4_gpu_present(void);unsigned x4_gpu_words(void);
 unsigned x4_gpu_upload_batches(void);unsigned x4_gpu_upload_tiles(void);
-#define VERSION "BETA 8.3"
-#define LOG_PREFIX "native_n083"
+#define VERSION "BETA 8.4"
+#define LOG_PREFIX "native_n084"
 #else
 #define VERSION "N05"
 #define LOG_PREFIX "native_n05_flow"
@@ -79,20 +83,6 @@ static void fail(const char* text,int code){
  if(log_file){fprintf(log_file,"FAIL %s code=%d\n",text,code);fflush(log_file);}
  while(pmMainLoop())swiWaitForVBlank();
 }
-static unsigned buttons(unsigned keys){
- unsigned b=0;if(keys&KEY_RIGHT)b|=1;if(keys&KEY_LEFT)b|=2;
- if(keys&KEY_UP)b|=4;
- if(keys&KEY_DOWN)b|=8;
- if(keys&KEY_Y)b|=16;
- if(keys&KEY_X)b|=32;
- if(keys&KEY_R)b|=512;
- if(keys&KEY_B)b|=128;
- if(keys&KEY_A)b|=256;
- if(keys&KEY_L)b|=1024;
- if(keys&KEY_START)b|=1u<<16;
- if(keys&KEY_SELECT)b|=1u<<17;
- return b;
-}
 static int select_stage(void){
  iprintf("\x1b[2J");memset(pixels,0,sizeof pixels);
  while(pmMainLoop()){
@@ -109,12 +99,12 @@ static int select_stage(void){
    "Novo jogo e carregar campanha.\n"
    "Escolha X/Zero na tela do jogo.\nB confirma e avanca dialogos.\n\n"
    "SELECT: escolher fase de teste\n\nB:pulo A:dash Y:ataque\nX:especial L/R:arma\n"
-   "START:menu do jogo\n\nL+R+SELECT:voltar aqui\nSELECT+X:alternar som\n\n"
+   "START:menu SELECT:giga\n\nL+R+SELECT:voltar aqui\nSELECT+X:alternar som\n\n"
    "Versao em desenvolvimento.\nCutscenes desativadas.\n");
   else iprintf("\x1b[0;0HMEGA MAN X4 - " VERSION "\nTeste de integracao nativa\n\n"
    "Personagem: %-4s            \nFase: %02u  Area: %u            \n\n"
    "Esq/dir: X ou Zero\nCima/baixo: fase\nL/R: area\nSTART:jogar SELECT:menu original\n\n"
-   "B: pulo  A: dash  Y: ataque\nX: arma especial\nL/R: trocar arma\nSTART: menu do jogo\n\n"
+   "B: pulo  A: dash  Y: ataque\nX: arma especial\nL/R: trocar arma\nSTART:menu SELECT:giga\n\n"
    "L+R+SELECT: voltar aqui\nSELECT+X: ligar/desligar som\n\n"
    "DEBUG: armas/upgrades completos.\nCutscenes desativadas.\n",character?"Zero":"X",stage,area+1);
   swiWaitForVBlank();
@@ -163,9 +153,8 @@ int main(int argc,char** argv){
    uint64_t t0=tickGetCount();x4_audio_update();if(audio_open)mmStreamUpdate();audio_ticks+=tickGetCount()-t0;
    scanKeys();unsigned held=keysHeld(),down=keysDown();
    if((held&(KEY_L|KEY_R|KEY_SELECT))==(KEY_L|KEY_R|KEY_SELECT))break;
-   if((held&KEY_SELECT)&&(down&KEY_X)){muted^=1;x4_arm7_audio_mute(muted);}
-   unsigned input=buttons(held);
-   if((held&(KEY_SELECT|KEY_X))==(KEY_SELECT|KEY_X))input&=~((1u<<17)|32u);
+   if((held&(KEY_SELECT|KEY_X))==(KEY_SELECT|KEY_X)&&(down&(KEY_SELECT|KEY_X))){muted^=1;x4_arm7_audio_mute(muted);}
+   unsigned input=x4_controls_buttons(held);
    t0=tickGetCount();
    diagnostic_phase=2;
 #ifdef X4_N06_GPU
@@ -204,7 +193,7 @@ int main(int argc,char** argv){
     X4VideoStats v=x4_video_stats();X4SfxStats fx=x4_sfx_stats();frames=0;logic_ticks=draw_ticks=audio_ticks=present_ticks=wait_ticks=prepare_ticks=0;
     unsigned simulation_hz=(s.frames-last_simulation)*60/elapsed;last_simulation=s.frames;
     iprintf("\x1b[0;0HMEGA MAN X4 " VERSION "\n%s Fase %02d/%d  FPS:%2u    \nHP:%2d Checkpoint:%d          \n\n"
-     "B:pulo A:dash Y:ataque\nX:especial L/R:arma\nSTART:menu\nL+R+SELECT:selecao de teste\n\n"
+     "B:pulo A:dash Y:ataque\nX:especial L/R:arma\nSTART:menu SELECT:giga\nL+R+SELECT:selecao de teste\n\n"
      "Som:%s  Faixa:%2d            \nImagem:%u Audio:%u            \nEfeitos pendentes:%u          \nARM7 FX:%u Cache:%uKB        \nLog:%s                     \n"
      "X:%5d Y:%5d              \nEstado:%d/%d Bloqueio:%d     \nCPU logica:%5uus          \nDesenho:%5uus GPU:%5uus    \nTiles:%u +%u  Limite:%u     \nPrep:%5uus                 \n",
      s.character?"Zero":"X",s.stage,s.area+1,fps,s.hp,s.checkpoint,muted?"OFF":"ON",x4_audio_track(),gfx_errors,x4_audio_errors(),x4_n05_missing_sfx(),fx.active,fx.bytes/1024,log_file?"ativo":"indisponivel",s.x,s.y,s.state,s.substate,s.locked,logic_us,draw_us,present_us,v.hits,v.misses,v.overflow,prepare_us);

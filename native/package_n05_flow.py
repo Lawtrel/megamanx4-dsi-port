@@ -4,14 +4,15 @@ import hashlib,json,struct,subprocess,sys,shutil,os
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'tools'))
 from nds_header import crc16
 N06=True
-BUILD=ROOT/('build/native/n083-render' if N06 else 'build/native/n05-integrated');DIST=ROOT/('dist/native-n083' if N06 else 'dist/native-n05-flow');FLOW=ROOT/'build/native/n05-flow'
-target='mmx4_native_n083' if N06 else 'mmx4_native_n05_flow'
+BUILD=ROOT/('build/native/n084-controls' if N06 else 'build/native/n05-integrated');DIST=ROOT/('dist/native-n084' if N06 else 'dist/native-n05-flow');FLOW=ROOT/'build/native/n05-flow'
+target='mmx4_native_n084' if N06 else 'mmx4_native_n05_flow'
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 inputs=json.loads((FLOW/'build_inputs.json').read_text())
 assert sha(FLOW/'flow.o')==inputs['flow_sha256']==sha(BUILD/'flow.o')
 for path,digest in inputs['sources'].items():assert sha(ROOT/path)==digest,path
 assert sha(BUILD/'source/main.c')==sha(ROOT/'native/dsi/n05_flow_main.c')
-build_id=hashlib.sha256((BUILD/'flow.o').read_bytes()+b''.join(p.read_bytes() for p in sorted((BUILD/'source').glob('*.c')))+json.dumps(json.loads((BUILD/'assets.json').read_text()),sort_keys=True).encode()).hexdigest()[:20]
+assert sha(BUILD/'source/x4_controls.h')==sha(ROOT/'native/src/x4_controls.h')
+build_id=hashlib.sha256((BUILD/'flow.o').read_bytes()+b''.join(p.read_bytes() for p in sorted((BUILD/'source').iterdir()) if p.suffix in ('.c','.h') and p.name!='build_id.h')+json.dumps(json.loads((BUILD/'assets.json').read_text()),sort_keys=True).encode()).hexdigest()[:20]
 assert (BUILD/'source/build_id.h').read_text()=='#define X4_BUILD_ID "'+build_id+'"\n'
 reports=[('flow_test','matrix_gpu.json' if N06 else 'matrix.json'),('systems_test','systems_gpu.json' if N06 else 'systems.json')]
 for name,report in reports:
@@ -65,7 +66,7 @@ os.replace(temporary,DIST/binary.name)
 if N06:
  for required in ('x4_gpu_prepare','x4_gpu_present','x4_gpu_upload_batches','x4_video_dirty_tiles','x4_video_tile','x4_n06_draw_hud','glInit'):assert required in symbols,required
  for required in ('x4_arm7_audio_init','x4_sfx_set_backend','soundPreparePcm','soundSynchronize'):assert required in symbols,required
-shutil.copyfile(ROOT/'docs/STATUS_N083.md',DIST/'LEIA-ME.md')
+shutil.copyfile(ROOT/'docs/STATUS_N084.md',DIST/'LEIA-ME.md')
 shutil.copyfile(ROOT/'referencias/mmx4-decomp/LICENSE',DIST/'LICENSE-upstream.txt')
 for _,p in reports:shutil.copyfile(FLOW/'host'/p,DIST/p)
 if N06:shutil.copyfile(ROOT/'build/native/n06-video-tests/validation.json',DIST/'video_tests.json')
@@ -78,10 +79,11 @@ if N06:
  for p in (FLOW/'host').glob('menu*.png'):shutil.copyfile(p,DIST/('diagnostico_'+p.name))
  for pattern in ('train_[01]_*.png','train_car_broken_[01].png','armor*.png','title_[01]_*.png'):
   for p in (FLOW/'host').glob(pattern):shutil.copyfile(p,DIST/('diagnostico_'+p.name))
-manifest={'version':'Beta 8.3' if N06 else 'N05 FLOW integration 2','not_complete_game':True,'physical_dsi_tested':False,
+manifest={'version':'Beta 8.4' if N06 else 'N05 FLOW integration 2','not_complete_game':True,'physical_dsi_tested':False,
  'binary':binary.name,'sha256':sha(binary),'build_id':build_id,'size':len(data),'unit_code':2,'bios_or_cpu_emulator_linked':False,
  'upstream':'https://github.com/sozud/mmx4','upstream_revision':'4e16dfc7c06597fd5719dd112654d8cf85d343c2',
  'host_stage_entry_cases':48,'host_system_cases':len(json.loads((FLOW/'host'/reports[1][1]).read_text())['cases']),
+ 'controls':'SELECT sends original GIGA/R2 action; full SELECT+X and L+R+SELECT chords consumed by frontend',
  'debug_loadout':'Stage selection only: all weapons/techniques, 48 HP, tanks, X full armor and Plasma; original resource consumption; no defeated-boss flag override',
  'assets':{'arc':138,'music_voice_tracks':80,'sfx_banks':79,'short_sequences':20,'native_movies':0},
  'pending':['Full physical DSi qualification and complete playthrough','Six unsupported sound commands and precise looping/reverb/panning','Complete graphics priority/filter fidelity','Original title/load menu qualification','30/60 FPS optimization'],
