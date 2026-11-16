@@ -13,8 +13,8 @@ médias de 47,63 FPS com X na primeira área do trem e 39,19 com Zero na segunda
 em trechos distintos. Há quedas abaixo de 30 FPS. Após relato de vídeos lentos
 e áudio fora de sincronia na N08, as cenas foram retiradas a pedido do usuário.
 O teste físico da 8.5 registra trechos a 60 FPS e quedas até 25 FPS.
-A corrupção de cores após Continue foi reproduzida e corrigida no
-computador para a 8.6; aguarda confirmação no DSi. Veja
+A correção das cores após Continue na 8.6 foi confirmada pelo usuário no
+DSi. O teste das fases 1 e 4 ainda registra quedas abaixo de 30 FPS. Veja
 [os testes físicos](docs/HARDWARE_TESTS.md).
 
 ## O que está aqui
@@ -71,7 +71,7 @@ incluindo a luta do olho com Zero, pausa, transições, saída da introdução e
 seis sessões consecutivas no mesmo processo, sete tipos de vagão e
 salvar/carregar pelos menus originais com X e Zero.
 A validação completa da campanha fica para o final. Alguns comandos de áudio,
-fidelidade de efeitos, validação física das correções e otimização continuam pendentes.
+fidelidade de efeitos, qualificação integral da campanha e otimização continuam pendentes.
 
 - [Correção de Continue na beta 8.6](docs/STATUS_N086.md)
 - [Resultado do último teste físico](docs/HARDWARE_TESTS.md)

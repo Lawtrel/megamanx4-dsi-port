@@ -31,8 +31,8 @@ casos corrigidos de X e Zero apresentam zero diferenças.
 Mantém a ordenação gráfica e as medições da [beta 8.5](STATUS_N085.md).
 Esta revisão corrige o retorno do menu; não anuncia um ganho novo de FPS.
 Os testes abrangem 48 entradas de área e 50 cenários de sistemas,
-incluindo dois novos casos de Continue. Compilação/testes no computador
-não substituem a confirmação da correção no console.
+incluindo dois novos casos de Continue. A correção também foi confirmada
+pelo usuário no DSi, conforme o retorno físico abaixo.
 
 O [log físico da 8.5](TESTE_N085_CAMPANHA.md) tem 2.142 amostras filtradas
 de gameplay, 131 abaixo de 30 FPS e mínimo 25. A meta continua sendo
@@ -45,3 +45,11 @@ START abre o menu e SELECT aciona Giga/R2. L+R+SELECT volta ao seletor.
 O debug inicia equipado; a campanha normal mantém a progressão original.
 Cutscenes permanecem desativadas. As betas anteriores ficam preservadas;
 o `.nds` e os recursos originais permanecem locais, fora do GitHub público.
+
+## Retorno físico recebido em 16/11/2026
+
+O usuário confirmou a correção de Continue no DSi após testar as fases
+1 e 4. Essa falha fica encerrada. O log registra Zero com equipamento
+debug completo, contadores de desenho/áudio/overflow em zero e médias de
+32,53–43,75 FPS por área, com quedas até 25. Ainda não confirma 30 FPS
+sustentados. Veja [dados e limites](TESTE_N086_FASES_1_4.md).

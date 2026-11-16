@@ -80,5 +80,6 @@ correção, os casos de X e Zero encontram zero diferenças nesse ponto.
 Esse controle compara o mesmo momento da transição, sem confundir as
 animações posteriores de READY com corrupção.
 
-A correção no computador ainda precisa de confirmação no DSi. A campanha
-completa e todas as rotas/finais continuam reservadas para a etapa final.
+A correção foi posteriormente confirmada pelo usuário no DSi na beta
+8.6; veja [o retorno físico](TESTE_N086_FASES_1_4.md). A campanha completa
+e todas as rotas/finais continuam reservadas para a etapa final.

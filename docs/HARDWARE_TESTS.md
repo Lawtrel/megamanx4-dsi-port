@@ -1,3 +1,13 @@
+# Retorno físico — beta 8.6
+
+Em 16/11/2026, o usuário testou as fases 1 e 4 e confirmou a correção de
+Continue no DSi. `native_n086_000.log` contém 399 amostras e duas sessões
+de Zero/debug, build `c62e6a2364a0c83f2b08`. No gameplay filtrado, as
+médias por área foram de 32,53 a 43,75 FPS; houve quedas até 25.
+Desenho, áudio, efeitos pendentes e overflow amostrado ficaram em zero.
+A falha de Continue está encerrada; a meta de 30 FPS sustentados continua.
+Veja [tabela e limites](TESTE_N086_FASES_1_4.md).
+
 # Retorno físico — beta 8.5
 
 Em 16/11/2026, o usuário relatou ter chegado à luta com Double usando X,
@@ -9,7 +19,7 @@ ficaram abaixo de 30 FPS (mínimo 25); ainda não há 30 FPS sustentados.
 Após Game Over/Continue, o usuário viu cores erradas na sombra, tiros e
 barra de vida. Os contadores de desenho/áudio/overflow ficaram em zero.
 A falha da paleta de menu foi reproduzida no computador e motivou a beta
-8.6; a correção ainda precisa de confirmação física. Consulte
+8.6, cuja correção foi posteriormente confirmada pelo usuário no DSi. Consulte
 [tabela por área, causa e limites](TESTE_N085_CAMPANHA.md).
 
 # Retorno físico — beta 8.3
