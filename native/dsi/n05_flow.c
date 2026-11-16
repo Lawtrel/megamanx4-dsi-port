@@ -24,6 +24,7 @@ extern u8* D_8010FFDC[17][2];
 extern u16 D_800EE430[16];
 static unsigned frames,draw_errors,draw_requested;
 static unsigned fade_alpha;
+static unsigned debug_loadout;
 static char root_path[1024];
 extern int x4_original_camera_mode;
 extern void x4_flow_ui_begin_frame(void);
@@ -75,6 +76,7 @@ void func_80028FEC(s16 l,s16 r,s16 t,s16 b,u8 direction){
  assert(x4_stage_spawn_visible(l,r,t,b,direction)>=0);
 }
 void x4_flow_close(void){
+ debug_loadout=0;
  x4_flow_ui_reset();
  x4_n05_set_common_graphics(NULL);x4_flow_loading_close();x4_n05_platform_close();
 }
@@ -97,6 +99,18 @@ int x4_flow_begin(const char* root,unsigned character,unsigned stage,unsigned ar
  pad_port1_packet[0]=0;pad_port1_packet[1]=0x41;
  func_80012740(0,func_8001FB50);return 0;
 }
+int x4_flow_begin_debug(const char* root,unsigned character,unsigned stage,unsigned area){
+ int result=x4_flow_begin(root,character,stage,area);if(result)return result;
+ debug_loadout=1;
+ /* Original item limits: eight hearts, two full life tanks, weapon tank and
+  * EX Tank. Grant equipment once; damage and energy use remain original. */
+ engine_obj.max_hp=engine_obj.checkpoint_hp=0x30;
+ engine_obj.player_lives=4;engine_obj.collected_upgrades=0xF0FF;
+ engine_obj.sub_tanks[0]=(s8)0xA0;engine_obj.sub_tanks[1]=(s8)0xA0;engine_obj.sub_tanks[2]=0x20;
+ memset(engine_obj.player_initial_data,0x30,sizeof engine_obj.player_initial_data);
+ if(character==0){engine_obj.armor_parts=0x0F;engine_obj.arm_type=2;}
+ return 0;
+}
 int x4_flow_new_game(const char* root){int result=x4_flow_begin(root,0,0,0);if(!result)engine_obj.state=0;return result;}
 int x4_flow_title(const char* root){
  int result=x4_flow_begin(root,0,0,0);if(result)return result;
@@ -110,7 +124,12 @@ int x4_flow_step(unsigned held,unsigned pressed){
  /* Dedicated native frontend buttons, outside the original action table. */
  if(held&(1u<<16))controller_input.held|=PADstart;if(pressed&(1u<<16))controller_input.pressed|=PADstart;
  if(held&(1u<<17))controller_input.held|=PADselect;if(pressed&(1u<<17))controller_input.pressed|=PADselect;
+ /* Weapons/Zero techniques share bits with defeated bosses in the original
+  * save. Override only the live player so debug still exercises boss fights.
+  * Apply on both sides of the scheduler because player_spawn restores bits. */
+ if(debug_loadout&&g_Player.active)g_Player.boss_flags=(s8)0xFF;
  ++main_bss_state.frame_counter;++frames;x4_flow_ui_begin_frame();clear_vram_rect_ptrs();func_800169D8();func_80012600();
+ if(debug_loadout&&g_Player.active)g_Player.boss_flags=(s8)0xFF;
  return x4_flow_load_error()?x4_flow_load_error():x4_n05_platform_error();
 }
 void x4_flow_state(X4FlowState* out){

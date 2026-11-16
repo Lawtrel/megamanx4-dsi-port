@@ -13,6 +13,54 @@ static void n07_menu_image(const char* kind,unsigned character){
  assert(foreground>10);char p[64];snprintf(p,sizeof p,"menu_%s_slot_%u.ppm",kind,character);n06_preview(p);
 }
 static int n07_system(const char* root,const char* mode,unsigned character){
+ if(!strcmp(mode,"debugloadout")){
+  extern u8 D_800F48EC[8];
+  x4_audio_init("../../full-audio/music","../../full-audio/sfx");
+  assert(!x4_flow_begin_debug(root,character,1,0));
+  x4_video_enabled=1;x4_video_viewport(32,24,256,192);
+  unsigned previous=0;
+  assert(engine_obj.max_hp==48&&engine_obj.collected_upgrades==0xF0FF);
+  assert((u8)engine_obj.sub_tanks[0]==0xA0&&(u8)engine_obj.sub_tanks[1]==0xA0&&engine_obj.sub_tanks[2]==32);
+  assert(engine_obj.armor_parts==(character?0:15)&&engine_obj.arm_type==(character?0:2));
+  assert(engine_obj.palette_flags==0&&engine_obj.unk5F==0);
+  for(unsigned tick=0;tick<600;++tick)n07_tick(0,&previous);
+  assert(engine_obj.state==6&&!engine_obj.gameplay_locked);
+  assert((u8)g_Player.boss_flags==255&&g_Player.hp==48);
+  assert(g_Player.armor_parts==(character?0:15));
+  for(unsigned i=0;i<16;++i)assert(g_Player.weapon_energy[i]==48);
+  if(!character){
+   unsigned seen=1u<<g_Player.weapon;
+   for(unsigned i=0;i<9;++i){
+    n07_tick(512,&previous);for(unsigned t=0;t<10;++t)n07_tick(0,&previous);
+    seen|=1u<<g_Player.weapon;
+   }
+   assert(seen==0x1FF);
+  }
+  n07_tick(1u<<16,&previous);for(unsigned t=0;t<180;++t)n07_tick(0,&previous);
+  assert(bar_object.state||bar_object.unk5);
+  if(character){for(unsigned i=0;i<8;++i)assert(bar_object.options.items[D_800F48EC[i]]);}
+  else{for(unsigned i=2;i<10;++i)assert(bar_object.options.items[i]);}
+  assert(bar_object.options.fields.unk20&&bar_object.options.fields.unk21&&bar_object.options.fields.unk22&&bar_object.options.fields.unk25);
+  n07_tick(1u<<16,&previous);for(unsigned t=0;t<180;++t)n07_tick(0,&previous);
+  assert(!bar_object.state&&!bar_object.unk5);
+  /* The loadout is not invincibility or continuous refill. */
+  g_Player.hp=45;g_Player.weapon_energy[0]=17;engine_obj.sub_tanks[0]=(s8)0x9C;
+  for(unsigned t=0;t<60;++t)n07_tick(0,&previous);
+  assert(g_Player.hp==45&&g_Player.weapon_energy[0]==17&&(u8)engine_obj.sub_tanks[0]==0x9C);
+  engine_obj.state=5;engine_obj.unk1=0;engine_obj.unk1E=0;
+  for(unsigned t=0;t<600;++t)n07_tick(0,&previous);
+  assert(engine_obj.state==6&&(u8)g_Player.boss_flags==255&&g_Player.hp==48);
+  assert(g_Player.armor_parts==(character?0:15)&&(u8)engine_obj.sub_tanks[0]==0x9C);
+  assert(engine_obj.palette_flags==0);
+  x4_flow_close();x4_audio_close();x4_audio_init("../../full-audio/music","../../full-audio/sfx");
+  assert(!x4_flow_new_game(root));
+  assert(engine_obj.max_hp==32&&!engine_obj.armor_parts&&!engine_obj.collected_upgrades);
+  assert(!x4_flow_begin(root,character,1,0));previous=0;
+  for(unsigned t=0;t<600;++t)n07_tick(0,&previous);
+  assert(!g_Player.boss_flags&&!g_Player.armor_parts&&g_Player.hp==32&&!engine_obj.collected_upgrades);
+  x4_flow_close();x4_audio_close();
+  puts("PASS debug full loadout, weapon cycling/techniques, pause, finite resources, respawn and normal campaign reset");return 1;
+ }
  if(!strcmp(mode,"nocutscenes")){
   extern void func_80018000(arg_u8);
   x4_audio_init("../../full-audio/music","../../full-audio/sfx");

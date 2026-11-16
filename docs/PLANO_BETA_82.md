@@ -12,6 +12,18 @@ O teste físico completo da campanha permanece reservado para o final.
 
 ## Prioridade proposta: desempenho e estabilidade
 
+Solicitação adicional do usuário: a seleção de fase em modo debug começa
+com as oito armas de X / técnicas de Zero, vida máxima (48), oito Heart
+Tanks, dois tanques de vida cheios, tanque de armas e EX Tank. X recebe
+as quatro peças de armadura e o braço de Plasma. A energia e o dano seguem
+as regras do jogo; o equipamento é concedido na entrada da sessão de teste.
+A campanha pelo título e os novos jogos mantêm a progressão normal.
+Os indicadores de chefes derrotados não são preenchidos pelo equipamento
+debug, preservando os encontros que precisam ser testados.
+
+No seletor inicial, SELECT alterna entre campanha e seleção de teste;
+L+R+SELECT retorna ao seletor durante o jogo.
+
 1. **Localizar as quedas.** Usar os tempos já separados de lógica, desenho,
    preparação gráfica, envio e áudio. Acrescentar distribuição dos tempos
    por quadro e contagem de quadros que ultrapassam 33,3 ms. Separar gameplay
@@ -36,7 +48,7 @@ posterior; sua conclusão não é prometida para a beta 8.2.
 ## Entrega e próximo teste físico
 
 - Gerar um `.nds` identificado como beta 8.2, sem arquivos de filmes.
-- Repetir as 48 entradas de área e 36 cenários de sistemas; ampliar apenas
+- Repetir as 48 entradas de área e 38 cenários de sistemas; ampliar apenas
   onde as alterações precisarem de nova cobertura.
 - Conferir imagens de regressão, memória e conteúdo do pacote.
 - Entregar log que permita separar FPS de desenho, velocidade da simulação
@@ -47,4 +59,10 @@ posterior; sua conclusão não é prometida para a beta 8.2.
   condições repetíveis; logs antigos de trechos distintos não comprovam
   ganho percentual entre versões.
 
-Este arquivo é um plano. A beta 8.2 ainda não foi implementada ou compilada.
+O equipamento debug já está implementado no código da próxima beta. As
+otimizações de desempenho continuam planejadas; o `.nds` da beta 8.2
+ainda não foi gerado.
+
+Verificação desta alteração: 48 entradas de área e 38 cenários de sistemas
+passaram no computador, incluindo os dois cenários `debugloadout`. Motor e
+frontend também foram compilados para ARM9. Isso não substitui o teste no DSi.

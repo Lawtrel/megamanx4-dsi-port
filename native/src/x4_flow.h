@@ -9,6 +9,9 @@ typedef struct {
 /* Full-flow integration workbench. This API does not assert all content is
  * qualified; errors remain visible until the complete game is implemented. */
 int x4_flow_begin(const char* content_root,unsigned character,unsigned stage,unsigned area);
+/* Stage-selection debug entry: full equipment; normal campaign progress is
+ * still handled by begin/new_game/title without this override. */
+int x4_flow_begin_debug(const char* content_root,unsigned character,unsigned stage,unsigned area);
 int x4_flow_new_game(const char* content_root);
 int x4_flow_title(const char* content_root);
 int x4_flow_step(unsigned held,unsigned pressed);

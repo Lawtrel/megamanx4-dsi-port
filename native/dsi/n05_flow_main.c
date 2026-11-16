@@ -115,7 +115,7 @@ static int select_stage(void){
    "Esq/dir: X ou Zero\nCima/baixo: fase\nL/R: area\nSTART:jogar SELECT:menu original\n\n"
    "B: pulo  A: dash  Y: ataque\nX: arma especial\nL/R: trocar arma\nSTART: menu do jogo\n\n"
    "L+R+SELECT: voltar aqui\nSELECT+X: ligar/desligar som\n\n"
-   "Fases e chefes em validacao.\nCutscenes desativadas.\n",character?"Zero":"X",stage,area+1);
+   "DEBUG: armas/upgrades completos.\nCutscenes desativadas.\n",character?"Zero":"X",stage,area+1);
   swiWaitForVBlank();
  }
  return 0;
@@ -150,8 +150,8 @@ int main(int argc,char** argv){
   if(!select_stage())break;
   x4_audio_init("nitro:/music","nitro:/sfx");
   iprintf("\x1b[2JCarregando %s fase %02u/%u...",character?"Zero":"X",stage,area);
-  if(log_file){fprintf(log_file,"BEGIN campaign=%u character=%u stage=%u area=%u\n",campaign,character,stage,area);commit_log();}
-  int error=campaign?x4_flow_title("nitro:/content"):x4_flow_begin("nitro:/content",character,stage,area);
+  if(log_file){fprintf(log_file,"BEGIN campaign=%u character=%u stage=%u area=%u debug_loadout=%u\n",campaign,character,stage,area,!campaign);commit_log();}
+  int error=campaign?x4_flow_title("nitro:/content"):x4_flow_begin_debug("nitro:/content",character,stage,area);
   if(error){fail("Carregamento",error);break;}
   audio_start();unsigned previous=0,frames=0,last=vblanks,gfx_errors=0;
   uint64_t logic_ticks=0,draw_ticks=0,audio_ticks=0,wait_ticks=0,present_ticks=0,prepare_ticks=0;

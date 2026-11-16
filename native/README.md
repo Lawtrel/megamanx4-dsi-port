@@ -53,6 +53,15 @@ original de restauração do personagem. Cenário e colisão usam o mesmo mapa
 mutável `D_80141BE8` modificado pelos eventos; não há cópia paralela do mapa.
 Os testes de integração de menus e eventos estão em `tests/n07_systems.h`.
 
+Para a beta 8.2, `x4_flow_begin_debug` é a entrada do seletor de fases com
+equipamento completo: oito armas/técnicas, 48 HP, tanques e, para X, quatro
+peças de armadura com braço de Plasma. O desbloqueio de armas atua sobre o
+jogador ativo, preservando os indicadores de chefes derrotados da campanha.
+Os recursos são concedidos na entrada; o dano e o consumo continuam nas
+rotinas originais. `x4_flow_begin`, `x4_flow_new_game` e `x4_flow_title` iniciam
+sessões sem essa liberação. Os testes `debugloadout` cobrem X/Zero, seleção
+de armas, menu, reaparecimento, recursos finitos e retorno à entrada normal.
+
 Na N08.1, `dsi/n08_media.c` pula deliberadamente as chamadas originais de
 filme sem ceder tarefas ou interromper música/efeitos. Não há troca de modo
 gráfico, reprodutor ou arquivos de vídeo no alvo atual. As ferramentas de
