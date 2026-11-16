@@ -22,13 +22,14 @@ static void emit(unsigned opcode,uint32_t a,uint32_t b,unsigned parameters){
 unsigned x4_gpu_words(void){return last_words;}
 /* Stable descending ordering-table order, using a bounded radix sort. */
 static void sort_commands(const X4VideoCommand* commands,unsigned count){
- unsigned buckets[256],offsets[256];for(unsigned i=0;i<count;++i)sorted[i]=i;
- for(unsigned pass=0;pass<2;++pass){memset(buckets,0,sizeof buckets);
-  for(unsigned i=0;i<count;++i){unsigned key=65535u-(uint16_t)(commands[sorted[i]].order+32768);++buckets[(key>>(pass*8))&255];}
-  unsigned n=0;for(unsigned i=0;i<256;++i){offsets[i]=n;n+=buckets[i];}
-  for(unsigned i=0;i<count;++i){unsigned key=65535u-(uint16_t)(commands[sorted[i]].order+32768);scratch[offsets[(key>>(pass*8))&255]++]=sorted[i];}
-  memcpy(sorted,scratch,count*sizeof *sorted);
- }
+ unsigned low[256]={0},high[256]={0};
+ /* Signed descending key = order XOR 0x7fff. The first pass reads command
+  * indices directly; the second writes the final array. This removes the
+  * identity array and both full-array copies without changing stable ties. */
+ for(unsigned i=0;i<count;++i){unsigned key=(uint16_t)commands[i].order^0x7fff;++low[key&255];++high[key>>8];}
+ unsigned l=0,h=0;for(unsigned i=0;i<256;++i){unsigned a=low[i],b=high[i];low[i]=l;high[i]=h;l+=a;h+=b;}
+ for(unsigned i=0;i<count;++i)scratch[low[(commands[i].order^255)&255]++]=i;
+ for(unsigned i=0;i<count;++i){unsigned index=scratch[i];sorted[high[((uint16_t)commands[index].order>>8)^127]++]=index;}
 }
 void x4_gpu_init(void){
  videoSetMode(MODE_0_3D);vramSetBankA(VRAM_A_TEXTURE_SLOT0);vramSetBankB(VRAM_B_TEXTURE_SLOT1);

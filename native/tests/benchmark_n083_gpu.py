@@ -1,6 +1,6 @@
 """Compare ARM946 preparation instructions and exact FIFO bytes, not FPS."""
 from pathlib import Path
-import argparse,subprocess,json,hashlib,sys
+import argparse,subprocess,json,hashlib,sys,struct
 ROOT=Path(__file__).resolve().parents[2];OUT=ROOT/'build/native/n083-gpu-benchmark'
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--build-only',action='store_true');parser.add_argument('--run-only',action='store_true')
@@ -21,7 +21,7 @@ if not args.run_only:
   elf=OUT/(name+'.elf');subprocess.run([str(sdk/'arm-none-eabi-gcc'),'-nostdlib','-marm','-mcpu=arm946e-s','-Wl,--gc-sections,-Ttext=0x10000,-Tdata=0x20000,-e,unit_entry',*objects,'-lc','-lgcc','-o',str(elf)],check=True)
   subprocess.run([str(sdk/'arm-none-eabi-objcopy'),'-O','binary',str(elf),str(OUT/(name+'.bin'))],check=True)
   symbols=subprocess.check_output([str(sdk/'arm-none-eabi-nm'),str(elf)],text=True)
-  addresses={key:int(next(l.split()[0] for l in symbols.splitlines() if l.endswith(' '+key)),16) for key in ('unit_entry','benchmark_start','benchmark_end')}
+  addresses={key:int(next(l.split()[0] for l in symbols.splitlines() if l.endswith(' '+key)),16) for key in ('unit_entry','benchmark_start','benchmark_end','list')}
   probes[name]={**addresses,'source_sha256':hashlib.sha256(source.read_bytes()).hexdigest(),
                 'binary_sha256':hashlib.sha256((OUT/(name+'.bin')).read_bytes()).hexdigest()}
  (OUT/'probes.json').write_text(json.dumps(probes,indent=2)+'\n')
@@ -31,7 +31,7 @@ from unicorn import Uc,UC_ARCH_ARM,UC_MODE_ARM,UC_HOOK_CODE
 from unicorn.arm_const import UC_ARM_REG_SP,UC_ARM_REG_LR,UC_ARM_REG_R0,UC_ARM_REG_R1,UC_ARM_REG_PC,UC_CPU_ARM_946
 probes=json.loads((OUT/'probes.json').read_text());results={}
 for mode in range(4):
- case={}
+ case={};fifo_bytes={}
  for name,row in probes.items():
   code=(OUT/(name+'.bin')).read_bytes();assert hashlib.sha256(code).hexdigest()==row['binary_sha256']
   machine=Uc(UC_ARCH_ARM,UC_MODE_ARM);machine.ctl_set_cpu_model(UC_CPU_ARM_946)
@@ -44,7 +44,11 @@ for mode in range(4):
    if counter[0]:counter[1]+=1
   machine.hook_add(UC_HOOK_CODE,hook);machine.emu_start(row['unit_entry'],0x7e0000,count=10000000)
   assert machine.reg_read(UC_ARM_REG_PC)==0x7e0000
-  case[name]={'instructions':counter[1],'fifo_hash':machine.reg_read(UC_ARM_REG_R0)}
+  words=struct.unpack('<I',machine.mem_read(row['list'],4))[0]
+  fifo_bytes[name]=bytes(machine.mem_read(row['list'],(words+1)*4))
+  case[name]={'instructions':counter[1],'fifo_hash':machine.reg_read(UC_ARM_REG_R0),
+              'fifo_words':words,'fifo_sha256':hashlib.sha256(fifo_bytes[name]).hexdigest()}
+ assert fifo_bytes['before']==fifo_bytes['after'], 'GPU command bytes differ'
  assert case['before']['fifo_hash']==case['after']['fifo_hash'],case
  label=('world','mixed_hud','fade','gouraud')[mode];results[label]=case;print(label,case,flush=True)
 report={'cpu':'ARM946','metric':'Executed preparation instructions; excludes cycles, cache and DMA; not FPS',

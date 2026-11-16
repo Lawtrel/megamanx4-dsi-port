@@ -47,6 +47,26 @@ void DC_FlushRange(const void* p,size_t n){assert(!((uintptr_t)p&31)&&n&&!(n%512
 void dmaCopyWords(int channel,const void* p,void* q,size_t n){assert(channel==3&&n&&!(n%512)&&n<=131072);assert((uint8_t*)q>=mock_vram&&(uint8_t*)q+n<=mock_vram+sizeof mock_vram);assert(((size_t)((uint8_t*)q-mock_vram)%131072)+n<=131072);if(protected_slot>=0){uint8_t* clean=mock_vram+protected_slot*512;assert((uint8_t*)q+n<=clean||(uint8_t*)q>=clean+512);}memcpy(q,p,n);++copies;copied_bytes+=n;}
 void x4_gpu_init(void);void x4_gpu_prepare(void);void x4_gpu_present(void);unsigned x4_gpu_words(void);
 unsigned x4_gpu_upload_batches(void);unsigned x4_gpu_upload_tiles(void);
+static void check_signed_stable_order(void){
+ /* Independent insertion-sort oracle: cover signed endpoints, equal keys,
+  * both byte carries, and an unsorted full command buffer. */
+ const int edge[]={-32768,32767,-1,0,255,256,-256,-257,32767,-32768};
+ const unsigned sizes[]={0,1,17,X4_VIDEO_COMMANDS};
+ int orders[X4_VIDEO_COMMANDS];unsigned expected[X4_VIDEO_COMMANDS];
+ uint16_t colors[4]={32767,32767,32767,32767};int y[4]={0,0,1,1};
+ for(unsigned test=0;test<sizeof sizes/sizeof *sizes;++test){
+  unsigned count=sizes[test];x4_video_begin(0);verts=0;
+  for(unsigned i=0;i<count;++i){
+   orders[i]=i%3?(int16_t)(i*40503u+7919u):edge[(i/3)%10];
+   int x[4]={(int)i,(int)i+1,(int)i+1,(int)i};
+   x4_video_order(orders[i]);assert(!x4_video_quad(x,y,colors,0));
+   unsigned j=i;while(j&&orders[expected[j-1]]<orders[i]){expected[j]=expected[j-1];--j;}expected[j]=i;
+  }
+  x4_gpu_prepare();x4_gpu_present();assert(verts==(int)count*4);
+  for(unsigned i=0;i<count;++i){assert(vertex_x[i*4]==(int)expected[i]);assert(vertex_z[i*4]==(int)i);}
+ }
+ puts("PASS stable signed ordering: empty, singleton, byte boundaries, ties and 1500 unsorted quads");
+}
 int main(void){
  uint8_t raw[128]={0x21};uint16_t pal[16]={0};pal[1]=0x001f;pal[2]=0x03e0;
  x4_gpu_init();assert(projection[0]==32&&projection[1]==288&&projection[2]==216&&projection[3]==24);
@@ -113,4 +133,5 @@ int main(void){
  x4_video_commands(&count);assert(count==8);
  for(unsigned i=0;i<count;++i){const uint16_t* pixels=x4_video_rgba_texture(c[i].tile,&dirty);assert(!memcmp(pixels,mock_vram+c[i].tile*512,512));}
  puts("PASS batched DMA never spans the clean slot between two dirty runs");
+ check_signed_stable_order();
 }

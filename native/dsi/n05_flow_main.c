@@ -22,8 +22,8 @@ _Static_assert(KEY_A==X4_NDS_A&&KEY_B==X4_NDS_B&&KEY_SELECT==X4_NDS_SELECT&&KEY_
 #ifdef X4_N06_GPU
 void x4_gpu_init(void);void x4_gpu_prepare(void);void x4_gpu_present(void);unsigned x4_gpu_words(void);
 unsigned x4_gpu_upload_batches(void);unsigned x4_gpu_upload_tiles(void);
-#define VERSION "BETA 8.4"
-#define LOG_PREFIX "native_n084"
+#define VERSION "BETA 8.5"
+#define LOG_PREFIX "native_n085"
 #else
 #define VERSION "N05"
 #define LOG_PREFIX "native_n05_flow"
@@ -147,8 +147,15 @@ int main(int argc,char** argv){
   audio_start();unsigned previous=0,frames=0,last=vblanks,gfx_errors=0,logged_faults=0;
   uint64_t logic_ticks=0,draw_ticks=0,audio_ticks=0,wait_ticks=0,present_ticks=0,prepare_ticks=0;
   uint64_t simulation_clock=tickGetCount();unsigned last_simulation=0,dropped_ticks=0;
-  iprintf("\x1b[2J");
+  /* Present-to-present intervals include last interval's screen/log work.
+   * Phase averages alone hid the stalls produced by diagnostics and FAT. */
+  uint64_t previous_present=0,frame_sum=0;
+  unsigned previous_field=0,frame_samples=0,frame_max_us=0,work_max_us=0,late_frames=0;
+  unsigned frame_histogram[101]={0},diagnostic_us=0;
+  iprintf("\x1b[2JMEGA MAN X4 " VERSION "\n\n\n\n"
+   "B:pulo A:dash Y:ataque\nX:especial L/R:arma\nSTART:menu SELECT:giga\nL+R+SELECT:selecao de teste\n");
   while(pmMainLoop()){
+   uint64_t frame_start=tickGetCount();
    diagnostic_phase=1;x4_flow_state(&diagnostic_state);
    uint64_t t0=tickGetCount();x4_audio_update();if(audio_open)mmStreamUpdate();audio_ticks+=tickGetCount()-t0;
    scanKeys();unsigned held=keysHeld(),down=keysDown();
@@ -177,31 +184,45 @@ int main(int argc,char** argv){
    diagnostic_phase=7;t0=tickGetCount();x4_gpu_prepare();prepare_ticks+=tickGetCount()-t0;
 #endif
    t0=tickGetCount();if(audio_open)mmStreamUpdate();audio_ticks+=tickGetCount()-t0;
-   diagnostic_phase=5;t0=tickGetCount();swiWaitForVBlank();wait_ticks+=tickGetCount()-t0;t0=tickGetCount();
+   diagnostic_phase=5;t0=tickGetCount();swiWaitForVBlank();uint64_t frame_wait=tickGetCount()-t0;wait_ticks+=frame_wait;t0=tickGetCount();
 #ifdef X4_N06_GPU
    diagnostic_phase=6;x4_gpu_present();
 #else
    DC_FlushRange(pixels,sizeof pixels);dmaCopy(pixels,bgGetGfxPtr(bg),sizeof pixels);
 #endif
-   present_ticks+=tickGetCount()-t0;++frames;
+   uint64_t presented=tickGetCount();unsigned field=vblanks;
+   present_ticks+=presented-t0;++frames;
+   unsigned work_us=(presented-frame_start-frame_wait)*1000000/TICK_FREQ;
+   if(work_us>work_max_us)work_max_us=work_us;
+   if(previous_present){
+    uint64_t span=presented-previous_present;unsigned us=span*1000000/TICK_FREQ;
+    frame_sum+=span;++frame_samples;if(us>frame_max_us)frame_max_us=us;
+    ++frame_histogram[us/1000<100?us/1000:100];
+    if(field-previous_field>2)++late_frames;
+   }
+   previous_present=presented;previous_field=field;
    unsigned elapsed=vblanks-last;
    if(elapsed>=60){
+    uint64_t diagnostic_start=tickGetCount();
     X4FlowState s;x4_flow_state(&s);unsigned fps=frames*60/elapsed;last=vblanks;
     unsigned logic_us=logic_ticks*1000000/TICK_FREQ/frames,draw_us=draw_ticks*1000000/TICK_FREQ/frames;
     unsigned audio_us=audio_ticks*1000000/TICK_FREQ/frames,present_us=present_ticks*1000000/TICK_FREQ/frames,wait_us=wait_ticks*1000000/TICK_FREQ/frames;
     unsigned prepare_us=prepare_ticks*1000000/TICK_FREQ/frames;
     X4VideoStats v=x4_video_stats();X4SfxStats fx=x4_sfx_stats();frames=0;logic_ticks=draw_ticks=audio_ticks=present_ticks=wait_ticks=prepare_ticks=0;
     unsigned simulation_hz=(s.frames-last_simulation)*60/elapsed;last_simulation=s.frames;
-    iprintf("\x1b[0;0HMEGA MAN X4 " VERSION "\n%s Fase %02d/%d  FPS:%2u    \nHP:%2d Checkpoint:%d          \n\n"
-     "B:pulo A:dash Y:ataque\nX:especial L/R:arma\nSTART:menu SELECT:giga\nL+R+SELECT:selecao de teste\n\n"
-     "Som:%s  Faixa:%2d            \nImagem:%u Audio:%u            \nEfeitos pendentes:%u          \nARM7 FX:%u Cache:%uKB        \nLog:%s                     \n"
-     "X:%5d Y:%5d              \nEstado:%d/%d Bloqueio:%d     \nCPU logica:%5uus          \nDesenho:%5uus GPU:%5uus    \nTiles:%u +%u  Limite:%u     \nPrep:%5uus                 \n",
-     s.character?"Zero":"X",s.stage,s.area+1,fps,s.hp,s.checkpoint,muted?"OFF":"ON",x4_audio_track(),gfx_errors,x4_audio_errors(),x4_n05_missing_sfx(),fx.active,fx.bytes/1024,log_file?"ativo":"indisponivel",s.x,s.y,s.state,s.substate,s.locked,logic_us,draw_us,present_us,v.hits,v.misses,v.overflow,prepare_us);
+    unsigned percentile=0,cumulative=0;
+    for(unsigned i=0;i<101;++i){cumulative+=frame_histogram[i];if(cumulative*100>=frame_samples*95){percentile=i==100?frame_max_us:(i+1)*1000;break;}}
+    /* Static controls stay on screen; redraw only changing diagnostic rows. */
+    iprintf("\x1b[1;0H%s Fase %02d/%d  FPS:%2u    \nHP:%2d Checkpoint:%d          "
+     "\x1b[9;0HSom:%s  Faixa:%2d            \nImagem:%u Audio:%u            \nEfeitos pendentes:%u          \nARM7 FX:%u Cache:%uKB        \nLog:%s                     "
+     "\x1b[15;0HX:%5d Y:%5d              \nEstado:%d/%d Bloqueio:%d     \nCPU logica:%5uus          \nDesenho:%5uus GPU:%5uus    \nTiles:%u +%u  Limite:%u     \nPrep:%5uus                 \nQuadro max:%6uus         \nP95 <=%6uus atrasos:%u    ",
+     s.character?"Zero":"X",s.stage,s.area+1,fps,s.hp,s.checkpoint,muted?"OFF":"ON",x4_audio_track(),gfx_errors,x4_audio_errors(),x4_n05_missing_sfx(),fx.active,fx.bytes/1024,log_file?"ativo":"indisponivel",s.x,s.y,s.state,s.substate,s.locked,logic_us,draw_us,present_us,v.hits,v.misses,v.overflow,prepare_us,frame_max_us,percentile,late_frames);
     if(log_file){fprintf(log_file,"frame=%u ticks=%u char=%d stage=%d area=%d fps=%u x=%d y=%d hp=%d checkpoint=%d engine=%d/%d player=%d locked=%d gfxerr=%u audioerr=%u missingfx=%u track=%d\n",
      vblanks,s.frames,s.character,s.stage,s.area,fps,s.x,s.y,s.hp,s.checkpoint,s.state,s.substate,s.player_state,s.locked,gfx_errors,x4_audio_errors(),x4_n05_missing_sfx(),x4_audio_track());
      fprintf(log_file,"PROFILE logic_us=%u draw_us=%u audio_us=%u present_us=%u wait_us=%u commands=%u hits=%u misses=%u palettes=%u upload=%u overflow=%u sim_hz=%u dropped_ticks=%u\n",logic_us,draw_us,audio_us,present_us,wait_us,v.commands,v.hits,v.misses,v.palette_uploads,v.uploaded_bytes,v.overflow,simulation_hz,dropped_ticks);
      fprintf(log_file,"ARM7 voices=%u pcm_bytes=%u cache_hits=%u cache_misses=%u starts=%u\n",fx.active,fx.bytes,fx.hits,fx.misses,fx.starts);
      fprintf(log_file,"PIPELINE prepare_us=%u\n",prepare_us);
+     fprintf(log_file,"FRAME_TIME samples=%u mean_us=%u max_us=%u p95_upper_us=%u over_two_fields=%u work_max_us=%u diagnostic_previous_us=%u\n",frame_samples,frame_samples?(unsigned)(frame_sum*1000000/TICK_FREQ/frame_samples):0,frame_max_us,percentile,late_frames,work_max_us,diagnostic_us);
      X4RenderCacheStats rc;x4_n05_render_cache_stats(&rc);
      fprintf(log_file,"RENDER_CACHE bounds_hits=%u bounds_misses=%u asset_hits=%u asset_misses=%u\n",rc.bounds_hits,rc.bounds_misses,rc.asset_hits,rc.asset_misses);
      X4RenderFault fault;x4_n05_render_fault(&fault);
@@ -215,6 +236,9 @@ int main(int argc,char** argv){
      fprintf(log_file,"UPLOAD tiles=%u batches=%u\n",x4_gpu_upload_tiles(),x4_gpu_upload_batches());
 #endif
      commit_log();}
+    diagnostic_us=(tickGetCount()-diagnostic_start)*1000000/TICK_FREQ;
+    frame_sum=0;frame_samples=frame_max_us=work_max_us=late_frames=0;
+    memset(frame_histogram,0,sizeof frame_histogram);
    }
   }
   if(log_file)fflush(log_file);
