@@ -9,6 +9,9 @@ Prioridades registradas e aprovadas pelo usuário em 16/11/2026.
    fase 11 e checkpoints 5/7/9 da fase 12 nos percursos já identificados.
    Um orçamento de 33,3 ms não é uma garantia de que todos os quadros o
    cumpram: a confirmação exige medição no DSi, incluindo os piores trechos.
+   O [teste da 8.5](TESTE_N085_CAMPANHA.md) acrescenta as fases 1 e 4 como
+   alvos de desenho/preparação e mostra o custo pontual dos diagnósticos.
+   Corrigir a restauração das cores após Continue antes da próxima medição.
 2. **Completar o áudio.** Resolver seis comandos de sequência e refinar
    loops, estéreo/panning e reverberação. A reprodução nativa pelo ARM7
    permanece como base.
@@ -35,6 +38,9 @@ Prioridades registradas e aprovadas pelo usuário em 16/11/2026.
   gráfica mais leve e medição de intervalos completos, p95 e atrasos.
   O ganho de instruções da preparação não confirma FPS sustentado no DSi.
 - A N08.1 não terá teste físico separado por decisão do usuário.
+- A [beta 8.6](STATUS_N086.md) corrige no computador a paleta após
+  Continue relatada no teste da 8.5. Aguarda confirmação no DSi;
+  o objetivo de 30 FPS sustentados permanece aberto.
 - Bases de medição: [fase 12 na 8.2](TESTE_N082_FASE12.md) e
   [teste aleatório da 8.3](TESTE_N083_ALEATORIO.md). Percursos diferentes
   não comprovam ganho percentual entre versões.

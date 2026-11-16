@@ -13,7 +13,7 @@ logpath=LOGS/(datetime.datetime.now().strftime('compile_%Y%m%d_%H%M%S_%f')+'.log
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--n085','--n084','--n083','--n082','--n081','--n08','--n07','--n06',action='store_true',help='Compile the current beta 8.5 native target (debug full equipment, without cutscenes)')
+    parser.add_argument('--n086','--n085','--n084','--n083','--n082','--n081','--n08','--n07','--n06',action='store_true',help='Compile the current beta 8.6 native target (debug full equipment, without cutscenes)')
     parser.parse_args()
     if sys.platform!='linux':
         raise RuntimeError('Use COMPILAR_JOGO.cmd on Windows, or run under Linux/WSL.')
@@ -35,7 +35,7 @@ def main():
                 for line in process.stdout:
                     print(line,end='',flush=True);log.write(line);log.flush()
                 if process.wait():raise RuntimeError('Etapa interrompida: '+script)
-        say('Beta 8.5: preparacao grafica mais leve e medicao de tempo completo; debug completo e cutscenes desativadas; testar no DSi.')
+        say('Beta 8.6: cores restauradas apos Continue; preparacao grafica e medicao completa mantidas; debug completo e cutscenes desativadas; testar no DSi.')
         say('Log: '+str(logpath))
         run('native/build_gamecore.py')
         if not (ROOT/'build/native/full-content/manifest.json').is_file():run('native/prepare_full_content.py')
@@ -52,7 +52,7 @@ def main():
         run('native/tests/n06_preview_png.py')
         run('native/build_n05_flow.py')
         run('native/package_n05_flow.py')
-        say('\nSUCESSO DE COMPILACAO (EM TESTE): '+str(ROOT/'dist/native-n085/mmx4_native_n085.nds'))
+        say('\nSUCESSO DE COMPILACAO (EM TESTE): '+str(ROOT/'dist/native-n086/mmx4_native_n086.nds'))
         say('Use somente no seu ambiente local. O NDS contem recursos extraidos do seu dump.')
 
 if __name__=='__main__':

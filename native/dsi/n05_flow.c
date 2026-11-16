@@ -29,6 +29,7 @@ static char root_path[1024];
 extern int x4_original_camera_mode;
 extern void x4_flow_ui_begin_frame(void);
 extern void x4_flow_ui_reset(void);
+extern void func_800170E0(void);
 extern int x4_flow_ui_draw(uint16_t*,const X4Archive*);
 extern int x4_n05_draw_ui_overlay(uint16_t*,const X4Archive*);
 extern int x4_n06_draw_hud(uint16_t*,const X4Archive*);
@@ -128,7 +129,13 @@ int x4_flow_step(unsigned held,unsigned pressed){
   * save. Override only the live player so debug still exercises boss fights.
   * Apply on both sides of the scheduler because player_spawn restores bits. */
  if(debug_loadout&&g_Player.active)g_Player.boss_flags=(s8)0xFF;
+ unsigned previous_state=(u8)engine_obj.state;
  ++main_bss_state.frame_counter;++frames;x4_flow_ui_begin_frame();clear_vram_rect_ptrs();func_800169D8();func_80012600();
+ /* Game-over windows borrow the live RAM palette in the native renderer.
+  * Original Continue only requests a later VRAM palette upload, so no
+  * original restore callback runs here. Restore before the next state's
+  * loading/spawn work. State 12 is a nested save menu, still using the window. */
+ if(previous_state==8&&engine_obj.state!=8&&engine_obj.state!=12)func_800170E0();
  if(debug_loadout&&g_Player.active)g_Player.boss_flags=(s8)0xFF;
  return x4_flow_load_error()?x4_flow_load_error():x4_n05_platform_error();
 }

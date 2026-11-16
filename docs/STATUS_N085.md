@@ -72,3 +72,8 @@ não são tratados como defeito visual aberto.
 As betas anteriores ficam preservadas. O `.nds` e os recursos originais
 permanecem locais, fora do repositório público. As demais prioridades
 estão no [roadmap](ROADMAP.md).
+
+Retorno físico recebido em 16/11/2026: o usuário chegou à luta com Double
+e relatou corrupção de cores após Continue. O log registra trechos a
+60 FPS e quedas até 25. Veja a [análise do teste](TESTE_N085_CAMPANHA.md)
+e a correção preparada na [beta 8.6](STATUS_N086.md).

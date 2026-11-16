@@ -1,3 +1,17 @@
+# Retorno físico — beta 8.5
+
+Em 16/11/2026, o usuário relatou ter chegado à luta com Double usando X,
+com 60 FPS nos trechos leves e cerca de 30 nos que têm efeitos. O log
+`native_n085_000.log` contém 3.245 amostras em modo DSi, build
+`726ddbc98cf94e34ca11`. No filtro de gameplay, 131 de 2.142 amostras
+ficaram abaixo de 30 FPS (mínimo 25); ainda não há 30 FPS sustentados.
+
+Após Game Over/Continue, o usuário viu cores erradas na sombra, tiros e
+barra de vida. Os contadores de desenho/áudio/overflow ficaram em zero.
+A falha da paleta de menu foi reproduzida no computador e motivou a beta
+8.6; a correção ainda precisa de confirmação física. Consulte
+[tabela por área, causa e limites](TESTE_N085_CAMPANHA.md).
+
 # Retorno físico — beta 8.3
 
 Em 16/11/2026, o usuário informou que a 8.3 rodou bem num teste aleatório e
