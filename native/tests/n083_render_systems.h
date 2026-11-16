@@ -35,7 +35,7 @@ static int n083_render_system(const char* root,unsigned character,unsigned cp){
   int errors=x4_flow_draw(screen);
   int dirty;for(unsigned i=0;i<X4_VIDEO_TILES;++i)x4_video_texture(i,&dirty);
   for(unsigned i=0;i<X4_VIDEO_PALETTES;++i)x4_video_palette(i,&dirty);
-  if(errors){fprintf(stderr,"STRESS ERROR tick=%u char=%u cp=%u weapon=%u player=%u/%u pose=%u errors=%d\n",tick,character,cp,(u8)g_Player.weapon,g_Player.state,g_Player.unk5,g_Player.animation_step.fields.frame_index,errors);return 2;}
+  if(errors){fprintf(stderr,"STRESS ERROR tick=%u char=%u cp=%u weapon=%u player=%u/%u pose=%u errors=%d\n",tick,character,cp,(u8)g_Player.weapon,g_Player.state,g_Player.unk5,g_Player.animation_step.fields.frame_index,errors);return 0;}
   assert(!x4_video_stats().overflow);
   if(tick%1000==0)fprintf(stderr,"PROGRESS tick=%u char=%u cp=%u bossframes=%u reveal=%u weapon=%d x=%d y=%d\n",tick,character,cp,boss_frames,revealed,g_Player.weapon,g_Player.x_pos.i.hi,g_Player.y_pos.i.hi);
  }

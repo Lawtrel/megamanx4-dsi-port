@@ -125,7 +125,7 @@ int main(void){
  assert(!x4_video_tile(raw,128,4,alias_palette,16,0,0,16,16,0,0,82000));
  assert(!x4_video_tile(twin,8,4,alias_palette,16,0,0,16,16,0,0,82001));
  x4_video_begin(0);x4_video_begin(0);for(unsigned i=0;i<16;++i)palette[i]=0x100+i;
- for(unsigned i=0;i<X4_VIDEO_TILES;++i)assert(!x4_video_tile(unique_tiles[i],8,4,palette,16,0,0,16,16,0,0,83000+i));
+ for(unsigned i=0;i<X4_VIDEO_RGBA_TILES;++i)assert(!x4_video_tile(unique_tiles[i],8,4,palette,16,0,0,16,16,0,0,83000+i));
  x4_video_begin(0);x4_video_begin(0);
  assert(!x4_video_tile(twin,8,4,alias_palette,16,0,0,16,16,0,0,82001));
  assert(!x4_video_stats().alias_hits&&x4_video_stats().misses==1);

@@ -3,16 +3,17 @@
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
-uint8_t mock_vram[524288];uint32_t GFX_TEX_FORMAT,GFX_CONTROL;unsigned mock_vcount=192;static unsigned irq_held,mock_waits,mock_dma_penalty;
-static int banks[4],projection[6],verts,flushes,copies;static unsigned current_tex;
+uint8_t mock_vram[524288],mock_palettes[98304];uint32_t GFX_TEX_FORMAT,GFX_CONTROL;unsigned mock_vcount=192;static unsigned irq_held,mock_waits,mock_dma_penalty;
+static int banks[7],projection[6],verts,flushes,copies;static unsigned current_tex;
 static int vertex_x[X4_VIDEO_COMMANDS*4],vertex_y[X4_VIDEO_COMMANDS*4],vertex_z[X4_VIDEO_COMMANDS*4];
 static int current_u,current_v,vertex_u[X4_VIDEO_COMMANDS*4],vertex_v[X4_VIDEO_COMMANDS*4];
 static unsigned current_color,vertex_color[X4_VIDEO_COMMANDS*4];
 static unsigned hardware_events,bank_writes;
 static size_t copied_bytes;
-static int protected_slot=-1;
+static int protected_slot=-1;static unsigned current_palette,palette_copies;
 void videoSetMode(int v){assert(v==MODE_0_3D);}
 void vramSetBankA(int v){banks[0]=v;++hardware_events;++bank_writes;}void vramSetBankB(int v){banks[1]=v;++hardware_events;++bank_writes;}void vramSetBankC(int v){banks[2]=v;++hardware_events;++bank_writes;}void vramSetBankD(int v){banks[3]=v;++hardware_events;++bank_writes;}
+void vramSetBankE(int v){banks[4]=v;++hardware_events;++bank_writes;}void vramSetBankF(int v){banks[5]=v;++hardware_events;++bank_writes;}void vramSetBankG(int v){banks[6]=v;++hardware_events;++bank_writes;}
 void glInit(void){}void glEnable(int v){GFX_CONTROL&=~(v&((1u<<12)|(1u<<13)));}void glDisable(int v){(void)v;}
 void glViewport(int a,int b,int c,int d){assert(a==0&&b==0&&c==255&&d==191);}
 void glClearDepth(int v){assert(v==32767);}void glClearPolyID(int v){assert(v==63);}
@@ -22,7 +23,7 @@ void glClearColor(int a,int b,int c,int d){assert(a<=31&&b<=31&&c<=31&&d==31);++
 void glPolyFmt(unsigned v){assert(((v>>16)&31)>0);}
 void glBegin(int v){assert(v==GL_QUADS);current_tex=GFX_TEX_FORMAT;}
 void glColor(unsigned v){assert(v<=32767);current_color=v;}void glTexCoord2t16(int u,int v){assert(u>=0&&u<=256&&v>=0&&v<=256);current_u=u;current_v=v;}
-void glVertex3v16(int x,int y,int z){(void)z;if(current_tex){assert(((current_tex>>26)&7)==GL_RGBA);assert(((current_tex>>20)&7)==1&&((current_tex>>23)&7)==1);}
+void glVertex3v16(int x,int y,int z){(void)z;if(current_tex){assert(((current_tex>>26)&7)==GL_RGB256);assert(((current_tex>>20)&7)==1&&((current_tex>>23)&7)==1);}
  assert(verts<X4_VIDEO_COMMANDS*4);vertex_color[verts]=current_color;vertex_x[verts]=x;vertex_y[verts]=y;vertex_z[verts]=z;vertex_u[verts]=current_u;vertex_v[verts++]=current_v;
 }
 void glEnd(void){}void glFlush(int v){assert(v==GL_TRANS_MANUALSORT);++flushes;++hardware_events;}
@@ -33,6 +34,7 @@ void glCallList(const uint32_t* list){
   if(!op)continue;assert(pos<end);uint32_t p=list[pos++];
   switch(op){
    case FIFO_TEX_FORMAT:GFX_TEX_FORMAT=p;break;
+   case FIFO_PAL_FORMAT:assert(!(p%32)&&p/32<X4_VIDEO_GPU_PALETTES);current_palette=p/32;break;
    case FIFO_POLY_FORMAT:glPolyFmt(p);break;
    case FIFO_BEGIN:glBegin(p);break;
    case FIFO_COLOR:glColor(p);break;
@@ -45,9 +47,20 @@ void glCallList(const uint32_t* list){
 }
 int enterCriticalSection(void){assert(!irq_held);irq_held=1;return 0;}
 void leaveCriticalSection(int state){assert(!state&&irq_held);irq_held=0;}
-void swiWaitForVBlank(void){assert(!irq_held);for(unsigned b=0;b<4;++b)assert(banks[b]==(int)b+1);mock_vcount=192;++mock_waits;}
-void DC_FlushRange(const void* p,size_t n){for(unsigned b=0;b<4;++b)assert(banks[b]==(int)b+1);assert(!((uintptr_t)p&31)&&n&&!(n%512)&&n<=131072);}
-void dmaCopyWords(int channel,const void* p,void* q,size_t n){assert(irq_held&&mock_vcount>=192&&mock_vcount<=204);assert(channel==3&&n&&!(n%512)&&n<=8192);assert((uint8_t*)q>=mock_vram&&(uint8_t*)q+n<=mock_vram+sizeof mock_vram);assert(((size_t)((uint8_t*)q-mock_vram)%131072)+n<=131072);if(protected_slot>=0){uint8_t* clean=mock_vram+protected_slot*512;assert((uint8_t*)q+n<=clean||(uint8_t*)q>=clean+512);}memcpy(q,p,n);mock_vcount+=(n+4095)/4096+mock_dma_penalty;assert(mock_vcount<214);++copies;copied_bytes+=n;}
+void swiWaitForVBlank(void){assert(!irq_held);for(unsigned b=0;b<7;++b)assert(banks[b]==(int)b+1);mock_vcount=192;++mock_waits;}
+void DC_FlushRange(const void* p,size_t n){for(unsigned b=0;b<7;++b)assert(banks[b]==(int)b+1);assert(!((uintptr_t)p&31)&&n&&!(n%256)&&n<=131072);}
+void dmaCopyWords(int channel,const void* p,void* q,size_t n){
+ assert(irq_held&&mock_vcount>=192&&mock_vcount<=204);assert(channel==3&&n&&!(n%256)&&n<=8192);
+ uintptr_t dest=(uintptr_t)q;
+ if(dest>=(uintptr_t)mock_vram&&dest+n<=(uintptr_t)mock_vram+sizeof mock_vram){
+  assert(((dest-(uintptr_t)mock_vram)%131072)+n<=131072);
+  if(protected_slot>=0){uintptr_t clean=(uintptr_t)mock_vram+protected_slot*256;assert(dest+n<=clean||dest>=clean+256);}
+  ++copies;copied_bytes+=n;
+ }else{assert(dest>=(uintptr_t)mock_palettes&&dest+n<=(uintptr_t)mock_palettes+sizeof mock_palettes&&n==512);++palette_copies;}
+ memcpy(q,p,n);mock_vcount+=(n+4095)/4096+mock_dma_penalty;assert(mock_vcount<214);
+}
+static uint16_t hardware_pixel(unsigned tile,unsigned palette,unsigned pixel,int transparent){unsigned index=mock_vram[tile*256+pixel];return !index&&transparent?0:((uint16_t*)mock_palettes)[palette*256+index]|0x8000;}
+
 void x4_gpu_init(void);void x4_gpu_prepare(void);void x4_gpu_present(void);unsigned x4_gpu_words(void);
 unsigned x4_gpu_upload_batches(void);unsigned x4_gpu_upload_tiles(void);
 static void check_signed_stable_order(void){
@@ -70,23 +83,23 @@ static void check_signed_stable_order(void){
  }
  puts("PASS stable signed ordering: empty, singleton, byte boundaries, ties and 1500 unsorted quads");
 }
-static uint8_t unique_tiles[1024][128];
+static uint8_t unique_tiles[1500][128];
 int main(void){
- for(unsigned i=0;i<1024;++i){memset(unique_tiles[i],0x11,128);unique_tiles[i][0]=i;unique_tiles[i][1]=i>>8;}
+ for(unsigned i=0;i<1500;++i){memset(unique_tiles[i],0x11,128);unique_tiles[i][0]=i;unique_tiles[i][1]=i>>8;}
 
  uint8_t raw[128]={0x21};uint16_t pal[16]={0};pal[1]=0x001f;pal[2]=0x03e0;
  x4_gpu_init();assert(projection[0]==32&&projection[1]==288&&projection[2]==216&&projection[3]==24);
  x4_video_begin(0);assert(!x4_video_tile(raw,8,4,pal,16,32,24,16,16,0,0,1));
- unsigned count;const X4VideoCommand* c=x4_video_commands(&count);unsigned oldslot=c[0].tile;
+ unsigned count;const X4VideoCommand* c=x4_video_commands(&count);unsigned oldslot=c[0].tile,oldpalette=c[0].palette;
  unsigned events=hardware_events;x4_gpu_prepare();assert(hardware_events==events&&!copies&&!verts);
  x4_gpu_present();assert(copies==1&&verts==4&&flushes==1);
  assert(vertex_x[0]==32&&vertex_x[1]==48&&vertex_y[0]==24&&vertex_y[2]==40);
- assert(((uint16_t*)mock_vram)[oldslot*256]==0x801f&&((uint16_t*)mock_vram)[oldslot*256+1]==0x83e0);
+ assert(hardware_pixel(oldslot,oldpalette,0,1)==0x801f&&hardware_pixel(oldslot,oldpalette,1,1)==0x83e0);
  assert(banks[0]==1&&banks[1]==2&&banks[2]==3&&banks[3]==4);
  pal[1]=0x7c00;x4_video_begin(0);verts=copies=0;
  x4_video_screen_space(1);assert(!x4_video_tile(raw,8,4,pal,16,0,0,16,16,0,0,1));
- unsigned newslot=c[0].tile;assert(newslot!=oldslot);x4_gpu_present();assert(copies==1);
- assert(((uint16_t*)mock_vram)[oldslot*256]==0x801f&&((uint16_t*)mock_vram)[newslot*256]==0xfc00);
+ unsigned newslot=c[0].tile,newpalette=c[0].palette;assert(newslot==oldslot&&newpalette!=oldpalette);unsigned oldcopies=palette_copies;x4_gpu_present();assert(!copies&&palette_copies==oldcopies+1);
+ assert(hardware_pixel(oldslot,oldpalette,0,1)==0x801f&&hardware_pixel(newslot,newpalette,0,1)==0xfc00);
  assert(vertex_x[0]==32&&vertex_y[0]==24&&vertex_x[1]==44&&vertex_y[2]==36);
  x4_video_begin(0);verts=0;
  x4_video_order(-2);assert(!x4_video_tile(raw,8,4,pal,16,32,24,16,16,3,1,1));
@@ -116,32 +129,33 @@ int main(void){
  /* Adjacent uploads must be byte-identical while using one transfer per
   * run, with a mandatory split at every 128 KiB texture-bank boundary. */
  for(unsigned i=0;i<16;++i)pal[i]=i|0x8000;
- for(unsigned total=300;total<=1024;total+=724){
+ const unsigned totals[]={300,1024,1500};
+ for(unsigned test=0;test<3;++test){unsigned total=totals[test];
   x4_video_begin(0);x4_video_begin(0);x4_video_invalidate();verts=copies=0;copied_bytes=0;
   for(unsigned i=0;i<total;++i){unique_tiles[i][126]=total;unique_tiles[i][127]=total>>8;}
   for(unsigned i=0;i<total;++i)assert(!x4_video_tile(unique_tiles[i],8,4,pal,16,32,24,16,16,0,0,50000+total+i));
   uint16_t slots[X4_VIDEO_TILES];unsigned pending=x4_video_dirty_tiles(slots),runs=0;
-  assert(pending==total);
-  for(unsigned i=0,length=0;i<pending;++i){if(!i||slots[i]!=slots[i-1]+1||slots[i]/256!=slots[i-1]/256||length==16){++runs;length=0;}++length;}
+  uint16_t dirty_palettes[X4_VIDEO_GPU_PALETTES];unsigned palette_pending=x4_video_dirty_palettes(dirty_palettes);assert(pending==total);
+  for(unsigned i=0,length=0;i<pending;++i){if(!i||slots[i]!=slots[i-1]+1||slots[i]/512!=slots[i-1]/512||length==32){++runs;length=0;}++length;}
   x4_gpu_prepare();x4_gpu_present();
-  assert(copies==(int)runs&&copied_bytes==total*512);assert(!x4_gpu_transfer_stats().late);
+  assert(copies==(int)runs&&copied_bytes==total*256);assert(!x4_gpu_transfer_stats().late);
   assert(x4_gpu_upload_batches()==runs&&x4_gpu_upload_tiles()==total);
-  assert(x4_video_stats().uploaded_bytes==total*512&&!x4_video_dirty_tiles(slots));
+  assert(x4_video_stats().uploaded_bytes==total*256+palette_pending*512&&!x4_video_dirty_tiles(slots));
   x4_video_commands(&count);assert(count==total);
-  for(unsigned i=0;i<count;++i){int dirty;const uint16_t* pixels=x4_video_rgba_texture(c[i].tile,&dirty);assert(!dirty);assert(!memcmp(pixels,mock_vram+c[i].tile*512,512));}
+  for(unsigned i=0;i<count;++i){int dirty;const uint8_t* pixels=x4_video_texture(c[i].tile,&dirty);assert(!dirty);assert(!memcmp(pixels,mock_vram+c[i].tile*256,256));}
   printf("PASS %u dirty tiles: %u DMA batches, %zu unchanged bytes, bank boundaries protected\n",total,runs,copied_bytes);
  }
  x4_video_begin(0);x4_video_begin(0);x4_video_invalidate();verts=copies=0;copied_bytes=0;
  for(unsigned i=0;i<8;++i)unique_tiles[1000+i][127]=0x55;
  for(unsigned i=0;i<8;++i)assert(!x4_video_tile(unique_tiles[1000+i],8,4,pal,16,32,24,16,16,0,0,70000+i));
  uint16_t slots[X4_VIDEO_TILES];assert(x4_video_dirty_tiles(slots)==8);
- protected_slot=slots[3];int dirty;const uint16_t* ready=x4_video_rgba_texture(protected_slot,&dirty);assert(dirty);
- memcpy(mock_vram+protected_slot*512,ready,512); /* Already uploaded individually. */
+ protected_slot=slots[3];int dirty;const uint8_t* ready=x4_video_texture(protected_slot,&dirty);assert(dirty);
+ memcpy(mock_vram+protected_slot*256,ready,256); /* Already uploaded individually. */
  unsigned pending=x4_video_dirty_tiles(slots),runs=0;assert(pending==7);
- for(unsigned i=0;i<pending;++i)if(!i||slots[i]!=slots[i-1]+1||slots[i]/256!=slots[i-1]/256)++runs;
- x4_gpu_prepare();x4_gpu_present();assert(copies==(int)runs&&copied_bytes==7*512&&runs>=2);
+ for(unsigned i=0;i<pending;++i)if(!i||slots[i]!=slots[i-1]+1||slots[i]/512!=slots[i-1]/512)++runs;
+ x4_gpu_prepare();x4_gpu_present();assert(copies==(int)runs&&copied_bytes==7*256&&runs>=2);
  x4_video_commands(&count);assert(count==8);
- for(unsigned i=0;i<count;++i){const uint16_t* pixels=x4_video_rgba_texture(c[i].tile,&dirty);assert(!memcmp(pixels,mock_vram+c[i].tile*512,512));}
+ for(unsigned i=0;i<count;++i){const uint8_t* pixels=x4_video_texture(c[i].tile,&dirty);assert(!memcmp(pixels,mock_vram+c[i].tile*256,256));}
  puts("PASS batched DMA never spans the clean slot between two dirty runs");
  /* Late entry, missed VBlank, and chunk deadline: retain the previous
   * image with all banks mapped while waiting; prepare consumes no uploads. */
@@ -169,5 +183,17 @@ int main(void){
  x4_video_begin(0);x4_gpu_present();assert(x4_gpu_transfer_stats().underflows==sticky.underflows);
  puts("PASS sticky rendering flags acknowledged and accumulated without changing blend configuration");
  puts("PASS scanline window, late-entry wait, bounded DMA, repeated prepare and texture mapping across waits");
+ /* Exercise all three palette banks and retain the preceding 64 CLUTs. */
+ static uint16_t pool[192][16];X4VideoCommand previous_palettes[64];
+ for(unsigned i=0;i<192;++i)pool[i][1]=i+1;
+ memset(raw,0x11,sizeof raw);x4_video_begin(0);x4_video_begin(0);verts=0;
+ for(unsigned i=0;i<64;++i)assert(!x4_video_tile(raw,8,4,pool[i],16,32,24,16,16,0,0,100000+i));
+ x4_video_commands(&count);memcpy(previous_palettes,c,sizeof previous_palettes);x4_gpu_present();
+ x4_video_begin(0);verts=0;
+ for(unsigned i=64;i<192;++i)assert(!x4_video_tile(raw,8,4,pool[i],16,32,24,16,16,0,0,100000+i));
+ x4_gpu_present();
+ for(unsigned i=0;i<128;++i)assert(hardware_pixel(c[i].tile,c[i].palette,0,1)==(0x8000|i+65));
+ for(unsigned i=0;i<64;++i)assert(hardware_pixel(previous_palettes[i].tile,previous_palettes[i].palette,0,1)==(0x8000|i+1));
+ puts("PASS all E/F/G palette banks and 192 retained CLUTs across both protected frames");
  check_signed_stable_order();
 }

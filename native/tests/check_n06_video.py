@@ -6,3 +6,10 @@ subprocess.run(['gcc','-std=c11','-O2','-g','-Wall','-Wextra','-fsanitize=addres
 p=subprocess.run([str(OUT/'video_test')],capture_output=True,text=True);print(p.stdout,p.stderr)
 (OUT/'validation.json').write_text(json.dumps({'status':'passed' if not p.returncode else 'failed','sources':{str(s.relative_to(ROOT)):hashlib.sha256(s.read_bytes()).hexdigest() for s in sources},'host_only':True},indent=2)+'\n')
 assert not p.returncode
+
+indexed_source=ROOT/'native/tests/n0811_indexed_test.c'
+subprocess.run(['gcc','-std=c11','-O2','-g','-Wall','-Wextra','-fsanitize=address,undefined','-I'+str(ROOT/'native/src'),str(sources[0]),str(indexed_source),'-o',str(OUT/'indexed_test')],check=True)
+p=subprocess.run([str(OUT/'indexed_test')],capture_output=True,text=True);print(p.stdout,p.stderr)
+assert not p.returncode
+report=json.loads((OUT/'validation.json').read_text());report['sources'][str(indexed_source.relative_to(ROOT))]=hashlib.sha256(indexed_source.read_bytes()).hexdigest();report['indexed_scalar_cases']=512
+(OUT/'validation.json').write_text(json.dumps(report,indent=2)+'\n')

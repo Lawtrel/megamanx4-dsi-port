@@ -22,8 +22,8 @@ _Static_assert(KEY_A==X4_NDS_A&&KEY_B==X4_NDS_B&&KEY_SELECT==X4_NDS_SELECT&&KEY_
 #ifdef X4_N06_GPU
 void x4_gpu_init(void);void x4_gpu_prepare(void);void x4_gpu_present(void);unsigned x4_gpu_words(void);
 unsigned x4_gpu_upload_batches(void);unsigned x4_gpu_upload_tiles(void);
-#define VERSION "BETA 8.10"
-#define LOG_PREFIX "native_n0810"
+#define VERSION "BETA 8.11"
+#define LOG_PREFIX "native_n0811"
 #else
 #define VERSION "N05"
 #define LOG_PREFIX "native_n05_flow"

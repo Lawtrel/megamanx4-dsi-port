@@ -1,3 +1,11 @@
+# Retorno físico — beta 8.10
+
+O usuário confirmou o fim das piscadas no DSi. O log de X na fase 4 contém
+202 amostras; no gameplay filtrado, médias de 20,31 e 27,91 FPS por área.
+Sem atrasos de restauração de VRAM, underflow, overflow ou recusas de desenho.
+A correção visual fica encerrada; 30 FPS sustentados continuam pendentes.
+Veja [tempos e dados](TESTE_N0810_FASE4.md).
+
 # Retorno físico — beta 8.9
 
 O usuário confirmou queda forte de FPS e uma faixa preta intermitente no

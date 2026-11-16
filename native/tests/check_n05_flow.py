@@ -30,7 +30,7 @@ trap=HOST/'diagnostic_traps.c';trap.write_text('#include <stdio.h>\n#include <st
  '\n'.join('__attribute__((noreturn)) void '+n+'(void){fprintf(stderr,"UNIMPLEMENTED FULL FLOW: '+n+'\\n");abort();}' for n in names)+'\n')
 selected.add(trap)
 flags=['-std=gnu11','-Os','-g','-fno-omit-frame-pointer','-fno-strict-aliasing','-fwrapv','-fsanitize=address','--param=asan-globals=0',
- '-ffunction-sections','-fdata-sections','-DMMX4_PC=1','-D__psyz=1','-DSKIP_MDEC=1','-DVERSION_US=1','-DX4_FULL_FLOW=1',
+ '-ffunction-sections','-fdata-sections','-DMMX4_PC=1','-D__psyz=1','-DSKIP_MDEC=1','-DVERSION_US=1','-DX4_FULL_FLOW=1','-DX4_N06_INDEXED=1',
  '-Wno-incompatible-pointer-types','-Wno-int-conversion','-I'+str(REF/'include'),'-I'+str(REF/'src/pc'),
  '-I'+str(REF/'tools/psyz/psyz/include'),'-I'+str(ROOT/'native/src'),'-I'+str(ROOT/'build/native/content-index'),
  '-I'+str(ROOT/'native/tests/thread_host_shim'),'-pthread']
@@ -56,7 +56,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:objects=list(p
 p=subprocess.run(['gcc','-pthread','-fsanitize=address','-Wl,--gc-sections',*objects,'-o',str(executable)],capture_output=True,text=True)
 (HOST/'link.log').write_text(p.stdout+p.stderr)
 if p.returncode:raise RuntimeError(p.stderr[-3000:])
-fingerprints=sources+([ROOT/'native/tests/n07_systems.h',ROOT/'native/tests/n083_render_systems.h',ROOT/'native/tests/n084_controls_systems.h',ROOT/'native/tests/n086_continue_systems.h',ROOT/'native/tests/n089_frost_systems.h',ROOT/'native/src/x4_controls.h'] if systems else [])
+fingerprints=sources+[ROOT/'native/src/x4_video.h',ROOT/'native/tests/n06_preview.h']+([ROOT/'native/tests/n07_systems.h',ROOT/'native/tests/n083_render_systems.h',ROOT/'native/tests/n084_controls_systems.h',ROOT/'native/tests/n086_continue_systems.h',ROOT/'native/tests/n089_frost_systems.h',ROOT/'native/src/x4_controls.h'] if systems else [])
 (HOST/(executable.name+'_inputs.json')).write_text(json.dumps({'binary_sha256':hashlib.sha256(executable.read_bytes()).hexdigest(),
  'sources':{str(s.relative_to(ROOT)):hashlib.sha256(s.read_bytes()).hexdigest() for s in fingerprints}},indent=2)+'\n')
 arguments=arguments or (['pause','0'] if systems else ['0','0','0'])

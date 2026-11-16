@@ -13,23 +13,26 @@ parser.add_argument('--python-path',type=Path)
 parser.add_argument('--baseline',default='f769b900632ce89b82bb466d3f9bf03d9df27432')
 parser.add_argument('--fixture',type=Path,default=Path('native/tests/n065_video_benchmark.c'))
 parser.add_argument('--output',type=Path,default=Path('build/native/n065-video-benchmark'))
+parser.add_argument('--indexed',action='store_true',help='Run the candidate with native indexed textures')
 parser.add_argument('--aliases',action='store_true',help='Include a live aligned-atlas alias workload')
 parser.add_argument('--extended',action='store_true',help='Include unchanged/animated palette refresh on new frames')
 args=parser.parse_args();OUT=ROOT/args.output;fixture=ROOT/args.fixture
 if not args.run_only:
  OUT.mkdir(parents=True,exist_ok=True);sdk=ROOT/'ambiente/sdk/devkitARM/bin'
  before=OUT/'before.c';before.write_bytes(subprocess.check_output(['git','-C',str(ROOT),'show',args.baseline+':native/src/x4_video.c']))
+ if args.indexed and b'void x4_video_command_rgba(' not in before.read_bytes():
+  before.write_bytes(before.read_bytes()+b'\nvoid x4_video_command_rgba(const X4VideoCommand* c,uint16_t pixels[256]){int dirty;memcpy(pixels,x4_video_rgba_texture(c->tile,&dirty),512); }\n')
  flags=['-O3','-marm','-mcpu=arm946e-s','-fno-strict-aliasing','-ffunction-sections','-fdata-sections','-I'+str(ROOT/'native/src')]
  probes={}
  for name,source in [('before',before),('after',ROOT/'native/src/x4_video.c')]:
   objects=[]
   for i,p in enumerate([source,fixture]):
-   o=OUT/f'{name}_{i}.o';subprocess.run([str(sdk/'arm-none-eabi-gcc'),*flags,'-c',str(p),'-o',str(o)],check=True);objects.append(str(o))
+   o=OUT/f'{name}_{i}.o';subprocess.run([str(sdk/'arm-none-eabi-gcc'),*flags,*(['-DX4_N06_INDEXED=1'] if args.indexed and name=='after' else []),'-c',str(p),'-o',str(o)],check=True);objects.append(str(o))
   elf=OUT/(name+'.elf');subprocess.run([str(sdk/'arm-none-eabi-gcc'),'-nostdlib','-marm','-mcpu=arm946e-s','-Wl,--gc-sections,-Ttext=0x10000,-Tdata=0x20000,-e,unit_entry',*objects,'-lc','-lgcc','-o',str(elf)],check=True)
   subprocess.run([str(sdk/'arm-none-eabi-objcopy'),'-O','binary',str(elf),str(OUT/(name+'.bin'))],check=True)
   symbols=subprocess.check_output([str(sdk/'arm-none-eabi-nm'),str(elf)],text=True)
   addresses={key:int(next(l.split()[0] for l in symbols.splitlines() if l.endswith(' '+key)),16) for key in ['unit_entry','benchmark_start','benchmark_end']}
-  probes[name]={**addresses,'source_sha256':hashlib.sha256(source.read_bytes()).hexdigest(),
+  probes[name]={**addresses,'indexed_candidate':bool(args.indexed and name=='after'),'source_sha256':hashlib.sha256(source.read_bytes()).hexdigest(),
    'fixture_sha256':hashlib.sha256(fixture.read_bytes()).hexdigest(),
    'header_sha256':hashlib.sha256((ROOT/'native/src/x4_video.h').read_bytes()).hexdigest(),
    'binary_sha256':hashlib.sha256((OUT/(name+'.bin')).read_bytes()).hexdigest()}

@@ -52,8 +52,12 @@ Prioridades registradas e aprovadas pelo usuário em 16/11/2026.
   não registrou recusas de desenho, mas
   houve regressão severa de FPS e piscadas pretas no alto da tela.
 - A [beta 8.10](STATUS_N0810.md) trata a regressão da cache e limita as
-  transferências a janelas controladas. FPS e ausência de piscadas ainda
-  precisam de confirmação física; 30 FPS sustentados seguem pendentes.
+  transferências a janelas controladas. No teste físico, o usuário confirmou o fim das piscadas, mas as médias
+  ficaram em 20,31/27,91 FPS na fase 4. Veja [o retorno](TESTE_N0810_FASE4.md).
+- A [beta 8.11](STATUS_N0811.md) usa texturas indexadas e paletas protegidas
+  para reduzir conversão e envio. A janela de VRAM da 8.10 permanece.
+  A meta é sustentar pelo menos 30 FPS e alcançar 60 nos trechos leves;
+  a confirmação de desempenho da 8.11 depende do próximo teste no DSi.
 - Bases de medição: [fase 12 na 8.2](TESTE_N082_FASE12.md) e
   [teste aleatório da 8.3](TESTE_N083_ALEATORIO.md). Percursos diferentes
   não comprovam ganho percentual entre versões.

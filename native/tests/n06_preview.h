@@ -13,7 +13,7 @@ static void n06_preview(const char* path){
  static uint16_t pixels[256*192];for(unsigned i=0;i<256*192;++i)pixels[i]=x4_video_clear();
  for(unsigned i=0;i<count;++i)order[i]=i;qsort(order,count,sizeof *order,preview_compare);
  for(unsigned k=0;k<count;++k){const X4VideoCommand* c=&preview_commands[order[k]];int dirty;
-  const uint16_t* tile=c->textured?x4_video_rgba_texture(c->tile,&dirty):NULL;
+  uint16_t decoded[256];const uint16_t* tile=NULL;if(c->textured){x4_video_command_rgba(c,decoded);tile=decoded;}
   int left=256,right=0,top=192,bottom=0;
   for(unsigned j=0;j<4;++j){int x=c->screen_space?c->x[j]*256/320:(c->x[j]-vx)*256/vw,y=c->screen_space?c->y[j]*192/240:(c->y[j]-vy)*192/vh;if(x-1<left)left=x-1;if(x+1>right)right=x+1;if(y-1<top)top=y-1;if(y+1>bottom)bottom=y+1;}
   if(left<0)left=0;if(right>256)right=256;if(top<0)top=0;if(bottom>192)bottom=192;

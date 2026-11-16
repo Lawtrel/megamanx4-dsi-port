@@ -12,8 +12,8 @@ static unsigned used,last_words;
  * a local word and commit once per four commands, rather than repeatedly
  * reading/modifying the list in RAM. Parameter order and list size stay exact. */
 typedef struct {uint32_t* next;uint32_t* op;unsigned lane,word;} FifoWriter;
-static uint16_t upload_slots[X4_VIDEO_TILES];
-static unsigned prepared,prepared_clear,prepared_uploads;
+static uint16_t upload_slots[X4_VIDEO_TILES],palette_slots[X4_VIDEO_GPU_PALETTES];
+static unsigned prepared,prepared_clear,prepared_uploads,prepared_palettes;
 static X4GpuTransferStats transfer_stats;
 static unsigned total_underflows,total_overflows,total_late,total_waits;
 X4GpuTransferStats x4_gpu_transfer_stats(void){return transfer_stats;}
@@ -21,13 +21,16 @@ X4GpuTransferStats x4_gpu_transfer_stats(void){return transfer_stats;}
  * interrupt-masked transfers restore texture mapping well before that.
  * Unfinished uploads retain the previous image until another safe window. */
 #define UPLOAD_LAST_START 204
-#define UPLOAD_CHUNK_TILES 16 /* 8 KiB, bounded even for a full bank. */
+#define UPLOAD_CHUNK_TILES 32 /* 8 KiB of indexed pixels, bounded even for a full bank. */
 static void texture_bank(unsigned bank,int lcd){
  switch(bank){
   case 0:vramSetBankA(lcd?VRAM_A_LCD:VRAM_A_TEXTURE_SLOT0);break;
   case 1:vramSetBankB(lcd?VRAM_B_LCD:VRAM_B_TEXTURE_SLOT1);break;
   case 2:vramSetBankC(lcd?VRAM_C_LCD:VRAM_C_TEXTURE_SLOT2);break;
-  default:vramSetBankD(lcd?VRAM_D_LCD:VRAM_D_TEXTURE_SLOT3);break;
+  case 3:vramSetBankD(lcd?VRAM_D_LCD:VRAM_D_TEXTURE_SLOT3);break;
+  case 4:vramSetBankE(lcd?VRAM_E_LCD:VRAM_E_TEX_PALETTE);break;
+  case 5:vramSetBankF(lcd?VRAM_F_LCD:VRAM_F_TEX_PALETTE_SLOT4);break;
+  default:vramSetBankG(lcd?VRAM_G_LCD:VRAM_G_TEX_PALETTE_SLOT5);break;
  }
 }
 static unsigned upload_batches,uploaded_tiles;
@@ -54,7 +57,10 @@ static void sort_commands(const X4VideoCommand* commands,unsigned count){
 void x4_gpu_init(void){
  videoSetMode(MODE_0_3D);vramSetBankA(VRAM_A_TEXTURE_SLOT0);vramSetBankB(VRAM_B_TEXTURE_SLOT1);
  vramSetBankC(VRAM_C_TEXTURE_SLOT2);vramSetBankD(VRAM_D_TEXTURE_SLOT3);
- glInit();glEnable(GL_TEXTURE_2D|GL_BLEND);glDisable(GL_ANTIALIAS|GL_OUTLINE);
+ x4_video_set_indexed(1);
+ glInit();
+ vramSetBankE(VRAM_E_TEX_PALETTE);vramSetBankF(VRAM_F_TEX_PALETTE_SLOT4);vramSetBankG(VRAM_G_TEX_PALETTE_SLOT5);
+ glEnable(GL_TEXTURE_2D|GL_BLEND);glDisable(GL_ANTIALIAS|GL_OUTLINE);
  glViewport(0,0,255,191);glClearDepth(GL_MAX_DEPTH);glClearPolyID(63);
  glMatrixMode(GL_PROJECTION);glLoadIdentity();glOrthof32(32,288,216,24,-4096,4096);
  glMatrixMode(GL_MODELVIEW);glLoadIdentity();glMatrixMode(GL_TEXTURE);glLoadIdentity();
@@ -68,12 +74,13 @@ void x4_gpu_prepare(void){
  unsigned count;const X4VideoCommand* commands=x4_video_commands(&count);
  sort_commands(commands,count);
  FifoWriter out={.next=list+1,.lane=4};
- unsigned last_texture=~0u,last_poly=~0u,last_color=~0u;
+ unsigned last_texture=~0u,last_palette=~0u,last_poly=~0u,last_color=~0u;
  for(unsigned i=0;i<count;++i){
   const X4VideoCommand* c=&commands[sorted[i]];unsigned slot=c->tile;
-  unsigned texture=c->textured?(slot*64)|(1<<20)|(1<<23)|(GL_RGBA<<26):0;
+  unsigned texture=c->textured?(slot*32)|(1<<20)|(1<<23)|(GL_RGB256<<26)|((c->textured==2)?1u<<29:0):0;
   unsigned poly=POLY_ALPHA(c->semi?16:31)|POLY_CULL_NONE|POLY_ID(c->semi?(i%62)+1:0);
   if(texture!=last_texture){emit(&out,FIFO_TEX_FORMAT,texture,0,1);last_texture=texture;}
+  if(c->textured&&c->palette!=last_palette){emit(&out,FIFO_PAL_FORMAT,c->palette*32,0,1);last_palette=c->palette;}
   if(poly!=last_poly){emit(&out,FIFO_POLY_FORMAT,poly,0,1);last_poly=poly;}
   emit(&out,FIFO_BEGIN,GL_QUADS,0,1);
   /* UV endpoints occupy disjoint fields. Toggling an endpoint is an XOR,
@@ -95,10 +102,25 @@ void x4_gpu_prepare(void){
   * This plan is read-only: repeated preparation must not lose dirty tiles. */
  prepared_uploads=x4_video_dirty_tiles(upload_slots);
  for(unsigned j=0;j<prepared_uploads;){unsigned first=upload_slots[j++],tiles=1;
-  while(j<prepared_uploads&&upload_slots[j]==first+tiles&&(first+tiles)/256==first/256){++j;++tiles;}
-  DC_FlushRange(x4_video_peek_rgba(first),tiles*512);
+  while(j<prepared_uploads&&upload_slots[j]==first+tiles&&(first+tiles)/512==first/512){++j;++tiles;}
+  DC_FlushRange(x4_video_peek_indexed(first),tiles*256);
  }
+ prepared_palettes=x4_video_dirty_palettes(palette_slots);
+ for(unsigned i=0;i<prepared_palettes;++i)DC_FlushRange(x4_video_peek_palette(palette_slots[i]),512);
  prepared=1;
+}
+static void safe_copy(unsigned bank,const void* data,void* target,unsigned bytes){
+ for(;;){int irq_state=enterCriticalSection();unsigned line=REG_VCOUNT;
+  if(line>=192&&line<=UPLOAD_LAST_START){
+   if(line>transfer_stats.start_max)transfer_stats.start_max=line;
+   texture_bank(bank,1);dmaCopyWords(3,data,target,bytes);texture_bank(bank,0);
+   unsigned restored=REG_VCOUNT;
+   if(restored>transfer_stats.restore_max)transfer_stats.restore_max=restored;
+   if(restored<192||restored>=214)++transfer_stats.late;
+   leaveCriticalSection(irq_state);return;
+  }
+  leaveCriticalSection(irq_state);++transfer_stats.waits;swiWaitForVBlank();
+ }
 }
 void x4_gpu_present(void){
  if(!prepared)x4_gpu_prepare(); /* Small frontend frames retain this shortcut. */
@@ -106,28 +128,19 @@ void x4_gpu_present(void){
  transfer_stats.status=GFX_CONTROL&((1u<<12)|(1u<<13));
  total_underflows+=!!(transfer_stats.status&(1u<<12));total_overflows+=!!(transfer_stats.status&(1u<<13));
  glEnable(GL_COLOR_UNDERFLOW|GL_POLY_OVERFLOW); /* acknowledge sticky flags */
+ for(unsigned i=0;i<prepared_palettes;++i){unsigned slot=palette_slots[i];
+  unsigned bank=slot<128?4:slot<160?5:6,local=slot<128?slot:slot<160?slot-128:slot-160;
+  uint8_t* target=bank==4?(uint8_t*)VRAM_E:bank==5?(uint8_t*)VRAM_F:(uint8_t*)VRAM_G;
+  safe_copy(bank,x4_video_peek_palette(slot),target+local*512,512);int dirty;x4_video_palette(slot,&dirty);
+ }
  for(unsigned j=0;j<prepared_uploads;){unsigned first=upload_slots[j],tiles=1;
-  while(j+tiles<prepared_uploads&&tiles<UPLOAD_CHUNK_TILES&&upload_slots[j+tiles]==first+tiles&&(first+tiles)/256==first/256)++tiles;
-  unsigned bank=first/256,offset=(first%256)*512;
+  while(j+tiles<prepared_uploads&&tiles<UPLOAD_CHUNK_TILES&&upload_slots[j+tiles]==first+tiles&&(first+tiles)/512==first/512)++tiles;
+  unsigned bank=first/512,offset=(first%512)*256;
   uint8_t* target=bank==0?(uint8_t*)VRAM_A:bank==1?(uint8_t*)VRAM_B:bank==2?(uint8_t*)VRAM_C:(uint8_t*)VRAM_D;
-  for(;;){
-   int irq_state=enterCriticalSection();unsigned line=REG_VCOUNT;
-   if(line>=192&&line<=UPLOAD_LAST_START){
-    if(line>transfer_stats.start_max)transfer_stats.start_max=line;
-    texture_bank(bank,1);
-    dmaCopyWords(3,x4_video_peek_rgba(first),target+offset,tiles*512);
-    texture_bank(bank,0);
-    unsigned restored=REG_VCOUNT;
-    if(restored>transfer_stats.restore_max)transfer_stats.restore_max=restored;
-    if(restored<192||restored>=214)++transfer_stats.late;
-    leaveCriticalSection(irq_state);break;
-   }
-   leaveCriticalSection(irq_state);
-   ++transfer_stats.waits;swiWaitForVBlank();
-  }
+  safe_copy(bank,x4_video_peek_indexed(first),target+offset,tiles*256);
   /* Consume only after physical transfer. All waits leave every bank mapped
    * to textures, and neither frame advances the cache during this loop. */
-  for(unsigned k=0;k<tiles;++k){int dirty;x4_video_rgba_texture(first+k,&dirty);}
+  for(unsigned k=0;k<tiles;++k){int dirty;x4_video_texture(first+k,&dirty);}
   ++upload_batches;uploaded_tiles+=tiles;j+=tiles;
  }
  total_late+=transfer_stats.late;total_waits+=transfer_stats.waits;

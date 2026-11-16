@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 typedef uint16_t vu16;
-extern uint8_t mock_vram[524288];extern uint32_t GFX_TEX_FORMAT,GFX_CONTROL;
+extern uint8_t mock_vram[524288],mock_palettes[98304];extern uint32_t GFX_TEX_FORMAT,GFX_CONTROL;
 extern unsigned mock_vcount;
 #define REG_VCOUNT mock_vcount
 int enterCriticalSection(void);void leaveCriticalSection(int state);void swiWaitForVBlank(void);
@@ -12,18 +12,23 @@ int enterCriticalSection(void);void leaveCriticalSection(int state);void swiWait
 #define VRAM_B (mock_vram+131072)
 #define VRAM_C (mock_vram+262144)
 #define VRAM_D (mock_vram+393216)
+#define VRAM_E mock_palettes
+#define VRAM_F (mock_palettes+65536)
+#define VRAM_G (mock_palettes+81920)
 enum {MODE_0_3D=8,VRAM_A_LCD=0,VRAM_B_LCD=0,VRAM_C_LCD=0,VRAM_D_LCD=0,
  VRAM_A_TEXTURE_SLOT0=1,VRAM_B_TEXTURE_SLOT1=2,VRAM_C_TEXTURE_SLOT2=3,VRAM_D_TEXTURE_SLOT3=4,
+ VRAM_E_LCD=0,VRAM_F_LCD=0,VRAM_G_LCD=0,VRAM_E_TEX_PALETTE=5,VRAM_F_TEX_PALETTE_SLOT4=6,VRAM_G_TEX_PALETTE_SLOT5=7,
  GL_TEXTURE_2D=1,GL_BLEND=2,GL_ANTIALIAS=4,GL_OUTLINE=8,GL_MAX_DEPTH=32767,
- GL_PROJECTION=0,GL_MODELVIEW=1,GL_TEXTURE=3,GL_QUADS=1,GL_RGBA=7,
+ GL_PROJECTION=0,GL_MODELVIEW=1,GL_TEXTURE=3,GL_QUADS=1,GL_RGBA=7,GL_RGB256=4,
  POLY_CULL_NONE=3<<6,GL_TRANS_MANUALSORT=1,GL_COLOR_UNDERFLOW=1<<12,GL_POLY_OVERFLOW=1<<13};
 #define RGB15(r,g,b) ((r)|((g)<<5)|((b)<<10))
 #define POLY_ALPHA(a) ((a)<<16)
 #define POLY_ID(i) ((i)<<24)
 #define FIFO_COMMAND_PACK(a,b,c,d) ((a)|((b)<<8)|((c)<<16)|((d)<<24))
-enum {FIFO_TEX_FORMAT=0x2a,FIFO_POLY_FORMAT=0x29,FIFO_BEGIN=0x40,FIFO_COLOR=0x20,FIFO_TEX_COORD=0x22,FIFO_VERTEX16=0x23,FIFO_VERTEX_XY=0x25};
+enum {FIFO_TEX_FORMAT=0x2a,FIFO_PAL_FORMAT=0x2b,FIFO_POLY_FORMAT=0x29,FIFO_BEGIN=0x40,FIFO_COLOR=0x20,FIFO_TEX_COORD=0x22,FIFO_VERTEX16=0x23,FIFO_VERTEX_XY=0x25};
 void glCallList(const uint32_t* list);
 void videoSetMode(int mode);void vramSetBankA(int mode);void vramSetBankB(int mode);void vramSetBankC(int mode);void vramSetBankD(int mode);
+void vramSetBankE(int mode);void vramSetBankF(int mode);void vramSetBankG(int mode);
 void glInit(void);void glEnable(int v);void glDisable(int v);void glViewport(int,int,int,int);
 void glClearDepth(int);void glClearPolyID(int);void glMatrixMode(int);void glLoadIdentity(void);
 void glOrthof32(int,int,int,int,int,int);void glClearColor(int,int,int,int);void glPolyFmt(unsigned);

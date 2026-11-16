@@ -8,6 +8,11 @@ Pacote de 16/11/2026: 236.008.448 bytes (aproximadamente 225 MiB),
 build `039d8cb98b65797ea31a`, SHA-256
 `77312e92244154c8a1bdae798859972d8cbca2457c2a7f9d3da7305896655c49`.
 
+Retorno físico de 16/11/2026: o usuário confirmou o fim das piscadas.
+O [teste da fase 4](TESTE_N0810_FASE4.md) ainda ficou abaixo de 30 FPS.
+A validação visual está encerrada; a [beta 8.11](STATUS_N0811.md) foca em
+desenho/envio, preservando a janela de transferência desta versão.
+
 ## Regressão de desempenho da 8.9
 
 O [teste físico](TESTE_N089_FASE4.md) registrou médias de 19,25 e 11,23 FPS

@@ -15,7 +15,7 @@ uint32_t unit_entry(unsigned bits,unsigned mode){
   benchmark_start();
   for(unsigned round=0;round<4;++round){x4_video_begin(0);for(unsigned i=0;i<256;++i)x4_video_tile(aliases_raw[i],128,bits,palette,colors,0,0,16,16,0,0,0);}
   benchmark_end();unsigned n;const X4VideoCommand* c=x4_video_commands(&n);uint32_t hash=2166136261u;
-  for(unsigned i=0;i<n;++i){int dirty;const uint16_t* pixels=x4_video_rgba_texture(c[i].tile,&dirty);for(unsigned j=0;j<256;++j)hash=(hash^pixels[j])*16777619u;}
+  for(unsigned i=0;i<n;++i){uint16_t pixels[256];x4_video_command_rgba(&c[i],pixels);for(unsigned j=0;j<256;++j)hash=(hash^pixels[j])*16777619u;}
   return hash;
  }
  for(unsigned i=0;i<(mode==1?25u:1u);++i)x4_video_tile(raw[i],128,bits,palette,colors,0,0,16,16,0,0,i);
@@ -27,7 +27,7 @@ uint32_t unit_entry(unsigned bits,unsigned mode){
  }
  benchmark_end();
  unsigned count;const X4VideoCommand* commands=x4_video_commands(&count);uint32_t hash=2166136261u;
- for(unsigned i=count>24?count-24:0;i<count;++i){int dirty;const uint16_t* pixels=x4_video_rgba_texture(commands[i].tile,&dirty);
+ for(unsigned i=count>24?count-24:0;i<count;++i){uint16_t pixels[256];x4_video_command_rgba(&commands[i],pixels);
   for(unsigned j=0;j<256;++j)hash=(hash^pixels[j])*16777619u;
  }
  return hash;
