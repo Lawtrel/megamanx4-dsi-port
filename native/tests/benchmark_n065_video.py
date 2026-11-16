@@ -13,6 +13,7 @@ parser.add_argument('--python-path',type=Path)
 parser.add_argument('--baseline',default='f769b900632ce89b82bb466d3f9bf03d9df27432')
 parser.add_argument('--fixture',type=Path,default=Path('native/tests/n065_video_benchmark.c'))
 parser.add_argument('--output',type=Path,default=Path('build/native/n065-video-benchmark'))
+parser.add_argument('--aliases',action='store_true',help='Include a live aligned-atlas alias workload')
 parser.add_argument('--extended',action='store_true',help='Include unchanged/animated palette refresh on new frames')
 args=parser.parse_args();OUT=ROOT/args.output;fixture=ROOT/args.fixture
 if not args.run_only:
@@ -39,7 +40,7 @@ if args.python_path:sys.path.insert(0,str(args.python_path.resolve()))
 from unicorn import Uc,UC_ARCH_ARM,UC_MODE_ARM,UC_HOOK_CODE
 from unicorn.arm_const import UC_ARM_REG_SP,UC_ARM_REG_LR,UC_ARM_REG_R0,UC_ARM_REG_R1,UC_ARM_REG_PC,UC_CPU_ARM_946
 probes=json.loads((OUT/'probes.json').read_text());results={}
-for bits,hits in [(b,m) for m in range(4 if args.extended else 2) for b in (4,8)]:
+for bits,hits in [(b,m) for m in range(5 if args.aliases else 4 if args.extended else 2) for b in (4,8)]:
  case={}
  for name,row in probes.items():
   code=(OUT/(name+'.bin')).read_bytes();assert hashlib.sha256(code).hexdigest()==row['binary_sha256']
@@ -54,7 +55,7 @@ for bits,hits in [(b,m) for m in range(4 if args.extended else 2) for b in (4,8)
   assert machine.reg_read(UC_ARM_REG_PC)==0x7e0000
   case[name]={'instructions':counter[1],'rgba_hash':machine.reg_read(UC_ARM_REG_R0)}
  assert case['before']['rgba_hash']==case['after']['rgba_hash']
- label=['misses','hits','static_palette_frames','animated_palette_frames'][hits]
+ label=['misses','hits','static_palette_frames','animated_palette_frames','live_atlas_aliases'][hits]
  results[f'{bits}bpp_'+label]=case
  print(bits,'bpp',label,case,flush=True)
 (OUT/'execution.json').write_text(json.dumps({'cpu':'ARM946','metric':'executed instructions; excludes memory/cache timing and is not FPS','probes':probes,'results':results,'physical_dsi_tested':False},indent=2)+'\n')

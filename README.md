@@ -5,10 +5,13 @@ Port experimental do motor de Mega Man X4 para ARM9, baseado no código C de
 ao DSi. O executável nativo não inclui interpretador de CPU, BIOS ou emulador
 completo de PlayStation.
 
-**Beta 8.9: compartilhamento exato de texturas para evitar recusas de sprites.**
+**Beta 8.10: cache corrigida e transferências gráficas com janela controlada.**
 Mantém o desenho de cenários otimizado, o Continue corrigido e a medição
 de quadros completos, com foco em 30 FPS sustentados, SELECT para Giga/R2,
 debug e cutscenes desativadas.
+O [teste físico da 8.9](docs/TESTE_N089_FASE4.md) mostrou regressão de FPS
+e piscadas pretas no alto da imagem. A 8.10 corrige a cache e limita a
+janela das transferências; o resultado físico ainda precisa ser medido.
 Os efeitos continuam pelo ARM7/hardware. O log físico da N06.7 registrou
 médias de 47,63 FPS com X na primeira área do trem e 39,19 com Zero na segunda,
 em trechos distintos. Há quedas abaixo de 30 FPS. Após relato de vídeos lentos
@@ -37,15 +40,15 @@ No Linux/WSL, a partir da raiz:
 
 ```sh
 python3 tools/setup_native.py --disc '/caminho/Mega Man X4.bin' --cue '/caminho/Mega Man X4.cue'
-python3 native/compile.py --n089
+python3 native/compile.py --n0810
 ```
 
 O setup obtém o SDK e as fontes fixadas. O dump suportado é a edição USA
 SLUS-00561; o script verifica seu tamanho e SHA-256 antes de extrair dados.
-A saída é `dist/native-n089/mmx4_native_n089.nds`, para uso local em modo DSi.
+A saída é `dist/native-n0810/mmx4_native_n0810.nds`, para uso local em modo DSi.
 Não publique esse arquivo: ele inclui os recursos extraídos do jogo.
 
-No Windows, depois do setup, execute `COMPILAR_JOGO.cmd` ou `COMPILAR_N089.cmd`.
+No Windows, depois do setup, execute `COMPILAR_JOGO.cmd` ou `COMPILAR_N0810.cmd`.
 As duas opções compilam o mesmo alvo atual. Detalhes em
 [COMO_COMPILAR.md](COMO_COMPILAR.md).
 
@@ -74,6 +77,7 @@ salvar/carregar pelos menus originais com X e Zero.
 A validação completa da campanha fica para o final. Alguns comandos de áudio,
 fidelidade de efeitos, qualificação integral da campanha e otimização continuam pendentes.
 
+- [Cache e janela de VRAM na beta 8.10](docs/STATUS_N0810.md)
 - [Correção do cache de texturas na beta 8.9](docs/STATUS_N089.md)
 - [Otimização da lista gráfica na beta 8.8](docs/STATUS_N088.md)
 - [Resultado do último teste físico](docs/HARDWARE_TESTS.md)

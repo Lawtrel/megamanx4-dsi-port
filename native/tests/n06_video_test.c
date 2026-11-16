@@ -114,7 +114,7 @@ int main(void){
  palette[2]=palette[1];memset(twin,0x22,sizeof twin);x4_video_begin(0);
  assert(!x4_video_tile(twin,8,4,palette,16,0,0,16,16,0,0,80003));assert(c[0].tile!=shared_slot);
  assert(x4_video_texture(c[0].tile,&dirty)[0]==2&&x4_video_texture(shared_slot,&dirty)[0]==1);
- /* Two images with the same sampled hash differ in an unsampled pixel. */
+ /* A subtle one-pixel change must remain different. */
  x4_video_begin(0);x4_video_begin(0);memset(raw,0x11,sizeof raw);memset(twin,0x11,sizeof twin);twin[0]=0x21;
  assert(!x4_video_tile(raw,128,4,palette,16,0,0,16,16,0,0,81000));unsigned collision_slot=c[0].tile;
  palette[2]=992;x4_video_begin(0);assert(!x4_video_tile(twin,8,4,palette,16,0,0,16,16,0,0,81001));
@@ -130,7 +130,16 @@ int main(void){
  assert(!x4_video_tile(twin,8,4,alias_palette,16,0,0,16,16,0,0,82001));
  assert(!x4_video_stats().alias_hits&&x4_video_stats().misses==1);
  assert(x4_video_rgba_texture(c[0].tile,&dirty)[0]==(0x8000|0x203));
- puts("PASS sampled hash collisions and stale aliases after full slot reuse");
+ /* Aligned atlas/tag collisions used to displace the sole alias in each
+  * 512-entry bucket. All live aliases must survive a new draw together. */
+ static uint16_t collision_palette[16];collision_palette[1]=0x345;
+ x4_video_begin(0);x4_video_begin(0);memset(twin,0x11,sizeof twin);
+ for(unsigned i=0;i<128;++i)assert(!x4_video_tile(twin,8,4,collision_palette,16,0,0,16,16,0,0,90000+i*512));
+ x4_video_begin(0);
+ for(unsigned i=1;i<128;++i)assert(!x4_video_tile(twin,8,4,collision_palette,16,0,0,16,16,0,0,90000+i*512));
+ assert(x4_video_stats().alias_hits==127&&!x4_video_stats().shared&&!x4_video_stats().misses);
+ puts("PASS all 127 colliding live aliases reused without pixel conversion");
+ puts("PASS one-pixel differences and stale aliases after full slot reuse");
  puts("PASS exact RGBA/indexed sharing, fast aliases and palette-version changes");
  puts("PASS 512 scalar/lookup comparisons and dirty upload snapshots");
  puts("PASS N06 indexed tiles, opaque black, transparency, palettes, pose tags, viewport edges and geometry bounds");

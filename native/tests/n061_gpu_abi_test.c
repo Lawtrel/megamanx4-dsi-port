@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
-uint8_t mock_vram[524288];uint32_t GFX_TEX_FORMAT;
+uint8_t mock_vram[524288];uint32_t GFX_TEX_FORMAT,GFX_CONTROL;unsigned mock_vcount=192;static unsigned irq_held,mock_waits,mock_dma_penalty;
 static int banks[4],projection[6],verts,flushes,copies;static unsigned current_tex;
 static int vertex_x[X4_VIDEO_COMMANDS*4],vertex_y[X4_VIDEO_COMMANDS*4],vertex_z[X4_VIDEO_COMMANDS*4];
 static int current_u,current_v,vertex_u[X4_VIDEO_COMMANDS*4],vertex_v[X4_VIDEO_COMMANDS*4];
@@ -13,7 +13,7 @@ static size_t copied_bytes;
 static int protected_slot=-1;
 void videoSetMode(int v){assert(v==MODE_0_3D);}
 void vramSetBankA(int v){banks[0]=v;++hardware_events;++bank_writes;}void vramSetBankB(int v){banks[1]=v;++hardware_events;++bank_writes;}void vramSetBankC(int v){banks[2]=v;++hardware_events;++bank_writes;}void vramSetBankD(int v){banks[3]=v;++hardware_events;++bank_writes;}
-void glInit(void){}void glEnable(int v){(void)v;}void glDisable(int v){(void)v;}
+void glInit(void){}void glEnable(int v){GFX_CONTROL&=~(v&((1u<<12)|(1u<<13)));}void glDisable(int v){(void)v;}
 void glViewport(int a,int b,int c,int d){assert(a==0&&b==0&&c==255&&d==191);}
 void glClearDepth(int v){assert(v==32767);}void glClearPolyID(int v){assert(v==63);}
 void glMatrixMode(int v){(void)v;++hardware_events;}void glLoadIdentity(void){++hardware_events;}
@@ -43,8 +43,11 @@ void glCallList(const uint32_t* list){
   }
  }}assert(pos==end);
 }
-void DC_FlushRange(const void* p,size_t n){assert(!((uintptr_t)p&31)&&n&&!(n%512)&&n<=131072);}
-void dmaCopyWords(int channel,const void* p,void* q,size_t n){assert(channel==3&&n&&!(n%512)&&n<=131072);assert((uint8_t*)q>=mock_vram&&(uint8_t*)q+n<=mock_vram+sizeof mock_vram);assert(((size_t)((uint8_t*)q-mock_vram)%131072)+n<=131072);if(protected_slot>=0){uint8_t* clean=mock_vram+protected_slot*512;assert((uint8_t*)q+n<=clean||(uint8_t*)q>=clean+512);}memcpy(q,p,n);++copies;copied_bytes+=n;}
+int enterCriticalSection(void){assert(!irq_held);irq_held=1;return 0;}
+void leaveCriticalSection(int state){assert(!state&&irq_held);irq_held=0;}
+void swiWaitForVBlank(void){assert(!irq_held);for(unsigned b=0;b<4;++b)assert(banks[b]==(int)b+1);mock_vcount=192;++mock_waits;}
+void DC_FlushRange(const void* p,size_t n){for(unsigned b=0;b<4;++b)assert(banks[b]==(int)b+1);assert(!((uintptr_t)p&31)&&n&&!(n%512)&&n<=131072);}
+void dmaCopyWords(int channel,const void* p,void* q,size_t n){assert(irq_held&&mock_vcount>=192&&mock_vcount<=204);assert(channel==3&&n&&!(n%512)&&n<=8192);assert((uint8_t*)q>=mock_vram&&(uint8_t*)q+n<=mock_vram+sizeof mock_vram);assert(((size_t)((uint8_t*)q-mock_vram)%131072)+n<=131072);if(protected_slot>=0){uint8_t* clean=mock_vram+protected_slot*512;assert((uint8_t*)q+n<=clean||(uint8_t*)q>=clean+512);}memcpy(q,p,n);mock_vcount+=(n+4095)/4096+mock_dma_penalty;assert(mock_vcount<214);++copies;copied_bytes+=n;}
 void x4_gpu_init(void);void x4_gpu_prepare(void);void x4_gpu_present(void);unsigned x4_gpu_words(void);
 unsigned x4_gpu_upload_batches(void);unsigned x4_gpu_upload_tiles(void);
 static void check_signed_stable_order(void){
@@ -119,9 +122,9 @@ int main(void){
   for(unsigned i=0;i<total;++i)assert(!x4_video_tile(unique_tiles[i],8,4,pal,16,32,24,16,16,0,0,50000+total+i));
   uint16_t slots[X4_VIDEO_TILES];unsigned pending=x4_video_dirty_tiles(slots),runs=0;
   assert(pending==total);
-  for(unsigned i=0;i<pending;++i)if(!i||slots[i]!=slots[i-1]+1||slots[i]/256!=slots[i-1]/256)++runs;
+  for(unsigned i=0,length=0;i<pending;++i){if(!i||slots[i]!=slots[i-1]+1||slots[i]/256!=slots[i-1]/256||length==16){++runs;length=0;}++length;}
   x4_gpu_prepare();x4_gpu_present();
-  assert(copies==(int)runs&&copies<=4&&copied_bytes==total*512);
+  assert(copies==(int)runs&&copied_bytes==total*512);assert(!x4_gpu_transfer_stats().late);
   assert(x4_gpu_upload_batches()==runs&&x4_gpu_upload_tiles()==total);
   assert(x4_video_stats().uploaded_bytes==total*512&&!x4_video_dirty_tiles(slots));
   x4_video_commands(&count);assert(count==total);
@@ -140,5 +143,31 @@ int main(void){
  x4_video_commands(&count);assert(count==8);
  for(unsigned i=0;i<count;++i){const uint16_t* pixels=x4_video_rgba_texture(c[i].tile,&dirty);assert(!memcmp(pixels,mock_vram+c[i].tile*512,512));}
  puts("PASS batched DMA never spans the clean slot between two dirty runs");
+ /* Late entry, missed VBlank, and chunk deadline: retain the previous
+  * image with all banks mapped while waiting; prepare consumes no uploads. */
+ const unsigned entries[]={191,192,204,205,213,214,262,0};
+ for(unsigned e=0;e<sizeof entries/sizeof *entries;++e){
+  x4_video_begin(0);x4_video_begin(0);verts=copies=0;
+  unique_tiles[0][124]=e+100;
+  assert(!x4_video_tile(unique_tiles[0],8,4,pal,16,32,24,16,16,0,0,90000+e));
+  unsigned before=mock_waits;mock_vcount=entries[e];
+  uint16_t pending_slots[X4_VIDEO_TILES];unsigned pending=x4_video_dirty_tiles(pending_slots);assert(pending);
+  x4_gpu_prepare();assert(x4_video_dirty_tiles(pending_slots)==pending);
+  x4_gpu_prepare();assert(x4_video_dirty_tiles(pending_slots)==pending);
+  x4_gpu_present();X4GpuTransferStats trace=x4_gpu_transfer_stats();
+  assert(!trace.late&&trace.restore_max<214&&trace.start_max>=192&&trace.start_max<=204);
+  assert((mock_waits>before)==!(entries[e]>=192&&entries[e]<=204));
+ }
+ mock_vcount=204;mock_dma_penalty=3;
+ x4_video_begin(0);x4_video_begin(0);verts=0;
+ unique_tiles[0][123]=0x77;assert(!x4_video_tile(unique_tiles[0],8,4,pal,16,32,24,16,16,0,0,91000));
+ x4_gpu_present();assert(!x4_gpu_transfer_stats().late&&x4_gpu_transfer_stats().restore_max<214);mock_dma_penalty=0;
+ unsigned old_underflows=x4_gpu_transfer_stats().underflows,old_overflows=x4_gpu_transfer_stats().overflows;
+ GFX_CONTROL=(1u<<3)|(1u<<12)|(1u<<13);x4_video_begin(0);verts=0;x4_gpu_present();
+ X4GpuTransferStats sticky=x4_gpu_transfer_stats();assert(sticky.underflows==old_underflows+1&&sticky.overflows==old_overflows+1);
+ assert(sticky.status==((1u<<12)|(1u<<13))&&GFX_CONTROL==(1u<<3));
+ x4_video_begin(0);x4_gpu_present();assert(x4_gpu_transfer_stats().underflows==sticky.underflows);
+ puts("PASS sticky rendering flags acknowledged and accumulated without changing blend configuration");
+ puts("PASS scanline window, late-entry wait, bounded DMA, repeated prepare and texture mapping across waits");
  check_signed_stable_order();
 }

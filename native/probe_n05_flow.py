@@ -54,7 +54,7 @@ original=[r['object'] for r in json.loads((CORE/'report.json').read_text())['sou
 objects+=original+[str(ROOT/'build/native/n05-tasks/n05_tasks.arm9.o')]
 target=OUT/'flow.o';roots=['x4_flow_'+n for n in ('begin','begin_debug','new_game','title','step','state','debug','draw','close')]
 roots+=['x4_audio_'+n for n in ('init','update','read','close','errors','track')]+['x4_save_set_root','x4_n05_missing_sfx']
-roots+=['x4_video_'+n for n in ('commands','texture','rgba_texture','dirty_tiles','palette','clear','alpha','stats','viewport','get_viewport','last_fault')]
+roots+=['x4_video_'+n for n in ('commands','texture','rgba_texture','dirty_tiles','palette','clear','alpha','stats','viewport','get_viewport','last_fault','peek_rgba')]
 roots+=['x4_sfx_set_backend','x4_sfx_stats']
 roots+=['x4_n05_render_fault','x4_n05_render_cache_stats']
 p=subprocess.run([str(SDK/'arm-none-eabi-ld'),'-r','--gc-sections',*[a for n in roots for a in ('-u',n)],'-o',str(target),*objects],capture_output=True,text=True)
@@ -63,7 +63,7 @@ if p.returncode:raise RuntimeError(p.stderr[-4000:])
 # the 3.5 MiB DS-compatible segment; Calico initializes .twl_bss in DSi mode.
 # Per-variable sections are emitted by -fdata-sections. Rename without
 # changing section flags, contents, alignment or relocation references.
-dsi_cache_sections=('aliases','decoded_indexed','decoded_rgba','slot_serial','content_keys','content_next','content_buckets')
+dsi_cache_sections=('aliases','decoded_indexed','decoded_rgba','slot_serial','content_keys','content_next','content_buckets','alias_buckets','alias_next')
 sections=subprocess.check_output([str(SDK/'arm-none-eabi-objdump'),'-h',str(target)],text=True)
 for name in dsi_cache_sections:assert '.bss.'+name in sections,name
 subprocess.run([str(SDK/'arm-none-eabi-objcopy'),*[arg for name in dsi_cache_sections for arg in ('--rename-section','.bss.'+name+'=.twl_bss.'+name)],str(target)],check=True)

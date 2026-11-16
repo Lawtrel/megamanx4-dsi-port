@@ -32,7 +32,10 @@ static int16_t content_buckets[4096],content_next[X4_VIDEO_TILES];
 static uint32_t content_keys[X4_VIDEO_TILES],slot_serial[X4_VIDEO_TILES];
 static uint16_t decoded_rgba[256] __attribute__((aligned(32)));
 static uint8_t decoded_indexed[256] __attribute__((aligned(4)));
-static struct {Tile key;uint32_t serial;uint16_t slot;} aliases[512];
+#define X4_VIDEO_ALIASES 4096
+static struct {Tile key;uint32_t serial;uint16_t slot;} aliases[X4_VIDEO_ALIASES];
+static int16_t alias_buckets[4096],alias_next[X4_VIDEO_ALIASES];
+static unsigned alias_cursor;
 static X4VideoFault video_fault;
 static int fail(unsigned reason){
  ++video_fault.count;video_fault.frame=frame;video_fault.reason=reason;
@@ -45,15 +48,36 @@ static int fail(unsigned reason){
  return 1;
 }
 X4VideoFault x4_video_last_fault(void){return video_fault;}
-static int same_key(const Tile* t,const uint8_t* raw,unsigned stride,unsigned bits,unsigned pi,
+static inline __attribute__((always_inline)) int same_key(const Tile* t,const uint8_t* raw,unsigned stride,unsigned bits,unsigned pi,
  unsigned w,unsigned h,uint32_t tag,uint32_t version){
  return t->source==raw&&t->stride==stride&&t->bits==bits&&t->palette==pi&&t->tag==tag&&t->w==w&&t->h==h&&t->generation==x4_video_generation&&t->palette_version==version;
 }
-/* Sampling only selects a bucket; full RGBA AND indexed comparisons decide
- * equality. Hash collisions cannot change pixels, palettes or transparency. */
+/* Keep all source aliases in their hash chains. The old single entry per
+ * 512 buckets continually evicted live aliases on aligned atlas rows. */
+static int alias_find(unsigned hash,const uint8_t* raw,unsigned stride,unsigned bits,unsigned pi,
+ unsigned w,unsigned h,uint32_t tag,uint32_t version){
+ int16_t* link=&alias_buckets[hash];
+ while(*link>=0){unsigned i=*link;
+  if(aliases[i].serial!=slot_serial[aliases[i].slot]){
+   *link=alias_next[i];aliases[i].key.source=NULL;continue;
+  }
+  if(same_key(&aliases[i].key,raw,stride,bits,pi,w,h,tag,version)){
+   aliases[i].key.frame=frame;return i;
+  }
+  link=&alias_next[i];
+ }
+ return -1;
+}
+
+/* Hash every output word so common empty borders do not put hundreds of
+ * different atlas tiles in one chain. Full RGBA AND indexed comparisons
+ * remain the final authority; a hash collision never permits sharing. */
 static uint32_t content_key(void){
  uint32_t hash=2166136261u;
- for(unsigned y=0;y<16;y+=3)for(unsigned x=0;x<16;x+=5)hash=(hash^decoded_rgba[y*16+x])*16777619u;
+ for(unsigned i=0;i<256;i+=8){uint32_t pairs[4];memcpy(pairs,decoded_rgba+i,sizeof pairs);
+  hash=(hash^pairs[0])*16777619u;hash=(hash^pairs[1])*16777619u;
+  hash=(hash^pairs[2])*16777619u;hash=(hash^pairs[3])*16777619u;
+ }
  return hash;
 }
 static int last_palette=-1;
@@ -62,7 +86,7 @@ void x4_video_invalidate(void){
  ++x4_video_generation;
  /* Keep textures referenced by the preceding GPU frame alive. A generation
   * key rejects old resources without reusing their VRAM slots immediately. */
- if(!initialized){memset(content_buckets,0xff,sizeof content_buckets);memset(content_next,0xff,sizeof content_next);memset(aliases,0,sizeof aliases);memset(tiles,0,sizeof tiles);memset(palettes,0,sizeof palettes);memset(buckets,0xff,sizeof buckets);memset(next,0xff,sizeof next);memset(palette_buckets,0xff,sizeof palette_buckets);memset(palette_next,0xff,sizeof palette_next);}
+ if(!initialized){memset(content_buckets,0xff,sizeof content_buckets);memset(content_next,0xff,sizeof content_next);memset(aliases,0,sizeof aliases);memset(alias_buckets,0xff,sizeof alias_buckets);memset(alias_next,0xff,sizeof alias_next);memset(tiles,0,sizeof tiles);memset(palettes,0,sizeof palettes);memset(buckets,0xff,sizeof buckets);memset(next,0xff,sizeof next);memset(palette_buckets,0xff,sizeof palette_buckets);memset(palette_next,0xff,sizeof palette_next);}
  for(unsigned i=0;i<X4_VIDEO_PALETTES;++i)palettes[i].frame=0;
  initialized=1;
 }
@@ -132,11 +156,8 @@ int x4_video_tile(const uint8_t* raw,unsigned stride,unsigned bits,const uint16_
   Tile* t=&tiles[i];if(same_key(t,raw,stride,bits,pi,w,h,tag,version)){slot=i;break;}
  }
  if(slot==X4_VIDEO_TILES){
-  unsigned alias=hash&511;
-  if(aliases[alias].serial==slot_serial[aliases[alias].slot]&&
-     same_key(&aliases[alias].key,raw,stride,bits,pi,w,h,tag,version)){
-   slot=aliases[alias].slot;++stats.hits;++stats.alias_hits;goto ready;
-  }
+  int alias=alias_find(hash,raw,stride,bits,pi,w,h,tag,version);
+  if(alias>=0){slot=aliases[alias].slot;++stats.hits;++stats.alias_hits;goto ready;}
   if(w!=16||h!=16){memset(decoded_rgba,0,sizeof decoded_rgba);memset(decoded_indexed,0,sizeof decoded_indexed);}
   Palette* q=&palettes[pi];
   if(bits==4&&colors==16&&w==16){
@@ -162,8 +183,20 @@ int x4_video_tile(const uint8_t* raw,unsigned stride,unsigned bits,const uint16_
   uint32_t key=content_key();
   for(int i=content_buckets[key&4095];i>=0;i=content_next[i])if(content_keys[i]==key&&
      !memcmp(decoded_rgba,rgba[i],sizeof decoded_rgba)&&!memcmp(decoded_indexed,indexed[i],sizeof decoded_indexed)){
-   slot=i;aliases[alias].key=(Tile){.source=raw,.tag=tag,.generation=x4_video_generation,.palette_version=version,.stride=stride,.palette=pi,.bits=bits,.w=w,.h=h};
-   aliases[alias].slot=slot;aliases[alias].serial=slot_serial[slot];
+   slot=i;
+   /* At most 1500 commands per draw: 4096 aliases fit both protected draws.
+    * Prefer an unused/stale/older alias; never scan this pool on a hit. */
+   for(unsigned n=0;n<X4_VIDEO_ALIASES;++n){unsigned a=alias_cursor++%X4_VIDEO_ALIASES;
+    if(!aliases[a].key.source||aliases[a].serial!=slot_serial[aliases[a].slot]||aliases[a].key.frame+1<frame){alias=a;break;}}
+   if(alias>=0){
+    if(aliases[alias].key.source){Tile* k=&aliases[alias].key;
+     unsigned oldhash=hash_key(k->source,k->stride,k->bits,k->palette,k->w,k->h,k->tag,k->generation,k->palette_version);
+     int16_t* link=&alias_buckets[oldhash];while(*link>=0&&*link!=alias)link=&alias_next[*link];if(*link>=0)*link=alias_next[alias];
+    }
+    aliases[alias].key=(Tile){.source=raw,.tag=tag,.frame=frame,.generation=x4_video_generation,.palette_version=version,.stride=stride,.palette=pi,.bits=bits,.w=w,.h=h};
+    aliases[alias].slot=slot;aliases[alias].serial=slot_serial[slot];
+    alias_next[alias]=alias_buckets[hash];alias_buckets[hash]=alias;
+   }
    ++stats.hits;++stats.shared;goto ready;
   }
   /* A clock replacement avoids scanning 1024 entries on every miss. Both
@@ -216,6 +249,7 @@ unsigned x4_video_dirty_tiles(uint16_t* slots){
  return count;
 }
 const uint8_t* x4_video_texture(unsigned slot,int* dirty){Tile* t=&tiles[slot];*dirty=t->dirty;t->dirty=0;dirty_words[slot>>5]&=~(1u<<(slot&31));if(*dirty)stats.uploaded_bytes+=256;return indexed[slot];}
+const uint16_t* x4_video_peek_rgba(unsigned slot){return rgba[slot];}
 const uint16_t* x4_video_rgba_texture(unsigned slot,int* dirty){Tile* t=&tiles[slot];*dirty=t->dirty;t->dirty=0;dirty_words[slot>>5]&=~(1u<<(slot&31));if(*dirty)stats.uploaded_bytes+=512;return rgba[slot];}
 const uint16_t* x4_video_palette(unsigned slot,int* dirty){Palette* p=&palettes[slot];*dirty=p->dirty;p->dirty=0;if(*dirty)stats.uploaded_bytes+=512;return p->data;}
 uint16_t x4_video_clear(void){return clear_color;}

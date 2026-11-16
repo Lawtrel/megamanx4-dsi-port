@@ -48,8 +48,12 @@ Prioridades registradas e aprovadas pelo usuário em 16/11/2026.
   lista gráfica. O [teste físico](TESTE_N088_FASES_1_4.md) mostra quedas
   abaixo de 30 FPS e uma nova falha visual confirmada na fase 4.
 - A [beta 8.9](STATUS_N089.md) compartilha pixels idênticos entre recursos,
-  mantendo a proteção de duas imagens. A saturação reproduzida da 8.8
-  deve ser conferida novamente no DSi; não há confirmação de FPS desta revisão.
+  mantendo a proteção de duas imagens. O novo [teste físico](TESTE_N089_FASE4.md)
+  não registrou recusas de desenho, mas
+  houve regressão severa de FPS e piscadas pretas no alto da tela.
+- A [beta 8.10](STATUS_N0810.md) trata a regressão da cache e limita as
+  transferências a janelas controladas. FPS e ausência de piscadas ainda
+  precisam de confirmação física; 30 FPS sustentados seguem pendentes.
 - Bases de medição: [fase 12 na 8.2](TESTE_N082_FASE12.md) e
   [teste aleatório da 8.3](TESTE_N083_ALEATORIO.md). Percursos diferentes
   não comprovam ganho percentual entre versões.

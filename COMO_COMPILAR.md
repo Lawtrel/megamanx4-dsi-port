@@ -35,14 +35,14 @@ outra edição exige adaptação e verificação; renomear o arquivo não basta.
 ## Compilar
 
 ```sh
-python3 native/compile.py --n089
+python3 native/compile.py --n0810
 ```
 
 A compilação verifica os patches locais, prepara recursos e áudio, compila o
 código ARM9, executa os testes e verifica os cabeçalhos, símbolos e dados
 internos antes de criar o pacote local.
 
-Saída: `dist/native-n089/mmx4_native_n089.nds`.
+Saída: `dist/native-n0810/mmx4_native_n0810.nds`.
 Logs de compilação: `build/native/logs/compile_*.log`.
 Os objetos são reutilizados apenas quando as verificações de fontes,
 cabeçalhos e opções permitem.
@@ -53,7 +53,7 @@ No Windows, depois do setup:
 .\COMPILAR_JOGO.cmd --no-pause
 ```
 
-`COMPILAR_N089.cmd` é um atalho equivalente; `COMPILAR_N06.cmd` mantém compatibilidade. A distribuição WSL padrão desses
+`COMPILAR_N0810.cmd` é um atalho equivalente; `COMPILAR_N06.cmd` mantém compatibilidade. A distribuição WSL padrão desses
 atalhos é `Arch`, usada no ambiente de desenvolvimento. Para outra:
 
 ```powershell
@@ -87,8 +87,8 @@ não é requisito para iniciar uma compilação.
 
 ## Uso e limites
 
-Inicie o resultado em modo DSi. Consulte [os controles e limites](docs/STATUS_N089.md).
-A beta 8.9 tem correções verificadas no computador e ainda precisa de medição e
+Inicie o resultado em modo DSi. Consulte [os controles e limites](docs/STATUS_N0810.md).
+A beta 8.10 tem correções verificadas no computador e ainda precisa de medição e
 qualificação física no DSi.
 Compilar com sucesso e passar testes no computador não confirmam estabilidade
 ou 30 FPS no hardware.
@@ -99,6 +99,6 @@ não o anexe ao repositório público ou a uma release.
 
 ## Cutscenes desativadas
 
-A beta 8.9 não prepara nem inclui vídeos, e não requer FFmpeg. As chamadas
+A beta 8.10 não prepara nem inclui vídeos, e não requer FFmpeg. As chamadas
 originais seguem imediatamente para o próximo evento. Os arquivos e
 ferramentas históricos da N08 não entram na compilação atual.

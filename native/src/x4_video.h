@@ -26,6 +26,10 @@ int x4_video_quad(const int* x,const int* y,const uint16_t* colors,int semi);
 void x4_video_fade(unsigned alpha);
 const X4VideoCommand* x4_video_commands(unsigned* count);
 const uint8_t* x4_video_texture(unsigned slot,int* dirty);
+/* Read pixels for cache maintenance without consuming an upload. */
+const uint16_t* x4_video_peek_rgba(unsigned slot);
+typedef struct {unsigned waits,start_max,restore_max,late,status,underflows,overflows,total_late,total_waits;} X4GpuTransferStats;
+X4GpuTransferStats x4_gpu_transfer_stats(void);
 const uint16_t* x4_video_rgba_texture(unsigned slot,int* dirty);
 /* Snapshot of unconsumed uploads; callers provide X4_VIDEO_TILES slots. */
 unsigned x4_video_dirty_tiles(uint16_t* slots);

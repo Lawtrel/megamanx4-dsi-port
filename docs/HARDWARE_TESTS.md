@@ -1,3 +1,12 @@
+# Retorno físico — beta 8.9
+
+O usuário confirmou queda forte de FPS e uma faixa preta intermitente no
+alto da tela, em todas as fases. No log de X na fase 4, médias de 19,25 e
+11,23 FPS por área; nenhuma recusa de desenho foi registrada. O vídeo
+confirma a piscada no alto da imagem. A beta 8.10 trata cache e janela de
+transferência como problemas distintos; a validação física dela está pendente.
+Veja [dados, vídeo e limites](TESTE_N089_FASE4.md).
+
 # Retorno físico — beta 8.8
 
 256 amostras de X equipado nas fases 4 e 1. Médias por área entre 32,35 e

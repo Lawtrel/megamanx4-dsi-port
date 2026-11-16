@@ -1,5 +1,5 @@
 /* Host stress using the original stage/enemy/weapon logic. Test-only health,
- * checkpoint and position resets keep the same ice corridor under load;
+ * checkpoint and position resets keep the same stage-4 corridor under load;
  * this is renderer qualification, not an automatic campaign playthrough. */
 #include "main/player_weapon.h"
 static int n089_frost_system(const char* root){
@@ -28,5 +28,5 @@ static int n089_frost_system(const char* root){
   }
  }
  assert(weapon_seen==511&&draws==4500);
- x4_flow_close();x4_audio_close();printf("PASS Frost X cp1, 9000 logic ticks, 4500 draws, all 9 weapons; shared=%u aliases=%u\n",shared,aliases_seen);return 0;
+ x4_flow_close();x4_audio_close();printf("PASS stage4 Volcano X cp1, 9000 logic ticks, 4500 draws, all 9 weapons; shared=%u aliases=%u\n",shared,aliases_seen);return 0;
 }

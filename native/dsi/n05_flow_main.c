@@ -22,8 +22,8 @@ _Static_assert(KEY_A==X4_NDS_A&&KEY_B==X4_NDS_B&&KEY_SELECT==X4_NDS_SELECT&&KEY_
 #ifdef X4_N06_GPU
 void x4_gpu_init(void);void x4_gpu_prepare(void);void x4_gpu_present(void);unsigned x4_gpu_words(void);
 unsigned x4_gpu_upload_batches(void);unsigned x4_gpu_upload_tiles(void);
-#define VERSION "BETA 8.9"
-#define LOG_PREFIX "native_n089"
+#define VERSION "BETA 8.10"
+#define LOG_PREFIX "native_n0810"
 #else
 #define VERSION "N05"
 #define LOG_PREFIX "native_n05_flow"
@@ -223,6 +223,8 @@ int main(int argc,char** argv){
      fprintf(log_file,"ARM7 voices=%u pcm_bytes=%u cache_hits=%u cache_misses=%u starts=%u\n",fx.active,fx.bytes,fx.hits,fx.misses,fx.starts);
      fprintf(log_file,"PIPELINE prepare_us=%u\n",prepare_us);
      fprintf(log_file,"FRAME_TIME samples=%u mean_us=%u max_us=%u p95_upper_us=%u over_two_fields=%u work_max_us=%u diagnostic_previous_us=%u\n",frame_samples,frame_samples?(unsigned)(frame_sum*1000000/TICK_FREQ/frame_samples):0,frame_max_us,percentile,late_frames,work_max_us,diagnostic_us);
+     X4GpuTransferStats transfer=x4_gpu_transfer_stats();
+     fprintf(log_file,"VRAM_WINDOW waits=%u start_max=%u restore_max=%u late=%u gpu_flags=%x underflows=%u overflows=%u total_late=%u total_waits=%u\n",transfer.waits,transfer.start_max,transfer.restore_max,transfer.late,transfer.status,transfer.underflows,transfer.overflows,transfer.total_late,transfer.total_waits);
      fprintf(log_file,"TEXTURE_SHARING shared=%u alias_hits=%u\n",v.shared,v.alias_hits);
      X4VideoFault vf=x4_video_last_fault();
      if(vf.count!=logged_video_faults){

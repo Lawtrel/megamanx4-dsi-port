@@ -3,7 +3,7 @@
 #include <nds.h>
 #include "x4_video.h"
 #include <string.h>
-uint8_t mock_vram[524288];uint32_t GFX_TEX_FORMAT;
+uint8_t mock_vram[524288];uint32_t GFX_TEX_FORMAT,GFX_CONTROL;unsigned mock_vcount=192;
 static uint32_t stream_hash;
 void videoSetMode(int n){(void)n;}
 void vramSetBankA(int n){(void)n;}void vramSetBankB(int n){(void)n;}
@@ -15,6 +15,7 @@ void glMatrixMode(int n){(void)n;}void glLoadIdentity(void){}
 void glOrthof32(int a,int b,int c,int d,int e,int f){(void)a;(void)b;(void)c;(void)d;(void)e;(void)f;}
 void glClearColor(int a,int b,int c,int d){(void)a;(void)b;(void)c;(void)d;}
 void glFlush(int n){(void)n;}
+int enterCriticalSection(void){return 0;}void leaveCriticalSection(int n){(void)n;}void swiWaitForVBlank(void){mock_vcount=192;}
 void DC_FlushRange(const void* p,size_t n){(void)p;(void)n;}
 void dmaCopyWords(int n,const void* p,void* q,size_t z){(void)n;memcpy(q,p,z);}
 void glCallList(const uint32_t* p){stream_hash=2166136261u;for(unsigned i=0;i<=p[0];++i)stream_hash=(stream_hash^p[i])*16777619u;}

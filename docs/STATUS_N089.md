@@ -8,6 +8,11 @@ Pacote de 16/11/2026: 236.007.424 bytes (aproximadamente 225 MiB),
 build `ebeca042224a8e5a3d86`, SHA-256
 `160157c83839c443374002fdb1cdf765727d4730381e4406b0694151186634d9`.
 
+Retorno físico recebido em 16/11/2026: o [teste da 8.9](TESTE_N089_FASE4.md)
+não registrou recusas, mas mostrou regressão severa de FPS e uma faixa preta
+no alto da tela. A [beta 8.10](STATUS_N0810.md) trata cache e transferência;
+a descrição abaixo registra a implementação e os testes da 8.9.
+
 ## Sprites e efeitos recusados na fase 4
 
 O [teste físico da 8.8](TESTE_N088_FASES_1_4.md) confirmou uma nova falha
@@ -41,7 +46,7 @@ sucesso nem substitui a verificação visual.
 
 ## Verificação e limites
 
-O novo teste de carga usa a lógica original da fase de gelo, X e as nove
+O novo teste de carga usa a lógica original da fase 4 (vulcão), X e as nove
 armas, com vida, checkpoint e posição controlados apenas no teste de
 computador. A 8.8 falha no tick 2.354; a 8.9 completa 9.000 ticks e 4.500
 desenhos sem recusar objetos. Não é uma reprodução exata dos comandos do
