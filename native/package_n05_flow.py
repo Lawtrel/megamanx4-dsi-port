@@ -4,8 +4,8 @@ import hashlib,json,struct,subprocess,sys,shutil,os
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'tools'))
 from nds_header import crc16
 N06=True
-BUILD=ROOT/('build/native/n081-no-movies' if N06 else 'build/native/n05-integrated');DIST=ROOT/('dist/native-n081' if N06 else 'dist/native-n05-flow');FLOW=ROOT/'build/native/n05-flow'
-target='mmx4_native_n081' if N06 else 'mmx4_native_n05_flow'
+BUILD=ROOT/('build/native/n082-beta' if N06 else 'build/native/n05-integrated');DIST=ROOT/('dist/native-n082' if N06 else 'dist/native-n05-flow');FLOW=ROOT/'build/native/n05-flow'
+target='mmx4_native_n082' if N06 else 'mmx4_native_n05_flow'
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 inputs=json.loads((FLOW/'build_inputs.json').read_text())
 assert sha(FLOW/'flow.o')==inputs['flow_sha256']==sha(BUILD/'flow.o')
@@ -57,7 +57,7 @@ expected={r['path']:r['sha256'] for r in json.loads((BUILD/'assets.json').read_t
 symbols=subprocess.check_output([str(ROOT/'ambiente/sdk/devkitARM/bin/arm-none-eabi-nm'),str(BUILD/(target+'.elf'))],text=True)
 for banned in ('Psyz','psyz','CPUState','psx_dispatch','cpu_run','dyn_run','CdControl','SpuGet','SsUt','SsSep','DrawSync','MoveImage','unused_flow_','UNIMPLEMENTED','x4_movie_'):
  assert banned not in symbols,banned
-for required in ('player_update_normal','update_main_objects','engine_update_funcs','x4_flow_begin','x4_flow_title','layout_gate_apply_layout','func_8001C210','x4_audio_read','func_80018000','x4_sfx_mix','mmx4_pc_card_write','mmStreamOpen','threadPrepare'):
+for required in ('player_update_normal','update_main_objects','engine_update_funcs','x4_flow_begin','x4_flow_begin_debug','x4_flow_title','layout_gate_apply_layout','func_8001C210','x4_audio_read','func_80018000','x4_sfx_mix','mmx4_pc_card_write','mmStreamOpen','threadPrepare'):
  assert required in symbols,required
 DIST.mkdir(parents=True,exist_ok=True)
 temporary=DIST/(binary.name+'.building');shutil.copyfile(binary,temporary);assert sha(temporary)==sha(binary)
@@ -65,7 +65,7 @@ os.replace(temporary,DIST/binary.name)
 if N06:
  for required in ('x4_gpu_prepare','x4_gpu_present','x4_gpu_upload_batches','x4_video_dirty_tiles','x4_video_tile','x4_n06_draw_hud','glInit'):assert required in symbols,required
  for required in ('x4_arm7_audio_init','x4_sfx_set_backend','soundPreparePcm','soundSynchronize'):assert required in symbols,required
-shutil.copyfile(ROOT/'docs/STATUS_N081.md',DIST/'LEIA-ME.md')
+shutil.copyfile(ROOT/'docs/STATUS_N082.md',DIST/'LEIA-ME.md')
 shutil.copyfile(ROOT/'referencias/mmx4-decomp/LICENSE',DIST/'LICENSE-upstream.txt')
 for _,p in reports:shutil.copyfile(FLOW/'host'/p,DIST/p)
 if N06:shutil.copyfile(ROOT/'build/native/n06-video-tests/validation.json',DIST/'video_tests.json')
@@ -78,10 +78,11 @@ if N06:
  for p in (FLOW/'host').glob('menu*.png'):shutil.copyfile(p,DIST/('diagnostico_'+p.name))
  for pattern in ('train_[01]_*.png','train_car_broken_[01].png','armor*.png','title_[01]_*.png'):
   for p in (FLOW/'host').glob(pattern):shutil.copyfile(p,DIST/('diagnostico_'+p.name))
-manifest={'version':'N08.1' if N06 else 'N05 FLOW integration 2','not_complete_game':True,'physical_dsi_tested':False,
+manifest={'version':'Beta 8.2' if N06 else 'N05 FLOW integration 2','not_complete_game':True,'physical_dsi_tested':False,
  'binary':binary.name,'sha256':sha(binary),'build_id':build_id,'size':len(data),'unit_code':2,'bios_or_cpu_emulator_linked':False,
  'upstream':'https://github.com/sozud/mmx4','upstream_revision':'4e16dfc7c06597fd5719dd112654d8cf85d343c2',
  'host_stage_entry_cases':48,'host_system_cases':len(json.loads((FLOW/'host'/reports[1][1]).read_text())['cases']),
+ 'debug_loadout':'Stage selection only: all weapons/techniques, 48 HP, tanks, X full armor and Plasma; original resource consumption; no defeated-boss flag override',
  'assets':{'arc':138,'music_voice_tracks':80,'sfx_banks':79,'short_sequences':20,'native_movies':0},
  'pending':['Full physical DSi qualification and complete playthrough','Six unsupported sound commands and precise looping/reverb/panning','Complete graphics priority/filter fidelity','Original title/load menu qualification','30/60 FPS optimization'],
  'flow_object_sha256':sha(BUILD/'flow.o'),'frontend_sha256':sha(BUILD/'source/main.c'),'nitrofs_files':files,'segments':segments}

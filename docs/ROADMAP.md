@@ -1,6 +1,7 @@
 # Prioridades atuais
 
-1. **Planejar a beta 8.2 com foco em desempenho e estabilidade.** A N08.1
+1. **Testar a beta 8.2 e continuar o trabalho de desempenho.** A compilação
+   entrega equipamento debug completo e cutscenes desativadas. A N08.1
    não terá teste físico separado por decisão do usuário em 15/11/2026.
    O próximo teste reunirá a retirada dos vídeos e as alterações da 8.2.
    Ver [escopo proposto e critérios de entrega](PLANO_BETA_82.md).

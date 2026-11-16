@@ -59,9 +59,10 @@ posterior; sua conclusão não é prometida para a beta 8.2.
   condições repetíveis; logs antigos de trechos distintos não comprovam
   ganho percentual entre versões.
 
-O equipamento debug já está implementado no código da próxima beta. As
-otimizações de desempenho continuam planejadas; o `.nds` da beta 8.2
-ainda não foi gerado.
+O equipamento debug está implementado. A compilação e o estado do pacote
+estão em [STATUS_N082.md](STATUS_N082.md). As otimizações adicionais de
+desempenho continuam planejadas; esta beta entrega o equipamento de teste
+e a retirada das cutscenes.
 
 Verificação desta alteração: 48 entradas de área e 38 cenários de sistemas
 passaram no computador, incluindo os dois cenários `debugloadout`. Motor e
