@@ -67,7 +67,10 @@ static void check_signed_stable_order(void){
  }
  puts("PASS stable signed ordering: empty, singleton, byte boundaries, ties and 1500 unsorted quads");
 }
+static uint8_t unique_tiles[1024][128];
 int main(void){
+ for(unsigned i=0;i<1024;++i){memset(unique_tiles[i],0x11,128);unique_tiles[i][0]=i;unique_tiles[i][1]=i>>8;}
+
  uint8_t raw[128]={0x21};uint16_t pal[16]={0};pal[1]=0x001f;pal[2]=0x03e0;
  x4_gpu_init();assert(projection[0]==32&&projection[1]==288&&projection[2]==216&&projection[3]==24);
  x4_video_begin(0);assert(!x4_video_tile(raw,8,4,pal,16,32,24,16,16,0,0,1));
@@ -88,6 +91,7 @@ int main(void){
  x4_video_order(3);assert(!x4_video_quad(x,y,colors,0));x4_gpu_present();
  assert(verts==8&&vertex_x[0]==40&&vertex_x[4]==32);
  for(unsigned j=0;j<4;++j){assert(vertex_color[j]==colors[j]);assert(vertex_color[j+4]==32767);}
+ for(unsigned i=0;i<8;++i)unique_tiles[1000+i][127]=0x55;
  for(unsigned i=0;i<8;++i)assert(vertex_z[i]==(int)(i/4));
  assert(vertex_u[4]==256&&vertex_v[4]==256&&vertex_u[6]==0&&vertex_v[6]==0);
  x4_video_begin(0);verts=0;
@@ -108,9 +112,11 @@ int main(void){
  assert(!x4_gpu_upload_batches()&&!x4_gpu_upload_tiles());
  /* Adjacent uploads must be byte-identical while using one transfer per
   * run, with a mandatory split at every 128 KiB texture-bank boundary. */
+ for(unsigned i=0;i<16;++i)pal[i]=i|0x8000;
  for(unsigned total=300;total<=1024;total+=724){
-  x4_video_begin(0);x4_video_begin(0);verts=copies=0;copied_bytes=0;
-  for(unsigned i=0;i<total;++i)assert(!x4_video_tile(raw,8,4,pal,16,32,24,16,16,0,0,50000+total+i));
+  x4_video_begin(0);x4_video_begin(0);x4_video_invalidate();verts=copies=0;copied_bytes=0;
+  for(unsigned i=0;i<total;++i){unique_tiles[i][126]=total;unique_tiles[i][127]=total>>8;}
+  for(unsigned i=0;i<total;++i)assert(!x4_video_tile(unique_tiles[i],8,4,pal,16,32,24,16,16,0,0,50000+total+i));
   uint16_t slots[X4_VIDEO_TILES];unsigned pending=x4_video_dirty_tiles(slots),runs=0;
   assert(pending==total);
   for(unsigned i=0;i<pending;++i)if(!i||slots[i]!=slots[i-1]+1||slots[i]/256!=slots[i-1]/256)++runs;
@@ -122,8 +128,9 @@ int main(void){
   for(unsigned i=0;i<count;++i){int dirty;const uint16_t* pixels=x4_video_rgba_texture(c[i].tile,&dirty);assert(!dirty);assert(!memcmp(pixels,mock_vram+c[i].tile*512,512));}
   printf("PASS %u dirty tiles: %u DMA batches, %zu unchanged bytes, bank boundaries protected\n",total,runs,copied_bytes);
  }
- x4_video_begin(0);x4_video_begin(0);verts=copies=0;copied_bytes=0;
- for(unsigned i=0;i<8;++i)assert(!x4_video_tile(raw,8,4,pal,16,32,24,16,16,0,0,70000+i));
+ x4_video_begin(0);x4_video_begin(0);x4_video_invalidate();verts=copies=0;copied_bytes=0;
+ for(unsigned i=0;i<8;++i)unique_tiles[1000+i][127]=0x55;
+ for(unsigned i=0;i<8;++i)assert(!x4_video_tile(unique_tiles[1000+i],8,4,pal,16,32,24,16,16,0,0,70000+i));
  uint16_t slots[X4_VIDEO_TILES];assert(x4_video_dirty_tiles(slots)==8);
  protected_slot=slots[3];int dirty;const uint16_t* ready=x4_video_rgba_texture(protected_slot,&dirty);assert(dirty);
  memcpy(mock_vram+protected_slot*512,ready,512); /* Already uploaded individually. */

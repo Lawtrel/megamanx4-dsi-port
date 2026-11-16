@@ -54,8 +54,9 @@ o pacote confere novamente suas fontes/hashes e recusa relatórios obsoletos.
 Os testes específicos do backend modificado foram recompilados e executados.
 
 A correção de Continue confirmada pelo usuário no DSi permanece. A 8.8
-ainda precisa de teste físico; a validação integral da campanha continua
-reservada para o final.
+teve [teste físico recebido](TESTE_N088_FASES_1_4.md), com melhora de médias
+e nova falha visual confirmada na fase 4. A beta 8.9 trata a saturação
+reproduzida; a validação integral da campanha continua reservada para o final.
 
 ## Próximo teste
 

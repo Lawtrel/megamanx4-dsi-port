@@ -5,7 +5,7 @@ Port experimental do motor de Mega Man X4 para ARM9, baseado no código C de
 ao DSi. O executável nativo não inclui interpretador de CPU, BIOS ou emulador
 completo de PlayStation.
 
-**Beta 8.8: montagem da lista gráfica com menos acessos à memória.**
+**Beta 8.9: compartilhamento exato de texturas para evitar recusas de sprites.**
 Mantém o desenho de cenários otimizado, o Continue corrigido e a medição
 de quadros completos, com foco em 30 FPS sustentados, SELECT para Giga/R2,
 debug e cutscenes desativadas.
@@ -37,15 +37,15 @@ No Linux/WSL, a partir da raiz:
 
 ```sh
 python3 tools/setup_native.py --disc '/caminho/Mega Man X4.bin' --cue '/caminho/Mega Man X4.cue'
-python3 native/compile.py --n088
+python3 native/compile.py --n089
 ```
 
 O setup obtém o SDK e as fontes fixadas. O dump suportado é a edição USA
 SLUS-00561; o script verifica seu tamanho e SHA-256 antes de extrair dados.
-A saída é `dist/native-n088/mmx4_native_n088.nds`, para uso local em modo DSi.
+A saída é `dist/native-n089/mmx4_native_n089.nds`, para uso local em modo DSi.
 Não publique esse arquivo: ele inclui os recursos extraídos do jogo.
 
-No Windows, depois do setup, execute `COMPILAR_JOGO.cmd` ou `COMPILAR_N088.cmd`.
+No Windows, depois do setup, execute `COMPILAR_JOGO.cmd` ou `COMPILAR_N089.cmd`.
 As duas opções compilam o mesmo alvo atual. Detalhes em
 [COMO_COMPILAR.md](COMO_COMPILAR.md).
 
@@ -67,13 +67,14 @@ não representam um segundo produto ou um emulador.
 
 ## Estado e próximos passos
 
-O teste automatizado cobre 48 entradas de área e 50 cenários de sistemas,
+O teste automatizado cobre 48 entradas de área e 51 cenários de sistemas,
 incluindo a luta do olho com Zero, pausa, transições, saída da introdução e
 seis sessões consecutivas no mesmo processo, sete tipos de vagão e
 salvar/carregar pelos menus originais com X e Zero.
 A validação completa da campanha fica para o final. Alguns comandos de áudio,
 fidelidade de efeitos, qualificação integral da campanha e otimização continuam pendentes.
 
+- [Correção do cache de texturas na beta 8.9](docs/STATUS_N089.md)
 - [Otimização da lista gráfica na beta 8.8](docs/STATUS_N088.md)
 - [Resultado do último teste físico](docs/HARDWARE_TESTS.md)
 - [Prioridades](docs/ROADMAP.md)

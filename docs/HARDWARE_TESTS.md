@@ -1,3 +1,10 @@
+# Retorno físico — beta 8.8
+
+256 amostras de X equipado nas fases 4 e 1. Médias por área entre 32,35 e
+45,06 FPS, mínimo 23. O usuário confirmou sprites/efeitos sumindo ou piscando
+na fase 4; o log acumulou três recusas de desenho. Essa falha nova motivou
+a beta 8.9. Continue permanece corrigido. Veja [dados e limites](TESTE_N088_FASES_1_4.md).
+
 # Retorno físico — beta 8.7
 
 Log recebido em 16/11/2026: 438 amostras, build `8c80a93087b3ce08d6b0`,

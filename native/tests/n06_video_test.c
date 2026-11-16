@@ -3,7 +3,10 @@
 #include <stdio.h>
 #include <string.h>
 static uint8_t raw[4096];static uint16_t palette[256];
+static uint8_t unique_tiles[2048][128];
 int main(void){
+ for(unsigned i=0;i<2048;++i){memset(unique_tiles[i],0x11,128);unique_tiles[i][0]=i;unique_tiles[i][1]=i>>8;}
+
  x4_video_invalidate();for(unsigned i=0;i<256;++i)palette[i]=0x8000|i;
  palette[5]=0;raw[0]=0x50;raw[128]=0x21;
  x4_video_begin(0x1234);x4_video_order(73);
@@ -43,14 +46,15 @@ int main(void){
  /* Saturate both protected frames. Never overwrite the previous frame;
   * reclaim exactly the older half once a new frame begins. */
  x4_video_begin(0);x4_video_begin(0);
- for(unsigned i=0;i<512;++i)assert(!x4_video_tile(raw,128,4,palette,16,0,0,16,16,0,0,10000+i));
+ for(unsigned i=0;i<512;++i)assert(!x4_video_tile(unique_tiles[i],8,4,palette,16,0,0,16,16,0,0,10000+i));
  x4_video_begin(0);
- for(unsigned i=0;i<512;++i)assert(!x4_video_tile(raw,128,4,palette,16,0,0,16,16,0,0,20000+i));
- assert(x4_video_tile(raw,128,4,palette,16,0,0,16,16,0,0,30000));assert(x4_video_stats().overflow==1);
+ for(unsigned i=0;i<512;++i)assert(!x4_video_tile(unique_tiles[512+i],8,4,palette,16,0,0,16,16,0,0,20000+i));
+ assert(x4_video_tile(unique_tiles[1024],8,4,palette,16,0,0,16,16,0,0,30000));assert(x4_video_stats().overflow==1);
+ X4VideoFault fault=x4_video_last_fault();assert(fault.reason==X4_VIDEO_FAULT_TILES&&fault.current==512&&fault.previous==512);
  uint16_t protected_slots[512];for(unsigned i=0;i<512;++i)protected_slots[i]=c[i].tile;
  x4_video_begin(0);
- for(unsigned i=0;i<512;++i)assert(!x4_video_tile(raw,128,4,palette,16,0,0,16,16,0,0,30000+i));
- for(unsigned i=0;i<512;++i){assert(!x4_video_tile(raw,128,4,palette,16,0,0,16,16,0,0,20000+i));assert(c[512+i].tile==protected_slots[i]);}
+ for(unsigned i=0;i<512;++i)assert(!x4_video_tile(unique_tiles[1024+i],8,4,palette,16,0,0,16,16,0,0,30000+i));
+ for(unsigned i=0;i<512;++i){assert(!x4_video_tile(unique_tiles[512+i],8,4,palette,16,0,0,16,16,0,0,20000+i));assert(c[512+i].tile==protected_slots[i]);}
  assert(x4_video_stats().misses==512&&x4_video_stats().hits==512&&!x4_video_stats().overflow);
  /* Interleaved CLUTs exercise hash collisions, reuse and animated versions. */
  static uint16_t pool[X4_VIDEO_PALETTES][16];
@@ -97,6 +101,37 @@ int main(void){
  palette[1]=0x8000;x4_video_begin(0);assert(!x4_video_tile(raw,128,4,palette,16,0,0,16,16,0,0,60000));
  assert(c[0].tile!=transparent_slot&&x4_video_rgba_texture(c[0].tile,&dirty)[0]==0x8000);
  assert(x4_video_rgba_texture(transparent_slot,&dirty)[0]==0);
+ /* Exact output sharing across source addresses/tags and unused CLUT changes.
+  * Opaque black, partial tiles and remapped indices remain distinguished. */
+ x4_video_begin(0);x4_video_begin(0);memset(raw,0x11,sizeof raw);memset(palette,0,sizeof palette);palette[1]=31;
+ assert(!x4_video_tile(raw,128,4,palette,16,0,0,16,16,0,0,80000));unsigned shared_slot=c[0].tile;
+ uint8_t twin[128];memset(twin,0x11,sizeof twin);
+ assert(!x4_video_tile(twin,8,4,palette,16,0,0,16,16,0,0,80001));assert(c[1].tile==shared_slot&&x4_video_stats().shared>=1);
+ x4_video_begin(0);assert(!x4_video_tile(twin,8,4,palette,16,0,0,16,16,0,0,80001));
+ assert(c[0].tile==shared_slot&&x4_video_stats().alias_hits==1&&!x4_video_stats().misses);
+ palette[9]=123;x4_video_begin(0);assert(!x4_video_tile(twin,8,4,palette,16,0,0,16,16,0,0,80002));assert(c[0].tile==shared_slot);
+ /* Distinct indices with equal RGB must NOT share the indexed representation. */
+ palette[2]=palette[1];memset(twin,0x22,sizeof twin);x4_video_begin(0);
+ assert(!x4_video_tile(twin,8,4,palette,16,0,0,16,16,0,0,80003));assert(c[0].tile!=shared_slot);
+ assert(x4_video_texture(c[0].tile,&dirty)[0]==2&&x4_video_texture(shared_slot,&dirty)[0]==1);
+ /* Two images with the same sampled hash differ in an unsampled pixel. */
+ x4_video_begin(0);x4_video_begin(0);memset(raw,0x11,sizeof raw);memset(twin,0x11,sizeof twin);twin[0]=0x21;
+ assert(!x4_video_tile(raw,128,4,palette,16,0,0,16,16,0,0,81000));unsigned collision_slot=c[0].tile;
+ palette[2]=992;x4_video_begin(0);assert(!x4_video_tile(twin,8,4,palette,16,0,0,16,16,0,0,81001));
+ assert(c[0].tile!=collision_slot&&x4_video_rgba_texture(c[0].tile,&dirty)[1]==(0x8000|992));
+ /* An old source-key alias must not survive reuse of its physical slot. */
+ static uint16_t alias_palette[16];for(unsigned i=0;i<16;++i)alias_palette[i]=0x200+i;
+ x4_video_begin(0);x4_video_begin(0);memset(raw,0x33,sizeof raw);memset(twin,0x33,sizeof twin);
+ assert(!x4_video_tile(raw,128,4,alias_palette,16,0,0,16,16,0,0,82000));
+ assert(!x4_video_tile(twin,8,4,alias_palette,16,0,0,16,16,0,0,82001));
+ x4_video_begin(0);x4_video_begin(0);for(unsigned i=0;i<16;++i)palette[i]=0x100+i;
+ for(unsigned i=0;i<X4_VIDEO_TILES;++i)assert(!x4_video_tile(unique_tiles[i],8,4,palette,16,0,0,16,16,0,0,83000+i));
+ x4_video_begin(0);x4_video_begin(0);
+ assert(!x4_video_tile(twin,8,4,alias_palette,16,0,0,16,16,0,0,82001));
+ assert(!x4_video_stats().alias_hits&&x4_video_stats().misses==1);
+ assert(x4_video_rgba_texture(c[0].tile,&dirty)[0]==(0x8000|0x203));
+ puts("PASS sampled hash collisions and stale aliases after full slot reuse");
+ puts("PASS exact RGBA/indexed sharing, fast aliases and palette-version changes");
  puts("PASS 512 scalar/lookup comparisons and dirty upload snapshots");
  puts("PASS N06 indexed tiles, opaque black, transparency, palettes, pose tags, viewport edges and geometry bounds");
 }

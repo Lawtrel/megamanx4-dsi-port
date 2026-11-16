@@ -26,13 +26,43 @@ static int16_t palette_buckets[256],palette_next[X4_VIDEO_PALETTES];
 static unsigned count,frame=1,alpha;static int draw_order;static uint16_t clear_color;static X4VideoStats stats;
 static int initialized;
 static unsigned eviction_cursor;
+/* Content sharing preserves both public pixel representations. Aliases keep
+ * repeated source keys fast; a serial rejects aliases after slot eviction. */
+static int16_t content_buckets[4096],content_next[X4_VIDEO_TILES];
+static uint32_t content_keys[X4_VIDEO_TILES],slot_serial[X4_VIDEO_TILES];
+static uint16_t decoded_rgba[256] __attribute__((aligned(32)));
+static uint8_t decoded_indexed[256] __attribute__((aligned(4)));
+static struct {Tile key;uint32_t serial;uint16_t slot;} aliases[512];
+static X4VideoFault video_fault;
+static int fail(unsigned reason){
+ ++video_fault.count;video_fault.frame=frame;video_fault.reason=reason;
+ video_fault.commands=count;video_fault.current=video_fault.previous=0;
+ if(reason==X4_VIDEO_FAULT_TILES)for(unsigned i=0;i<X4_VIDEO_TILES;++i){
+  video_fault.current+=tiles[i].source&&tiles[i].frame==frame;
+  video_fault.previous+=tiles[i].source&&tiles[i].frame+1==frame;
+ }
+ if(reason==X4_VIDEO_FAULT_COMMANDS||reason==X4_VIDEO_FAULT_PALETTES||reason==X4_VIDEO_FAULT_TILES)++stats.overflow;
+ return 1;
+}
+X4VideoFault x4_video_last_fault(void){return video_fault;}
+static int same_key(const Tile* t,const uint8_t* raw,unsigned stride,unsigned bits,unsigned pi,
+ unsigned w,unsigned h,uint32_t tag,uint32_t version){
+ return t->source==raw&&t->stride==stride&&t->bits==bits&&t->palette==pi&&t->tag==tag&&t->w==w&&t->h==h&&t->generation==x4_video_generation&&t->palette_version==version;
+}
+/* Sampling only selects a bucket; full RGBA AND indexed comparisons decide
+ * equality. Hash collisions cannot change pixels, palettes or transparency. */
+static uint32_t content_key(void){
+ uint32_t hash=2166136261u;
+ for(unsigned y=0;y<16;y+=3)for(unsigned x=0;x<16;x+=5)hash=(hash^decoded_rgba[y*16+x])*16777619u;
+ return hash;
+}
 static int last_palette=-1;
 static int screen_space,view_x,view_y,view_w=320,view_h=240;
 void x4_video_invalidate(void){
  ++x4_video_generation;
  /* Keep textures referenced by the preceding GPU frame alive. A generation
   * key rejects old resources without reusing their VRAM slots immediately. */
- if(!initialized){memset(tiles,0,sizeof tiles);memset(palettes,0,sizeof palettes);memset(buckets,0xff,sizeof buckets);memset(next,0xff,sizeof next);memset(palette_buckets,0xff,sizeof palette_buckets);memset(palette_next,0xff,sizeof palette_next);}
+ if(!initialized){memset(content_buckets,0xff,sizeof content_buckets);memset(content_next,0xff,sizeof content_next);memset(aliases,0,sizeof aliases);memset(tiles,0,sizeof tiles);memset(palettes,0,sizeof palettes);memset(buckets,0xff,sizeof buckets);memset(next,0xff,sizeof next);memset(palette_buckets,0xff,sizeof palette_buckets);memset(palette_next,0xff,sizeof palette_next);}
  for(unsigned i=0;i<X4_VIDEO_PALETTES;++i)palettes[i].frame=0;
  initialized=1;
 }
@@ -55,7 +85,7 @@ static int palette_slot(const uint16_t* p,unsigned colors){
  for(unsigned i=0;i<X4_VIDEO_PALETTES;++i){
   if(palettes[i].frame<oldest){oldest=palettes[i].frame;slot=i;}
  }
- if(oldest==frame){++stats.overflow;return -1;}
+ if(oldest==frame){fail(X4_VIDEO_FAULT_PALETTES);return -1;}
  if(palettes[slot].source){unsigned oldhash=palette_hash(palettes[slot].source,palettes[slot].colors);
   int16_t* link=&palette_buckets[oldhash];while(*link>=0&&*link!=(int)slot)link=&palette_next[*link];if(*link>=0)*link=palette_next[slot];}
  palette_next[slot]=palette_buckets[hash];palette_buckets[hash]=slot;
@@ -93,27 +123,21 @@ int x4_video_tile(const uint8_t* raw,unsigned stride,unsigned bits,const uint16_
  unsigned colors,int x,int y,unsigned w,unsigned h,unsigned flip,int semi,uint32_t tag){
  int vx=screen_space?0:view_x,vy=screen_space?0:view_y,vw=screen_space?320:view_w,vh=screen_space?240:view_h;
  if(x>=vx+vw||y>=vy+vh||x+(int)w<=vx||y+(int)h<=vy)return 0;
- if(!raw||!p||!w||w>16||!h||h>16||(bits!=4&&bits!=8)||!colors||colors>256)return 1;
- if(count>=X4_VIDEO_COMMANDS){++stats.overflow;return 1;}
+ if(!raw||!p||!w||w>16||!h||h>16||(bits!=4&&bits!=8)||!colors||colors>256)return fail(X4_VIDEO_FAULT_ARGUMENTS);
+ if(count>=X4_VIDEO_COMMANDS)return fail(X4_VIDEO_FAULT_COMMANDS);
  int pi=palette_slot(p,colors);if(pi<0)return 1;
  uint32_t version=palettes[pi].version;
  unsigned hash=hash_key(raw,stride,bits,pi,w,h,tag,x4_video_generation,version),slot=X4_VIDEO_TILES;
  for(int i=buckets[hash];i>=0;i=next[i]){
-  Tile* t=&tiles[i];if(t->source==raw&&t->stride==stride&&t->bits==bits&&t->palette==pi&&t->tag==tag&&t->w==w&&t->h==h&&t->generation==x4_video_generation&&t->palette_version==version){slot=i;break;}
+  Tile* t=&tiles[i];if(same_key(t,raw,stride,bits,pi,w,h,tag,version)){slot=i;break;}
  }
  if(slot==X4_VIDEO_TILES){
-  /* A clock replacement avoids scanning 1024 entries on every miss. Both
-   * the current and preceding GPU frame remain protected from eviction. */
-  for(unsigned n=0;n<X4_VIDEO_TILES;++n){unsigned i=eviction_cursor++%X4_VIDEO_TILES;
-   if(!tiles[i].source||tiles[i].frame+1<frame){slot=i;break;}}
-  if(slot==X4_VIDEO_TILES){++stats.overflow;return 1;}
-  Tile* t=&tiles[slot];
-  if(t->source){/* Unlink the evicted entry using its stored key. */
-   unsigned oldhash=hash_key(t->source,t->stride,t->bits,t->palette,t->w,t->h,t->tag,t->generation,t->palette_version);
-   int16_t* link=&buckets[oldhash];while(*link>=0&&*link!=(int)slot)link=&next[*link];if(*link>=0)*link=next[slot];
+  unsigned alias=hash&511;
+  if(aliases[alias].serial==slot_serial[aliases[alias].slot]&&
+     same_key(&aliases[alias].key,raw,stride,bits,pi,w,h,tag,version)){
+   slot=aliases[alias].slot;++stats.hits;++stats.alias_hits;goto ready;
   }
-  *t=(Tile){.source=raw,.tag=tag,.generation=x4_video_generation,.palette_version=version,.stride=stride,.palette=pi,.bits=bits,.w=w,.h=h};
-  if(w!=16||h!=16){memset(rgba[slot],0,sizeof rgba[slot]);memset(indexed[slot],0,sizeof indexed[slot]);}
+  if(w!=16||h!=16){memset(decoded_rgba,0,sizeof decoded_rgba);memset(decoded_indexed,0,sizeof decoded_indexed);}
   Palette* q=&palettes[pi];
   if(bits==4&&colors==16&&w==16){
    /* Two original 4bpp pixels per lookup; full tiles need no clearing.
@@ -121,22 +145,50 @@ int x4_video_tile(const uint8_t* raw,unsigned stride,unsigned bits,const uint16_
    const uint32_t* pairs=rgba_tables[pi].pairs;const uint16_t* indices=index_tables[pi].pairs;
    for(unsigned sy=0;sy<h;++sy)for(unsigned sx=0;sx<8;++sx){
     unsigned byte=raw[sy*stride+sx];
-    memcpy(&rgba[slot][sy*16+sx*2],&pairs[byte],4);
-    memcpy(&indexed[slot][sy*16+sx*2],&indices[byte],2);
+    memcpy(&decoded_rgba[sy*16+sx*2],&pairs[byte],4);
+    memcpy(&decoded_indexed[sy*16+sx*2],&indices[byte],2);
    }
   }else if(bits==8&&colors==256){
    const uint16_t* rgb=rgba_tables[pi].single;const uint8_t* indices=index_tables[pi].single;
-   for(unsigned sy=0;sy<h;++sy)for(unsigned sx=0;sx<w;++sx){unsigned byte=raw[sy*stride+sx];rgba[slot][sy*16+sx]=rgb[byte];indexed[slot][sy*16+sx]=indices[byte];}
+   for(unsigned sy=0;sy<h;++sy)for(unsigned sx=0;sx<w;++sx){unsigned byte=raw[sy*stride+sx];decoded_rgba[sy*16+sx]=rgb[byte];decoded_indexed[sy*16+sx]=indices[byte];}
   }else for(unsigned sy=0;sy<h;++sy)for(unsigned sx=0;sx<w;++sx){
    unsigned index=bits==4?(raw[sy*stride+sx/2]>>((sx&1)*4))&15:raw[sy*stride+sx];
-   if(index>=colors){t->source=NULL;t->frame=0;return 1;}
-   rgba[slot][sy*16+sx]=p[index]?(p[index]|0x8000):0;
+   if(index>=colors)return fail(X4_VIDEO_FAULT_INDEX);
+   decoded_rgba[sy*16+sx]=p[index]?(p[index]|0x8000):0;
    if(q->zero[index>>5]&(1u<<(index&31)))index=0;else if(!index&&q->swap)index=q->swap;
-   indexed[slot][sy*16+sx]=index;
+   decoded_indexed[sy*16+sx]=index;
   }
-  t->dirty=1;dirty_words[slot>>5]|=1u<<(slot&31);
+
+  uint32_t key=content_key();
+  for(int i=content_buckets[key&4095];i>=0;i=content_next[i])if(content_keys[i]==key&&
+     !memcmp(decoded_rgba,rgba[i],sizeof decoded_rgba)&&!memcmp(decoded_indexed,indexed[i],sizeof decoded_indexed)){
+   slot=i;aliases[alias].key=(Tile){.source=raw,.tag=tag,.generation=x4_video_generation,.palette_version=version,.stride=stride,.palette=pi,.bits=bits,.w=w,.h=h};
+   aliases[alias].slot=slot;aliases[alias].serial=slot_serial[slot];
+   ++stats.hits;++stats.shared;goto ready;
+  }
+  /* A clock replacement avoids scanning 1024 entries on every miss. Both
+   * the current and preceding GPU frame remain protected from eviction. */
+  for(unsigned n=0;n<X4_VIDEO_TILES;++n){unsigned i=eviction_cursor++%X4_VIDEO_TILES;
+   if(!tiles[i].source||tiles[i].frame+1<frame){slot=i;break;}}
+  if(slot==X4_VIDEO_TILES)return fail(X4_VIDEO_FAULT_TILES);
+  Tile* t=&tiles[slot];
+  if(t->source){
+   int16_t* content_link=&content_buckets[content_keys[slot]&4095];
+   while(*content_link>=0&&*content_link!=(int)slot)content_link=&content_next[*content_link];
+   if(*content_link>=0)*content_link=content_next[slot];
+   /* Unlink the evicted entry using its stored key. */
+   unsigned oldhash=hash_key(t->source,t->stride,t->bits,t->palette,t->w,t->h,t->tag,t->generation,t->palette_version);
+   int16_t* link=&buckets[oldhash];while(*link>=0&&*link!=(int)slot)link=&next[*link];if(*link>=0)*link=next[slot];
+  }
+
+  *t=(Tile){.source=raw,.tag=tag,.generation=x4_video_generation,.palette_version=version,.stride=stride,.palette=pi,.bits=bits,.w=w,.h=h,.dirty=1};
+  ++slot_serial[slot];
+  memcpy(rgba[slot],decoded_rgba,sizeof decoded_rgba);memcpy(indexed[slot],decoded_indexed,sizeof decoded_indexed);
+  content_keys[slot]=key;content_next[slot]=content_buckets[key&4095];content_buckets[key&4095]=slot;
+  dirty_words[slot>>5]|=1u<<(slot&31);
   next[slot]=buckets[hash];buckets[hash]=slot;++stats.misses;
  }else ++stats.hits;
+ready:
  tiles[slot].frame=frame;
  X4VideoCommand* c=&commands[count++];
  c->order=draw_order;
@@ -149,7 +201,7 @@ int x4_video_tile(const uint8_t* raw,unsigned stride,unsigned bits,const uint16_
  stats.commands=count;return 0;
 }
 int x4_video_quad(const int* x,const int* y,const uint16_t* colors,int semi){
- if(count>=X4_VIDEO_COMMANDS){++stats.overflow;return 1;}
+ if(count>=X4_VIDEO_COMMANDS)return fail(X4_VIDEO_FAULT_COMMANDS);
  X4VideoCommand* c=&commands[count++];memset(c,0,sizeof *c);c->semi=!!semi;
  c->order=draw_order;
  c->screen_space=screen_space;

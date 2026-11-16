@@ -18,6 +18,7 @@ static uint16_t screen[256*192];
 #include "n083_render_systems.h"
 #include "n084_controls_systems.h"
 #include "n086_continue_systems.h"
+#include "n089_frost_systems.h"
 extern void ice_core_shed_ice(struct MainObj*);
 extern void eregion_death_blink(struct MainObj*);
 extern void func_80027344(s32,s32,s32);
@@ -55,6 +56,7 @@ static void check_native_boss_safety(void){
 extern int x4_flow_ui_pause_palette_active(void);
 int main(int argc,char** argv){
  assert(argc>=3);const char* mode=argv[2];unsigned character=argc>3?strtoul(argv[3],NULL,0):0;
+ if(!strcmp(mode,"frostrender"))return n089_frost_system(argv[1]);
  if(!strcmp(mode,"continue"))return n086_continue_system(argv[1],character)?0:1;
  if(!strcmp(mode,"selectgiga"))return n084_select_giga(argv[1],character)?0:1;
  if(!strcmp(mode,"sigmagear"))return n083_render_system(argv[1],character,0)?0:1;

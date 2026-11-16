@@ -22,8 +22,8 @@ _Static_assert(KEY_A==X4_NDS_A&&KEY_B==X4_NDS_B&&KEY_SELECT==X4_NDS_SELECT&&KEY_
 #ifdef X4_N06_GPU
 void x4_gpu_init(void);void x4_gpu_prepare(void);void x4_gpu_present(void);unsigned x4_gpu_words(void);
 unsigned x4_gpu_upload_batches(void);unsigned x4_gpu_upload_tiles(void);
-#define VERSION "BETA 8.8"
-#define LOG_PREFIX "native_n088"
+#define VERSION "BETA 8.9"
+#define LOG_PREFIX "native_n089"
 #else
 #define VERSION "N05"
 #define LOG_PREFIX "native_n05_flow"
@@ -144,7 +144,7 @@ int main(int argc,char** argv){
   if(log_file){fprintf(log_file,"BEGIN campaign=%u character=%u stage=%u area=%u debug_loadout=%u\n",campaign,character,stage,area,!campaign);commit_log();}
   int error=campaign?x4_flow_title("nitro:/content"):x4_flow_begin_debug("nitro:/content",character,stage,area);
   if(error){fail("Carregamento",error);break;}
-  audio_start();unsigned previous=0,frames=0,last=vblanks,gfx_errors=0,logged_faults=0;
+  audio_start();unsigned previous=0,frames=0,last=vblanks,gfx_errors=0,logged_faults=0,logged_video_faults=x4_video_last_fault().count;
   uint64_t logic_ticks=0,draw_ticks=0,audio_ticks=0,wait_ticks=0,present_ticks=0,prepare_ticks=0;
   uint64_t simulation_clock=tickGetCount();unsigned last_simulation=0,dropped_ticks=0;
   /* Present-to-present intervals include last interval's screen/log work.
@@ -223,6 +223,12 @@ int main(int argc,char** argv){
      fprintf(log_file,"ARM7 voices=%u pcm_bytes=%u cache_hits=%u cache_misses=%u starts=%u\n",fx.active,fx.bytes,fx.hits,fx.misses,fx.starts);
      fprintf(log_file,"PIPELINE prepare_us=%u\n",prepare_us);
      fprintf(log_file,"FRAME_TIME samples=%u mean_us=%u max_us=%u p95_upper_us=%u over_two_fields=%u work_max_us=%u diagnostic_previous_us=%u\n",frame_samples,frame_samples?(unsigned)(frame_sum*1000000/TICK_FREQ/frame_samples):0,frame_max_us,percentile,late_frames,work_max_us,diagnostic_us);
+     fprintf(log_file,"TEXTURE_SHARING shared=%u alias_hits=%u\n",v.shared,v.alias_hits);
+     X4VideoFault vf=x4_video_last_fault();
+     if(vf.count!=logged_video_faults){
+      fprintf(log_file,"VIDEO_FAULT count=%u frame=%u reason=%u commands=%u current=%u previous=%u\n",vf.count,vf.frame,vf.reason,vf.commands,vf.current,vf.previous);
+      logged_video_faults=vf.count;
+     }
      X4RenderCacheStats rc;x4_n05_render_cache_stats(&rc);
      fprintf(log_file,"RENDER_CACHE bounds_hits=%u bounds_misses=%u asset_hits=%u asset_misses=%u\n",rc.bounds_hits,rc.bounds_misses,rc.asset_hits,rc.asset_misses);
      X4RenderFault fault;x4_n05_render_fault(&fault);

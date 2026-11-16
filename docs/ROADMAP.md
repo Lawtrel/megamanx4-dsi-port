@@ -45,7 +45,11 @@ Prioridades registradas e aprovadas pelo usuário em 16/11/2026.
   desenho de cenários, com equivalência de comandos/pixels em seis casos.
   O [teste físico](TESTE_N087_FASES_1_4.md) ainda mostra quedas abaixo de 30.
 - A [beta 8.8](STATUS_N088.md) reduz escritas e controle da montagem da
-  lista gráfica; a medição de FPS dessa revisão ainda depende do DSi.
+  lista gráfica. O [teste físico](TESTE_N088_FASES_1_4.md) mostra quedas
+  abaixo de 30 FPS e uma nova falha visual confirmada na fase 4.
+- A [beta 8.9](STATUS_N089.md) compartilha pixels idênticos entre recursos,
+  mantendo a proteção de duas imagens. A saturação reproduzida da 8.8
+  deve ser conferida novamente no DSi; não há confirmação de FPS desta revisão.
 - Bases de medição: [fase 12 na 8.2](TESTE_N082_FASE12.md) e
   [teste aleatório da 8.3](TESTE_N083_ALEATORIO.md). Percursos diferentes
   não comprovam ganho percentual entre versões.

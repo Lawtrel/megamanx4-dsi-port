@@ -1,6 +1,6 @@
 # Motor nativo ARM9
 
-O alvo atual é a beta 8.8, sem cutscenes e com equipamento debug completo, experimental. Estado do produto e resultado físico
+O alvo atual é a beta 8.9, sem cutscenes e com equipamento debug completo, experimental. Estado do produto e resultado físico
 estão em [README](../README.md) e [testes no console](../docs/HARDWARE_TESTS.md).
 
 ## Componentes

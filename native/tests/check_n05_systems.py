@@ -11,6 +11,8 @@ if os.environ.get('X4_GPU')=='1':cases.extend([(m,c) for m in ('sigmagear','refi
 if os.environ.get('X4_GPU')=='1':cases.extend([('selectgiga',0),('selectgiga',1)])
 if os.environ.get('X4_GPU')=='1':cases.extend([('continue',0),('continue',1)])
 
+if os.environ.get('X4_GPU')=='1':cases.append(('frostrender',0))
+
 gpu=os.environ.get('X4_GPU')=='1';prefix='gpu_' if gpu else ''
 def check(case):
  mode,character=case

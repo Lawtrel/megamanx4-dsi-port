@@ -7,7 +7,10 @@
 #define X4_VIDEO_PALETTES 128
 #define X4_VIDEO_COMMANDS 1500 /* 6000 vertices, below the DS limit of 6144. */
 typedef struct {int16_t x[4],y[4],order;uint16_t color[4],tile,palette;uint8_t w,h,flip,semi,textured,screen_space;} X4VideoCommand;
-typedef struct {unsigned commands,hits,misses,palette_uploads,overflow,uploaded_bytes;} X4VideoStats;
+typedef struct {unsigned commands,hits,misses,palette_uploads,overflow,uploaded_bytes,shared,alias_hits;} X4VideoStats;
+enum {X4_VIDEO_FAULT_ARGUMENTS=1,X4_VIDEO_FAULT_COMMANDS,X4_VIDEO_FAULT_PALETTES,X4_VIDEO_FAULT_TILES,X4_VIDEO_FAULT_INDEX};
+typedef struct {unsigned count,frame,reason,commands,current,previous;} X4VideoFault;
+X4VideoFault x4_video_last_fault(void);
 extern int x4_video_enabled;
 extern uint32_t x4_video_generation;
 void x4_video_invalidate(void);
