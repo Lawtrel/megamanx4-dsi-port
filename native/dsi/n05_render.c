@@ -347,15 +347,24 @@ static int background(uint16_t* screen,const X4Archive* stage,int cx,int cy){
     const X4ArchiveMember* attributes=find_asset(stage,1,0);
     if(!image||!map||!attributes||!SP_BG_TILEMAP||!SP_PALETTE)return 1;
     if(!layout_width||!layout_height)return 1;
+    /* The game scheduler has finished this frame. Hold only pointer/size
+     * snapshots here, never cached map contents: stage events can rewrite
+     * blocks, tile entries and attributes before the next draw. */
+    const u8* tilemap=SP_BG_TILEMAP;
+    const u16* pixels=SP_BG_TILE_PIXELS;const u32* attrs=SP_BG_TILE_ATTRS;
+    const u16* palette=SP_PALETTE;const u8* image_data=image->data;
+    const unsigned map_words=map->size/2,attr_words=attributes->size/4,image_size=image->size;
+    const int columns=layout_width,rows=layout_height,layer_size=layout_size;
+    const int gpu=x4_video_enabled,original=x4_original_camera_mode;
     int vx=0,vy=0,vw=256,vh=192;
-    if(x4_video_enabled)x4_video_get_viewport(&vx,&vy,&vw,&vh);
+    if(gpu)x4_video_get_viewport(&vx,&vy,&vw,&vh);
     for(int layer=2;layer>=0;--layer){
-    int first=0,end=layout_width*16,repeat=0;
-    if(x4_original_camera_mode){
+    int first=0,end=columns*16,repeat=0;
+    if(original){
         if(!background_objects[layer].unk3)continue;
-        cx=background_objects[layer].x_pos.i.hi+(x4_video_enabled?0:32);cy=background_objects[layer].y_pos.i.hi+(x4_video_enabled?0:24);
+        cx=background_objects[layer].x_pos.i.hi+(gpu?0:32);cy=background_objects[layer].y_pos.i.hi+(gpu?0:24);
         int lo=background_objects[layer].unk4D,hi=background_objects[layer].unk4E;
-        if(lo<=hi&&hi<layout_width){
+        if(lo<=hi&&hi<columns){
             first=lo*16;end=(hi+1)*16;repeat=end-first;
             /* Read both sides of the seam without changing object/collision
              * coordinates. Camera reset remains in the logic draw bridge. */
@@ -364,28 +373,38 @@ static int background(uint16_t* screen,const X4Archive* stage,int cx,int cy){
         }
     }
     /* Cull before map/attribute lookup as well as before texture decoding. */
-    for(int ty=(cy+vy)/16;ty<=(cy+vy+vh-1)/16;++ty)for(int tx=(cx+vx)/16;tx<=(cx+vx+vw-1)/16;++tx){
+    const int top=(cy+vy)/16,bottom=(cy+vy+vh-1)/16;
+    const int left=(cx+vx)/16,right=(cx+vx+vw-1)/16;
+    const int order_low=background_objects[layer].unk4A*16,order_high=background_objects[layer].unk4B*16;
+    for(int ty=top;ty<=bottom;++ty){
+     if(ty<0||ty>=rows*16)continue;
+     const u8* map_row=tilemap+layer*layer_size+(ty/16)*columns;
+     const unsigned inner_row=(ty&15)*16;
+     const int dy=ty*16-cy;
+     for(int tx=left;tx<=right;++tx){
         int source_x=tx;
         if(repeat&&source_x>=end){source_x-=repeat;if(source_x>=end)source_x-=repeat;}
-        if(source_x<0||ty<0||source_x>=layout_width*16||ty>=layout_height*16)continue;
-        unsigned block=SP_BG_TILEMAP[layer*layout_size+(ty/16)*layout_width+source_x/16];
+        if(source_x<0||source_x>=columns*16)continue;
+        unsigned block=map_row[source_x/16];
         if(!block)continue;
-        unsigned pos=block*256+(ty&15)*16+(source_x&15);
-        if((pos+1)*2>map->size)return 1;
-        unsigned entry=SP_BG_TILE_PIXELS[pos],tile=entry&0x3fff;if(!tile)continue;
-        if((tile+1)*4>attributes->size)return 1;
-        unsigned val=SP_BG_TILE_ATTRS[tile],page=(val>>24)&15,ox=(val>>16)&15,oy=(val>>20)&15,clut=(val>>8)&255;
+        unsigned pos=block*256+inner_row+(source_x&15);
+        if(pos>=map_words)return 1;
+        unsigned entry=pixels[pos],tile=entry&0x3fff;if(!tile)continue;
+        if(tile>=attr_words)return 1;
+        unsigned val=attrs[tile],page=(val>>24)&15,ox=(val>>16)&15,oy=(val>>20)&15,clut=(val>>8)&255;
         if(page>=12)return 1;
-        int dx=tx*16-cx,dy=ty*16-cy;
+        int dx=tx*16-cx;
         ++background_tiles[layer];
-        if(x4_video_enabled){
+        if(gpu){
             unsigned offset,bits=page<8?4:8,pi=(clut+64)*16;
             if(page<8)offset=page*32768+oy*16*128+ox*8;
             else{unsigned px=ox*16;offset=(page&3)*65536+(px/128)*32768+oy*16*128+px%128;}
             unsigned colors=bits==4?16:256;if(pi>=2048)return 1;if(pi+colors>2048)colors=2048-pi;
-            if(offset+15*128+(bits==4?8:16)>image->size)return 1;
-            x4_video_screen_space(0);x4_video_order((int)((entry&0x8000)?background_objects[layer].unk4B:background_objects[layer].unk4A)*16+page);
-            if(x4_video_tile(image->data+offset,128,bits,SP_PALETTE+pi,colors,dx,dy,16,16,0,entry&0x4000,0))return 1;
+            if(offset+15*128+(bits==4?8:16)>image_size)return 1;
+            /* begin() sets world coordinates; tile submission does not change
+             * that state, so it need not be reset for each background tile. */
+            x4_video_order(((entry&0x8000)?order_high:order_low)+page);
+            if(x4_video_tile(image_data+offset,128,bits,palette+pi,colors,dx,dy,16,16,0,entry&0x4000,0))return 1;
             continue;
         }
         int x0=dx<0?-dx:0,x1=dx+16>256?256-dx:16,y0=dy<0?-dy:0,y1=dy+16>192?192-dy:16;
@@ -393,17 +412,18 @@ static int background(uint16_t* screen,const X4Archive* stage,int cx,int cy){
             unsigned sx=x,sy=y,index,offset;
             if(page<8){
                 offset=page*32768+(oy*16+sy)*128+ox*8+sx/2;
-                if(offset>=image->size)return 1;
-                index=(image->data[offset]>>(4*(sx&1)))&15;
+                if(offset>=image_size)return 1;
+                index=(image_data[offset]>>(4*(sx&1)))&15;
             }else{
                 unsigned px=ox*16+sx;
                 offset=(page&3)*65536+(px/128)*32768+(oy*16+sy)*128+px%128;
-                if(offset>=image->size)return 1;
-                index=image->data[offset];
+                if(offset>=image_size)return 1;
+                index=image_data[offset];
             }
             unsigned pi=(clut+64)*16+index;if(pi>=2048)return 1;
-            u16 color=SP_PALETTE[pi];if(color)screen[(dy+y)*256+dx+x]=color|0x8000;
+            u16 color=palette[pi];if(color)screen[(dy+y)*256+dx+x]=color|0x8000;
         }
+    }
     }
     }
     return 0;
