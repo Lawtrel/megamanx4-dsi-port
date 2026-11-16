@@ -72,3 +72,11 @@ continuam medidas e ainda são uma oportunidade de otimização separada.
 Controles: B pula, A dash, Y ataque, X especial, L/R arma, START menu,
 SELECT Giga/R2 e L+R+SELECT seletor. Cutscenes continuam desativadas.
 O `.nds` e os recursos originais permanecem locais, fora do GitHub público.
+
+## Retorno físico de 16/11/2026
+
+O log da 8.7 registra X/Zero na fase 1 e X na fase 4. Os contadores de
+desenho/áudio/overflow ficaram em zero; o usuário não anexou relato visual.
+Zero na fase 1 teve médias de 37,11/45,08 FPS; X na primeira área da fase
+4 teve média 30,08 e mínimo 23. Ainda não há 30 FPS sustentados.
+Veja [comparação e limites](TESTE_N087_FASES_1_4.md).

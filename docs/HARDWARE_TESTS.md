@@ -1,3 +1,14 @@
+# Retorno físico — beta 8.7
+
+Log recebido em 16/11/2026: 438 amostras, build `8c80a93087b3ce08d6b0`,
+modo DSi. Contém X e Zero na fase 1 e X na fase 4, todos no debug equipado.
+Zero na fase 1 registrou médias de 37,11/45,08 FPS por área; X na primeira
+área da fase 4 teve média 30,08 e mínimo 23. Contadores amostrados de
+desenho/áudio/overflow ficaram em zero, sem relato visual adicional.
+
+Ainda há quedas abaixo de 30. O teste da fase 4 na 8.6 foi com Zero;
+não é comparação direta com X na 8.7. Veja [dados, custos e limites](TESTE_N087_FASES_1_4.md).
+
 # Retorno físico — beta 8.6
 
 Em 16/11/2026, o usuário testou as fases 1 e 4 e confirmou a correção de

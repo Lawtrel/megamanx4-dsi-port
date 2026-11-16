@@ -43,7 +43,9 @@ Prioridades registradas e aprovadas pelo usuário em 16/11/2026.
   pelo usuário no DSi. O objetivo de 30 FPS sustentados permanece aberto.
 - A [beta 8.7](STATUS_N087.md) reduz consultas e cálculos repetidos no
   desenho de cenários, com equivalência de comandos/pixels em seis casos.
-  Os benchmarks de instruções ainda precisam de medição de FPS no DSi.
+  O [teste físico](TESTE_N087_FASES_1_4.md) ainda mostra quedas abaixo de 30.
+- A [beta 8.8](STATUS_N088.md) reduz escritas e controle da montagem da
+  lista gráfica; a medição de FPS dessa revisão ainda depende do DSi.
 - Bases de medição: [fase 12 na 8.2](TESTE_N082_FASE12.md) e
   [teste aleatório da 8.3](TESTE_N083_ALEATORIO.md). Percursos diferentes
   não comprovam ganho percentual entre versões.
