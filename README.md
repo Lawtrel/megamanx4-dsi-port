@@ -11,7 +11,7 @@ Os efeitos continuam pelo ARM7/hardware. O log físico da N06.7 registrou
 médias de 47,63 FPS com X na primeira área do trem e 39,19 com Zero na segunda,
 em trechos distintos. Há quedas abaixo de 30 FPS. Após relato de vídeos lentos
 e áudio fora de sincronia na N08, as cenas foram retiradas a pedido do usuário.
-A beta 8.2 precisa de teste físico;
+A beta 8.2 tem teste físico parcial da fase 12, com quedas até 27 FPS com X;
 veja [os testes físicos](docs/HARDWARE_TESTS.md).
 
 ## O que está aqui

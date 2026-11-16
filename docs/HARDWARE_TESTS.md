@@ -1,3 +1,18 @@
+# Retorno físico — beta 8.2
+
+Em 15/11/2026, recebido `native_n082_000.log`, build `f876e6285bcd22521168`,
+confirmado em modo DSi. O usuário descreveu a fase 12 contra os oito chefes
+e depois Sigma. O log cobre X nas duas áreas e Zero diretamente em Sigma.
+
+No gameplay desbloqueado, vivo e fora do menu, os FPS mín./média/máx. foram
+27/47,21/60 para X nas revanches, 30/49,81/60 para X em Sigma e 33/51,16/60
+para Zero em Sigma. Houve 13 amostras abaixo de 30 na primeira área com X.
+Áudio e overflow ficaram em zero; X acumulou nove falhas de desenho em Sigma,
+sem falha visual percebida pelo usuário. A causa permanece pendente.
+
+Veja [metodologia, custos e limites deste teste](TESTE_N082_FASE12.md).
+Este retorno não qualifica a campanha completa nem confirma todos os finais.
+
 # Retorno físico — N08
 
 Atualização em 15/11/2026: o usuário decidiu não testar a N08.1 separadamente.

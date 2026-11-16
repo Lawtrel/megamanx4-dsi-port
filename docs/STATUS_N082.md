@@ -34,9 +34,11 @@ compilados para ARM9. O empacotamento conferiu cabeçalhos, símbolos, fontes
 e hashes dos 317 arquivos internos. Dez imagens de regressão anteriores
 ficaram idênticas. O pacote anterior da N08.1 foi preservado.
 
-Esta compilação ainda precisa de teste no DSi. A N08.1 não foi testada
-separadamente, conforme decisão do usuário; a retirada das cutscenes será
-conferida nesta rodada. A campanha completa fica para a revisão final.
+Há um [teste físico parcial da fase 12](TESTE_N082_FASE12.md), recebido em
+15/11/2026: X nas duas áreas e Zero diretamente em Sigma. Foram observadas
+quedas até 27 FPS com X e nove falhas contabilizadas pelo desenho em Sigma,
+sem falha visual percebida pelo usuário. A N08.1 não foi testada separadamente.
+A campanha completa e os cenários não cobertos ficam para a revisão final.
 
 As otimizações adicionais de desempenho da proposta da beta 8.2 continuam
 pendentes. Esta entrega não comprova melhoria de FPS nem 30/60 FPS sustentados.

@@ -3,7 +3,10 @@
 1. **Testar a beta 8.2 e continuar o trabalho de desempenho.** A compilação
    entrega equipamento debug completo e cutscenes desativadas. A N08.1
    não terá teste físico separado por decisão do usuário em 15/11/2026.
-   O próximo teste reunirá a retirada dos vídeos e as alterações da 8.2.
+   Já há [teste parcial da fase 12](TESTE_N082_FASE12.md). Priorizar os
+   checkpoints 5/7/9 com X, onde houve quedas abaixo de 30 FPS, e diagnosticar
+   as nove ocorrências de desenho em Sigma. O maior custo medido está na
+   composição e preparação gráfica.
    Ver [escopo proposto e critérios de entrega](PLANO_BETA_82.md).
 2. **30 FPS sustentados.** Medir as quedas e otimizar os trechos responsáveis,
    preservando escala, animações e velocidade da simulação. Confirmar título,
