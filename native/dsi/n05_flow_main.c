@@ -9,6 +9,7 @@
 #include "x4_audio.h"
 #include "x4_save.h"
 #include "x4_n05_platform.h"
+#include "x4_n05_actors.h"
 #include "build_id.h"
 #include "x4_video.h"
 #include "x4_arm7_audio.h"
@@ -17,8 +18,8 @@
 #ifdef X4_N06_GPU
 void x4_gpu_init(void);void x4_gpu_prepare(void);void x4_gpu_present(void);unsigned x4_gpu_words(void);
 unsigned x4_gpu_upload_batches(void);unsigned x4_gpu_upload_tiles(void);
-#define VERSION "BETA 8.2"
-#define LOG_PREFIX "native_n082"
+#define VERSION "BETA 8.3"
+#define LOG_PREFIX "native_n083"
 #else
 #define VERSION "N05"
 #define LOG_PREFIX "native_n05_flow"
@@ -153,7 +154,7 @@ int main(int argc,char** argv){
   if(log_file){fprintf(log_file,"BEGIN campaign=%u character=%u stage=%u area=%u debug_loadout=%u\n",campaign,character,stage,area,!campaign);commit_log();}
   int error=campaign?x4_flow_title("nitro:/content"):x4_flow_begin_debug("nitro:/content",character,stage,area);
   if(error){fail("Carregamento",error);break;}
-  audio_start();unsigned previous=0,frames=0,last=vblanks,gfx_errors=0;
+  audio_start();unsigned previous=0,frames=0,last=vblanks,gfx_errors=0,logged_faults=0;
   uint64_t logic_ticks=0,draw_ticks=0,audio_ticks=0,wait_ticks=0,present_ticks=0,prepare_ticks=0;
   uint64_t simulation_clock=tickGetCount();unsigned last_simulation=0,dropped_ticks=0;
   iprintf("\x1b[2J");
@@ -212,6 +213,13 @@ int main(int argc,char** argv){
      fprintf(log_file,"PROFILE logic_us=%u draw_us=%u audio_us=%u present_us=%u wait_us=%u commands=%u hits=%u misses=%u palettes=%u upload=%u overflow=%u sim_hz=%u dropped_ticks=%u\n",logic_us,draw_us,audio_us,present_us,wait_us,v.commands,v.hits,v.misses,v.palette_uploads,v.uploaded_bytes,v.overflow,simulation_hz,dropped_ticks);
      fprintf(log_file,"ARM7 voices=%u pcm_bytes=%u cache_hits=%u cache_misses=%u starts=%u\n",fx.active,fx.bytes,fx.hits,fx.misses,fx.starts);
      fprintf(log_file,"PIPELINE prepare_us=%u\n",prepare_us);
+     X4RenderCacheStats rc;x4_n05_render_cache_stats(&rc);
+     fprintf(log_file,"RENDER_CACHE bounds_hits=%u bounds_misses=%u asset_hits=%u asset_misses=%u\n",rc.bounds_hits,rc.bounds_misses,rc.asset_hits,rc.asset_misses);
+     X4RenderFault fault;x4_n05_render_fault(&fault);
+     if(fault.count!=logged_faults){
+      fprintf(log_file,"RENDER_FAULT count=%u tick=%u reason=%u id=%d pose=%u texture=%x clut=%x bg=%d\n",fault.count,fault.frame,fault.reason,fault.id,fault.pose,fault.texture,fault.clut,fault.background);
+      logged_faults=fault.count;
+     }
      char debug[256];x4_flow_debug(debug,sizeof debug);fprintf(log_file,"%s\n",debug);
 #ifdef X4_N06_GPU
      fprintf(log_file,"FIFO words=%u old_words=%u\n",x4_gpu_words(),21*v.commands);

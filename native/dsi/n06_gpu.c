@@ -55,15 +55,15 @@ void x4_gpu_prepare(void){
   if(texture!=last_texture){emit(FIFO_TEX_FORMAT,texture,0,1);last_texture=texture;}
   if(poly!=last_poly){emit(FIFO_POLY_FORMAT,poly,0,1);last_poly=poly;}
   emit(FIFO_BEGIN,GL_QUADS,0,1);
-  int u=0,v=0;
-  int us[4]={u,u+c->w,u+c->w,u},vs[4]={v,v,v+c->h,v+c->h};
-  if(c->flip&1)for(unsigned j=0;j<4;++j)us[j]=2*u+c->w-us[j];
-  if(c->flip&2)for(unsigned j=0;j<4;++j)vs[j]=2*v+c->h-vs[j];
+  /* UV endpoints occupy disjoint fields. Toggling an endpoint is an XOR,
+   * avoiding coordinate arrays and four-element flip loops per quad. */
+  unsigned u=c->w<<4,v=c->h<<20;
+  unsigned uv=((c->flip&1)?u:0)|((c->flip&2)?v:0);
   for(unsigned j=0;j<4;++j){unsigned color=c->color[j];
    if(gain!=255)color=RGB15((color&31)*gain/255,((color>>5)&31)*gain/255,((color>>10)&31)*gain/255);
    int x=c->x[j],y=c->y[j];if(c->screen_space){x=32+x*4/5;y=24+y*4/5;}
    if(color!=last_color){emit(FIFO_COLOR,color,0,1);last_color=color;}
-   emit(FIFO_TEX_COORD,(uint16_t)(us[j]<<4)|((uint32_t)(uint16_t)(vs[j]<<4)<<16),0,1);
+   emit(FIFO_TEX_COORD,uv^((j==1||j==2)?u:0)^((j>=2)?v:0),0,1);
    emit(j?FIFO_VERTEX_XY:FIFO_VERTEX16,(uint16_t)x|((uint32_t)(uint16_t)y<<16),i,j?1:2);
   }
  }

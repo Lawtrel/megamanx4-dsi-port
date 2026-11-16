@@ -56,6 +56,7 @@ target=OUT/'flow.o';roots=['x4_flow_'+n for n in ('begin','begin_debug','new_gam
 roots+=['x4_audio_'+n for n in ('init','update','read','close','errors','track')]+['x4_save_set_root','x4_n05_missing_sfx']
 roots+=['x4_video_'+n for n in ('commands','texture','rgba_texture','dirty_tiles','palette','clear','alpha','stats','viewport','get_viewport')]
 roots+=['x4_sfx_set_backend','x4_sfx_stats']
+roots+=['x4_n05_render_fault','x4_n05_render_cache_stats']
 p=subprocess.run([str(SDK/'arm-none-eabi-ld'),'-r','--gc-sections',*[a for n in roots for a in ('-u',n)],'-o',str(target),*objects],capture_output=True,text=True)
 if p.returncode:raise RuntimeError(p.stderr[-4000:])
 def run(*cmd):return subprocess.check_output([str(a) for a in cmd],text=True)

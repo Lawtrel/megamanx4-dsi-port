@@ -1,6 +1,6 @@
 # Motor nativo ARM9
 
-O alvo atual é a beta 8.2, sem cutscenes e com equipamento debug completo, experimental. Estado do produto e resultado físico
+O alvo atual é a beta 8.3, sem cutscenes e com equipamento debug completo, experimental. Estado do produto e resultado físico
 estão em [README](../README.md) e [testes no console](../docs/HARDWARE_TESTS.md).
 
 ## Componentes
@@ -67,3 +67,13 @@ filme sem ceder tarefas ou interromper música/efeitos. Não há troca de modo
 gráfico, reprodutor ou arquivos de vídeo no alvo atual. As ferramentas de
 conversão e reprodução da N08 permanecem apenas como histórico, fora do
 build padrão. As quatro correções de efeitos da N08 continuam ativas.
+
+Na beta 8.3, o renderizador diferencia atlas de fontes/interface de poses
+comprimidas mesmo quando um objeto de diálogo reutilizado conserva `unk38`.
+As consultas de recursos e limites são reutilizadas até mudar a geração de
+conteúdo; `RENDER_CACHE` e `RENDER_FAULT` ajudam a conferir seu comportamento
+no console. A preparação gráfica calcula os quatro cantos UV com campos
+de bits, preservando os comandos anteriores. A comparação ARM946 em
+`tests/benchmark_n083_gpu.py` mede instruções e igualdade do FIFO, não FPS.
+Ela pode ser executada com o pacote opcional Unicorn; não é requisito para
+a compilação normal do jogo.

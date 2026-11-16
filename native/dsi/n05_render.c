@@ -22,6 +22,25 @@ static unsigned pose_age;static uint32_t pose_tag;
 static int drawing_hud;
 int x4_original_camera_mode;
 static unsigned background_tiles[3],armor_tiles;
+/* Resource addresses are stable between content generations. Bound checks
+ * still precede every read, but repeated player/armor/UI lookups reuse the
+ * validated range rather than rescanning the same archive members. */
+static struct {const X4Archive *p,*s;const void* ptr;uint32_t generation;size_t size;} bounds_cache[64];
+static struct {const X4Archive* archive;uint32_t generation,type;const X4ArchiveMember* member;} asset_cache[32];
+static X4RenderFault render_fault;
+static X4RenderCacheStats render_cache_stats;
+void x4_n05_render_fault(X4RenderFault* out){*out=render_fault;}
+void x4_n05_render_cache_stats(X4RenderCacheStats* out){*out=render_cache_stats;}
+static const X4ArchiveMember* find_asset(const X4Archive* archive,uint32_t type,unsigned occurrence){
+    if(occurrence)return x4_archive_find(archive,type,occurrence);
+    unsigned key=(((uintptr_t)archive>>4)^type^(type>>8))&31;
+    if(asset_cache[key].archive==archive&&asset_cache[key].type==type&&asset_cache[key].generation==x4_video_generation){
+        ++render_cache_stats.asset_hits;return asset_cache[key].member;
+    }
+    ++render_cache_stats.asset_misses;const X4ArchiveMember* member=x4_archive_find(archive,type,0);
+    asset_cache[key].archive=archive;asset_cache[key].type=type;asset_cache[key].generation=x4_video_generation;asset_cache[key].member=member;
+    return member;
+}
 void x4_n05_render_counts(unsigned backgrounds[3],unsigned* armor){memcpy(backgrounds,background_tiles,sizeof background_tiles);*armor=armor_tiles;}
 void x4_n05_background_wrap(void){
     /* The original func_80027344 wraps the scrolling camera while refreshing
@@ -45,16 +64,20 @@ extern u32 D_800F2F38[2];
 extern s8 D_80173C6C[4];
 static int actor_order(unsigned order){return (int)D_80173C6C[(order>>4)&3]*16+(order&7);}
 static size_t window_data_size;
-void x4_n05_set_common_graphics(const X4Archive* common){common_graphics=common;}
+void x4_n05_set_common_graphics(const X4Archive* common){
+    common_graphics=common;
+    memset(bounds_cache,0,sizeof bounds_cache);memset(asset_cache,0,sizeof asset_cache);
+    if(!common)memset(&render_fault,0,sizeof render_fault);
+}
 int x4_n05_install_ui(const X4Archive* common,const void* data,unsigned size){
     if(!common||!data||size<16||size>sizeof window_archive_data)return -1;
     memcpy(window_archive_data,data,size);window_data_size=size;common_graphics=common;return 0;
 }
 static unsigned le16(const u8* p){return p[0]|(unsigned)p[1]<<8;}
 static unsigned le32(const u8* p){return le16(p)|(le16(p+2)<<16);}
-static size_t available(const X4Archive* p,const X4Archive* s,const void* ptr){
+static size_t available_uncached(const X4Archive* p,const X4Archive* s,const void* ptr){
     const X4Archive* banks[]={p,s};uintptr_t v=(uintptr_t)ptr;
-    for(unsigned i=0;i<2;++i)for(unsigned j=0;j<banks[i]->count;++j){
+    for(unsigned i=0;i<(p==s?1u:2u);++i)for(unsigned j=0;j<banks[i]->count;++j){
         const X4ArchiveMember* m=&banks[i]->members[j];uintptr_t start=(uintptr_t)m->data;
         if(v>=start&&v-start<m->size)return m->size-(v-start);}
     uintptr_t window=(uintptr_t)window_archive_data;
@@ -66,6 +89,15 @@ static size_t available(const X4Archive* p,const X4Archive* s,const void* ptr){
     if(v>=cursor&&v-cursor<sizeof D_800F2F38)return sizeof D_800F2F38-(v-cursor);
     return 0;
 }
+static size_t available(const X4Archive* p,const X4Archive* s,const void* ptr){
+    uintptr_t v=(uintptr_t)ptr;unsigned key=((v>>4)^(v>>12))&63;
+    if(bounds_cache[key].p==p&&bounds_cache[key].s==s&&bounds_cache[key].ptr==ptr&&bounds_cache[key].generation==x4_video_generation){
+        ++render_cache_stats.bounds_hits;return bounds_cache[key].size;
+    }
+    ++render_cache_stats.bounds_misses;size_t size=available_uncached(p,s,ptr);
+    bounds_cache[key].p=p;bounds_cache[key].s=s;bounds_cache[key].ptr=ptr;
+    bounds_cache[key].generation=x4_video_generation;bounds_cache[key].size=size;return size;
+}
 static int draw(uint16_t* screen,const X4Archive* p,const X4Archive* s,
                 const struct AnimatedObj* o,const u8* frames,int cx,int cy) {
     if(!o->active||!o->on_screen)return 0;
@@ -74,43 +106,46 @@ static int draw(uint16_t* screen,const X4Archive* p,const X4Archive* s,
     size_t avail=available(p,s,frames);
     if(avail<(frame+1)*4)return 1;
     unsigned count=le16(frames+frame*4),offset=le16(frames+frame*4+2)*4;
-    if(offset>avail||count>(avail-offset)/4)return 1;
+    if(offset>avail||count>(avail-offset)/4)return 2;
     const u8* raw=NULL;size_t size=0;unsigned base=o->unk40,absolute_atlas=0;uint32_t texture_tag=0;
     if(o->active&0x40){
-        const X4ArchiveMember* texture=x4_archive_find(s,0x10102,0);
-        if(!texture)return 1;raw=texture->data;size=texture->size;
+        const X4ArchiveMember* texture=find_asset(s,0x10102,0);
+        if(!texture)return 3;raw=texture->data;size=texture->size;
     }else if(o->active&0x20){
-        const X4ArchiveMember* texture=x4_archive_find(p,0x10206,0);
-        if(!texture)return 1;raw=texture->data;size=texture->size;
-    }else if(o->unk38||(o->unk40==g_Player.unk40&&g_Player.unk38)){
+        const X4ArchiveMember* texture=find_asset(p,0x10206,0);
+        if(!texture)return 3;raw=texture->data;size=texture->size;
+    }else if((o->unk40>>8)<0x15&&(o->unk38||(o->unk40==g_Player.unk40&&g_Player.unk38))){
+        /* Common/font/background pages 0x15..0x1f are absolute atlas data.
+         * Reused MiscObj dialogue slots can retain an old unk38 pointer;
+         * their initializer intentionally only sets the atlas coordinates. */
         /* Zero's saber reuses the player's decompressed texture for the
          * current pose; its separate assembly supplies the blade palette. */
         const u8* bank=o->unk38?o->unk38:g_Player.unk38;
         unsigned pose=o->unk38?frame:g_Player.animation_step.fields.frame_index;
         size_t n=available(p,s,bank);
-        if(n<(pose+1)*4)return 1;
+        if(n<(pose+1)*4)return 4;
         unsigned entry=le32(bank+pose*4),start=entry&0xfffff;
-        if(start>=n)return 1;
+        if(start>=n)return 5;
         unsigned slot=0,oldest=~0u;++pose_age;
         for(unsigned k=0;k<24;++k){
             if(poses[k].bank==bank&&poses[k].pose==pose&&poses[k].generation==x4_video_generation){slot=k;goto cached_pose;}
             if(poses[k].age<oldest){oldest=poses[k].age;slot=k;}
         }
         {size_t used;
-         if(x4_graphics_decode(bank+start,n-start,poses[slot].data,sizeof poses[slot].data,&used,&size)!=X4_DECODE_OK||size!=(entry>>20)*128)return 1;
+         if(x4_graphics_decode(bank+start,n-start,poses[slot].data,sizeof poses[slot].data,&used,&size)!=X4_DECODE_OK||size!=(entry>>20)*128)return 6;
          poses[slot].bank=bank;poses[slot].pose=pose;poses[slot].generation=x4_video_generation;
          poses[slot].size=size;poses[slot].tag=++pose_tag;
         }
 cached_pose:
         poses[slot].age=pose_age;size=poses[slot].size;raw=poses[slot].data;texture_tag=poses[slot].tag;base=0;
     }else absolute_atlas=1;
-    if(size%128)return 1;
+    if(size%128)return 7;
     unsigned tiles=size/128;
-    if(o->bg_offset>=3)return 1;
+    if(o->bg_offset>=3)return 8;
     int ox=o->x_pos.i.hi-(o->bg_offset<0?0:background_objects[o->bg_offset].x_pos.i.hi);
     int oy=o->y_pos.i.hi-(o->bg_offset<0?0:background_objects[o->bg_offset].y_pos.i.hi);
     if(!x4_video_enabled&&x4_original_camera_mode&&o->bg_offset>=0){ox-=32;oy-=24;}
-    const u16* palette=(const u16*)pc_archive_slots[5];if(!palette)return 1;
+    const u16* palette=(const u16*)pc_archive_slots[5];if(!palette)return 9;
     for(unsigned i=0;i<count;++i){
         const u8* r=frames+offset+i*4;unsigned flags=r[0];
         unsigned tile=base+(r[1]|(flags&3)<<8);
@@ -119,17 +154,17 @@ cached_pose:
              * atlas coordinates. Resolve the asset directly, without a VRAM
              * buffer, GPU commands or emulated graphics registers. */
             unsigned page=tile>>8,local=tile&255;const X4ArchiveMember* image=NULL;
-            if(page>=0x15&&page<=0x1c){image=x4_archive_find(s,0x10000,0);tile=(page-0x15)*256+local;}
-            else if(page==0x1d){image=x4_archive_find(p,0x10007,0);if(!image&&common_graphics)image=x4_archive_find(common_graphics,0x10007,0);tile=local;}
-            else if(page==0x1e&&common_graphics){image=x4_archive_find(common_graphics,0x10008,0);tile=local;}
-            else if(page==0x1f&&common_graphics){image=x4_archive_find(common_graphics,0x10001,0);tile=local;}
+            if(page>=0x15&&page<=0x1c){image=find_asset(s,0x10000,0);tile=(page-0x15)*256+local;}
+            else if(page==0x1d){image=find_asset(p,0x10007,0);if(!image&&common_graphics)image=find_asset(common_graphics,0x10007,0);tile=local;}
+            else if(page==0x1e&&common_graphics){image=find_asset(common_graphics,0x10008,0);tile=local;}
+            else if(page==0x1f&&common_graphics){image=find_asset(common_graphics,0x10001,0);tile=local;}
             /* Title images use full pages rather than the stage's eleven
              * sprite rows followed by five rows of player graphics. */
-            else if(page>=6&&page<=15&&x4_archive_find(s,0x10002,0)){
-                image=x4_archive_find(s,0x10002,0);tile=(page-6)*256+local;
+            else if(page>=6&&page<=15&&find_asset(s,0x10002,0)){
+                image=find_asset(s,0x10002,0);tile=(page-6)*256+local;
             }
-            else if(page>=6&&page<=15&&local<176){image=x4_archive_find(s,0x10102,0);tile=(page-6)*176+local;}
-            else if(page>=5&&page<=15&&local>=176){image=x4_archive_find(p,0x10206,0);tile=(page-5)*80+local-176;}
+            else if(page>=6&&page<=15&&local<176){image=find_asset(s,0x10102,0);tile=(page-6)*176+local;}
+            else if(page>=5&&page<=15&&local>=176){image=find_asset(p,0x10206,0);tile=(page-5)*80+local-176;}
             if(!image){
 #ifdef __linux__
                 fprintf(stderr,"UNRESOLVED ATLAS page=%x local=%u\n",page,local);
@@ -146,15 +181,15 @@ cached_pose:
         }
         unsigned clut=(o->unk42&0x8000)?0x7840:o->unk42+((flags&12)>>2);
         if(!(o->unk42&0x8000)&&(clut&0x30))clut+=0x30;
-        if((clut>>6)<480)return 1;
+        if((clut>>6)<480)return 9;
         unsigned pi=((clut>>6)-480)*256+(clut&63)*16;
-        if(pi+16>2048)return 1;
+        if(pi+16>2048)return 9;
         int dx=(s8)r[2],dy=(s8)r[3];if(o->unk15)dx=-dx-16;
         unsigned row=tile/16,width=tiles-row*16;if(width>16)width=16;
         if(x4_video_enabled){
             int result=x4_video_tile(raw+row*2048+(tile%16)*8,width*8,4,palette+pi,16,
                 ox+dx,oy+dy,16,16,(!!(flags&64)^!!o->unk15)|((!!(flags&128))<<1),o->active&0x10,texture_tag);
-            if(result)return 1;continue;
+            if(result)return 12;continue;
         }
         for(unsigned y=0;y<16;++y)for(unsigned x=0;x<16;++x){
             int px=ox+dx+x,py=oy+dy+y;
@@ -177,6 +212,9 @@ cached_pose:
 static int checked_draw(uint16_t* screen,const X4Archive* p,const X4Archive* s,
                         const struct AnimatedObj* o,const u8* frames,int cx,int cy){
     int error=draw(screen,p,s,o,frames,cx,cy);
+    if(error){++render_fault.count;render_fault.frame=main_bss_state.frame_counter;
+        render_fault.reason=error;render_fault.id=o->id;render_fault.pose=o->animation_step.fields.frame_index;
+        render_fault.texture=o->unk40;render_fault.clut=o->unk42;render_fault.background=o->bg_offset;}
 #ifdef __linux__
     if(error)fprintf(stderr,"Actor sprite unsupported: id=%d active=%02x state=%u pose=%u texture=%u clut=%04x\n",
                      o->id,(u8)o->active,o->state,o->animation_step.fields.frame_index,o->unk40,o->unk42);
@@ -186,7 +224,7 @@ static int checked_draw(uint16_t* screen,const X4Archive* p,const X4Archive* s,
     if(error&&o->unk38){unsigned frame=o->animation_step.fields.frame_index;size_t n=available(p,s,o->unk38);
         fprintf(stderr,"  graphics bytes=%zu descriptor=%08x frame bytes=%zu\n",n,n>=(frame+1)*4?le32((const u8*)o->unk38+frame*4):0,available(p,s,frames));}
 #endif
-    return error;
+    return !!error;
 }
 static int player_armor(uint16_t* screen,const X4Archive* p,const X4Archive* s){
     if(g_Player.unk2||!g_Player.active||!g_Player.on_screen||!g_Player.armor_parts)return 0;
@@ -300,12 +338,13 @@ static int draw_flat_quads(uint16_t* screen){
  * must affect the same data used for both graphics and terrain collision. */
 static int background(uint16_t* screen,const X4Archive* stage,int cx,int cy){
     memset(background_tiles,0,sizeof background_tiles);armor_tiles=0;
+    memset(&render_cache_stats,0,sizeof render_cache_stats);
     uint16_t clear=(engine_obj.stage==0&&engine_obj.substage==0)?0x9861:0x8000;
     if(x4_video_enabled)x4_video_begin(clear);else for(unsigned i=0;i<256*192;++i)screen[i]=clear;
     if(x4_original_camera_mode&&!background_objects[0].unk3&&!background_objects[1].unk3&&!background_objects[2].unk3)return 0;
-    const X4ArchiveMember* image=x4_archive_find(stage,0x10000,0);
-    const X4ArchiveMember* map=x4_archive_find(stage,0,0);
-    const X4ArchiveMember* attributes=x4_archive_find(stage,1,0);
+    const X4ArchiveMember* image=find_asset(stage,0x10000,0);
+    const X4ArchiveMember* map=find_asset(stage,0,0);
+    const X4ArchiveMember* attributes=find_asset(stage,1,0);
     if(!image||!map||!attributes||!SP_BG_TILEMAP||!SP_PALETTE)return 1;
     if(!layout_width||!layout_height)return 1;
     int vx=0,vy=0,vw=256,vh=192;

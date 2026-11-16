@@ -56,7 +56,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:objects=list(p
 p=subprocess.run(['gcc','-pthread','-fsanitize=address','-Wl,--gc-sections',*objects,'-o',str(executable)],capture_output=True,text=True)
 (HOST/'link.log').write_text(p.stdout+p.stderr)
 if p.returncode:raise RuntimeError(p.stderr[-3000:])
-fingerprints=sources+([ROOT/'native/tests/n07_systems.h'] if systems else [])
+fingerprints=sources+([ROOT/'native/tests/n07_systems.h',ROOT/'native/tests/n083_render_systems.h'] if systems else [])
 (HOST/(executable.name+'_inputs.json')).write_text(json.dumps({'binary_sha256':hashlib.sha256(executable.read_bytes()).hexdigest(),
  'sources':{str(s.relative_to(ROOT)):hashlib.sha256(s.read_bytes()).hexdigest() for s in fingerprints}},indent=2)+'\n')
 arguments=arguments or (['pause','0'] if systems else ['0','0','0'])

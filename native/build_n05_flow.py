@@ -2,9 +2,9 @@
 from pathlib import Path
 import subprocess,shutil,os,json,hashlib
 ROOT=Path(__file__).resolve().parents[1];N06=True
-OUT=ROOT/('build/native/n082-beta' if N06 else 'build/native/n05-integrated');OUT.mkdir(parents=True,exist_ok=True)
+OUT=ROOT/('build/native/n083-render' if N06 else 'build/native/n05-integrated');OUT.mkdir(parents=True,exist_ok=True)
 SRC=OUT/'source';SRC.mkdir(exist_ok=True)
-for n in ('x4_flow.h','x4_archive.h','x4_audio.h','x4_save.h','x4_n05_platform.h','x4_video.h','x4_sfx.h','x4_arm7_audio.h'):shutil.copyfile(ROOT/'native/src'/n,SRC/n)
+for n in ('x4_flow.h','x4_archive.h','x4_audio.h','x4_save.h','x4_n05_platform.h','x4_n05_actors.h','x4_video.h','x4_sfx.h','x4_arm7_audio.h'):shutil.copyfile(ROOT/'native/src'/n,SRC/n)
 shutil.copyfile(ROOT/'native/dsi/n05_flow_main.c',SRC/'main.c')
 if N06:
  for name in ('n06_gpu.c','n063_arm7_audio.c'):shutil.copyfile(ROOT/'native/dsi'/name,SRC/name)
@@ -37,6 +37,6 @@ env=os.environ.copy();sdk=ROOT/'ambiente/sdk'
 env.update(DEVKITPRO=str(sdk),DEVKITARM=str(sdk/'devkitARM'),LIBNDS=str(sdk/'libnds'))
 env['PATH']=str(sdk/'devkitARM/bin')+':'+str(sdk/'tools/bin')+':'+env['PATH']
 subprocess.run(['make','-j4'],cwd=OUT,env=env,check=True)
-binary=OUT/('mmx4_native_n082.nds' if N06 else 'mmx4_native_n05_flow.nds');assert binary.is_file()
+binary=OUT/('mmx4_native_n083.nds' if N06 else 'mmx4_native_n05_flow.nds');assert binary.is_file()
 (OUT/'assets.json').write_text(json.dumps(copied,indent=2)+'\n')
 print('Built:',binary,'bytes',binary.stat().st_size,'sha256',hashlib.sha256(binary.read_bytes()).hexdigest())
