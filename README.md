@@ -9,10 +9,12 @@ completo de PlayStation.
 Mantém o desenho de cenários otimizado, o Continue corrigido e a medição
 de quadros completos, com foco em 30 FPS sustentados, SELECT para Giga/R2,
 debug e cutscenes desativadas.
-No [teste físico da 8.10](docs/TESTE_N0810_FASE4.md), o usuário confirmou
-que as piscadas pararam. As médias de X na fase 4 ficaram em 20,31 e
-27,91 FPS. A 8.11 reduz conversão e envio de pixels usando o formato
-indexado da GPU; seus FPS ainda precisam de medição física.
+No [teste físico da 8.11](docs/TESTE_N0811_FASE4.md), o usuário confirmou
+boa jogabilidade. X na fase 4 teve médias de 49,53/54,12 FPS por área;
+nenhuma das 94 amostras de gameplay ficou abaixo de 30 (mínimo 30,
+máximo 59). Sem erros registrados de desenho/áudio ou atraso de VRAM.
+Ainda há picos individuais entre quadros, e as outras fases pesadas
+precisam de medição. As piscadas foram encerradas na 8.10.
 Os efeitos continuam pelo ARM7/hardware. O log físico da N06.7 registrou
 médias de 47,63 FPS com X na primeira área do trem e 39,19 com Zero na segunda,
 em trechos distintos. Há quedas abaixo de 30 FPS. Após relato de vídeos lentos

@@ -70,15 +70,23 @@ ainda reservam RAM nesta revisão; o frontend usa o indexado. Uma paleta nova
 também custa uma transferência: a redução de 50% por bloco não significa
 50% menos dados em qualquer quadro ou 50% mais FPS no jogo inteiro.
 
-## Próximo teste físico
+## Retorno físico e próximos alvos
 
-Repetir a fase 4 com X e os mesmos equipamentos/efeitos. Comparar FPS,
-`draw_us`, `prepare_us`, `present_us`, upload e `VRAM_WINDOW`. Conferir cores,
-transparências, HUD, pausa e animações de paleta. `total_late`, underflow e
-overflow da GPU devem continuar em zero.
+No [teste recebido em 16/11/2026](TESTE_N0811_FASE4.md), o usuário confirmou
+que a 8.11 está rodando muito bem. X equipado na fase 4 registrou médias
+de 49,53/54,12 FPS por área. Nenhuma das 94 amostras de gameplay ficou
+abaixo de 30; mínimo 30, máximo 59. Desenho caiu para 7.366/6.278 us e
+apresentação para 1.252/1.134 us nos intervalos amostrados. Não é uma
+comparação de percursos controlados contra a 8.10.
 
-A meta continua em pelo menos 30 FPS sustentados e até 60 nos trechos que
-couberem no orçamento. Esta versão ainda precisa de teste no DSi; os testes
-de computador não confirmam o desempenho físico nem a campanha inteira.
-Continue permanece corrigido; cutscenes ficam desativadas e efeitos no ARM7.
-O NDS e os recursos originais permanecem locais, fora do GitHub público.
+Sem erros registrados de desenho/áudio, atraso de restauração de VRAM,
+underflow ou overflow da GPU. Ainda houve 26 intervalos acima de dois
+campos entre 4.892 quadros medidos, com pico de 100.558 us. A aprovação
+do desempenho percebido não equivale a cumprir 33,3 ms em todos os quadros.
+
+A 8.11 fica como base com retorno físico positivo. Os próximos alvos são
+esses picos e a medição das outras fases pesadas. A meta continua em pelo
+menos 30 FPS sustentados e até 60 nos trechos que couberem no orçamento.
+A campanha inteira permanece sem qualificação integral. Continue está
+corrigido; cutscenes ficam desativadas e efeitos no ARM7. O binário testado
+não muda com este registro; NDS e recursos ficam locais, fora do GitHub público.

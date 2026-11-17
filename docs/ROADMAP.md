@@ -13,6 +13,11 @@ Prioridades registradas e aprovadas pelo usuário em 16/11/2026.
    alvos de desenho/preparação e mostra o custo pontual dos diagnósticos.
    O usuário confirmou o Continue corrigido no [teste da 8.6](TESTE_N086_FASES_1_4.md);
    a meta de desempenho permanece aberta nas fases 1 e 4.
+   Na [8.11](TESTE_N0811_FASE4.md), a fase 4 com X ficou em 30–59 FPS nas
+   94 amostras de gameplay, médias de 49,53/54,12 por área, com retorno
+   positivo do usuário. Preservar essa base e investigar os picos pontuais
+   entre quadros; repetir a medição nas outras fases pesadas. As amostras
+   de FPS não encerram a meta de regularidade para todos os quadros.
 2. **Completar o áudio.** Resolver seis comandos de sequência e refinar
    loops, estéreo/panning e reverberação. A reprodução nativa pelo ARM7
    permanece como base.
@@ -56,8 +61,11 @@ Prioridades registradas e aprovadas pelo usuário em 16/11/2026.
   ficaram em 20,31/27,91 FPS na fase 4. Veja [o retorno](TESTE_N0810_FASE4.md).
 - A [beta 8.11](STATUS_N0811.md) usa texturas indexadas e paletas protegidas
   para reduzir conversão e envio. A janela de VRAM da 8.10 permanece.
-  A meta é sustentar pelo menos 30 FPS e alcançar 60 nos trechos leves;
-  a confirmação de desempenho da 8.11 depende do próximo teste no DSi.
+  O [teste físico](TESTE_N0811_FASE4.md) confirmou boa jogabilidade percebida
+  e nenhuma amostra de gameplay abaixo de 30 FPS na fase 4 com X. Houve
+  picos acima de dois campos de vídeo; outras fases e a regularidade de
+  todos os quadros continuam pendentes. A meta é pelo menos 30 FPS
+  sustentados e até 60 nos trechos leves.
 - Bases de medição: [fase 12 na 8.2](TESTE_N082_FASE12.md) e
   [teste aleatório da 8.3](TESTE_N083_ALEATORIO.md). Percursos diferentes
   não comprovam ganho percentual entre versões.

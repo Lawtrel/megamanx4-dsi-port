@@ -1,3 +1,14 @@
+# Retorno físico — beta 8.11
+
+O usuário confirmou que a 8.11 está rodando muito bem no DSi. O log contém
+127 amostras de X equipado na fase 4. Nas 94 amostras de gameplay filtrado,
+as médias foram de 49,53/54,12 FPS por área, mínimo 30 e máximo 59; nenhuma
+ficou abaixo de 30. Sem erros registrados de desenho/áudio ou atraso de
+restauração de VRAM. Houve 26 intervalos acima de dois campos de vídeo
+entre 4.892 quadros medidos; a regularidade de todos os quadros e as outras
+fases ainda exigem medição. A 8.11 passa a ser a base com retorno físico
+positivo. Veja [dados, tempos e limites](TESTE_N0811_FASE4.md).
+
 # Retorno físico — beta 8.10
 
 O usuário confirmou o fim das piscadas no DSi. O log de X na fase 4 contém
