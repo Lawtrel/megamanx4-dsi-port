@@ -33,7 +33,18 @@ int x4_n05_music_request(int* out,unsigned* gain){
 }
 s32 func_8001540C(s32 group,arg_u8 index,void* source){
 #ifdef X4_FULL_FLOW
-    (void)source;int result=x4_sfx_play(group&127,index);
+    int position=-1;
+    if(source){
+     const struct BaseObj* object=source;
+     if(group&0x80)position=(u8)object->unk2;
+     else{
+      int x=object->x_pos.i.hi;int background=object->bg_offset;
+      if(background>=0&&background<COUNT(background_objects))x-=background_objects[background].x_pos.i.hi;
+      position=x/10;
+      if(position<5)position=5;if(position>27)position=27;
+     }
+    }
+    int result=x4_sfx_play_at(group&127,index,position,D_80171EA9);
     if(result==-6)++missing_sfx;return result;
 #else
     (void)group;(void)index;(void)source;++missing_sfx;return -1;
@@ -46,8 +57,7 @@ void stop_sound(u8 group,u8 index){
  (void)group;(void)index;
 #endif
 }
-/* No effect has been accepted for playback by func_8001540C above. Thus
- * there is no active effect to wait for. This does not claim it was played. */
+/* Completion follows the active native voice associated with this mask. */
 s32 is_sound_finished(s32 index,struct MainObj* owner){(void)owner;
 #ifdef X4_FULL_FLOW
  return x4_sfx_finished(2,index&255);
@@ -76,8 +86,7 @@ void func_80015284(void){
  for(unsigned i=0;i<4;++i){D_8013E1C8[i]=-1;D_8013924C[i]=255;}
  for(unsigned i=0;i<24;++i)D_80139234[i]=-1;
 }
-/* Mixing is mono in this development build; this setting is retained for
- * the native stereo transport without invoking a legacy sound library. */
+/* The original mono/stereo option controls positional native effects. */
 void func_800153D4(u8 stereo){D_80171EA9=stereo;}
 void func_80015C10(void){
  extern union SepBundle D_801459C8;extern u8 D_800F1654[4];

@@ -13,7 +13,7 @@ logpath=LOGS/(datetime.datetime.now().strftime('compile_%Y%m%d_%H%M%S_%f')+'.log
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--n0811','--n0810','--n089','--n088','--n087','--n086','--n085','--n084','--n083','--n082','--n081','--n08','--n07','--n06',action='store_true',help='Compile the current beta 8.11 native target (debug full equipment, without cutscenes)')
+    parser.add_argument('--n0815','--n0814','--n0813','--n0812','--n0811','--n0810','--n089','--n088','--n087','--n086','--n085','--n084','--n083','--n082','--n081','--n08','--n07','--n06',action='store_true',help='Compile the current beta 8.15 native target (original title at startup; full equipment only in debug; without cutscenes)')
     parser.parse_args()
     if sys.platform!='linux':
         raise RuntimeError('Use COMPILAR_JOGO.cmd on Windows, or run under Linux/WSL.')
@@ -35,13 +35,13 @@ def main():
                 for line in process.stdout:
                     print(line,end='',flush=True);log.write(line);log.flush()
                 if process.wait():raise RuntimeError('Etapa interrompida: '+script)
-        say('Beta 8.11: texturas indexadas nativas e paletas protegidas; cenarios e Continue preservados; debug completo e cutscenes desativadas; testar no DSi.')
+        say('Beta 8.15: painel refinado, Sigma 1 golpe e acesso aos creditos pelo debug e cutscenes desativadas; testar no DSi.')
         say('Log: '+str(logpath))
         run('native/build_gamecore.py')
         if not (ROOT/'build/native/full-content/manifest.json').is_file():run('native/prepare_full_content.py')
         for script in ('prepare_resource_index.py','prepare_music.py','prepare_sfx.py','prepare_sequences.py'):
             run('native/'+script)
-        for script in ('check_content.py','check_n05_tasks.py','check_music.py','check_save.py','check_sfx.py','check_n063_arm7_audio.py'):
+        for script in ('check_content.py','check_n05_tasks.py','check_music.py','check_save.py','check_sfx.py','check_n063_arm7_audio.py','check_player_panel.py'):
             run('native/tests/'+script)
         run('native/probe_n05_flow.py')
         for script in ('check_n06_video.py','check_n061_gpu.py','check_n05_flow.py'):
@@ -49,10 +49,12 @@ def main():
         run('native/tests/check_n05_flow_matrix.py','--all')
         run('native/tests/check_n05_flow.py','--systems','pause','0')
         run('native/tests/check_n05_systems.py')
+        run('native/prepare_lower_assets.py')
+        run('native/tests/check_lower_ui.py')
         run('native/tests/n06_preview_png.py')
         run('native/build_n05_flow.py')
         run('native/package_n05_flow.py')
-        say('\nSUCESSO DE COMPILACAO (EM TESTE): '+str(ROOT/'dist/native-n0811/mmx4_native_n0811.nds'))
+        say('\nSUCESSO DE COMPILACAO (EM TESTE): '+str(ROOT/'dist/native-n0815/mmx4_native_n0815.nds'))
         say('Use somente no seu ambiente local. O NDS contem recursos extraidos do seu dump.')
 
 if __name__=='__main__':

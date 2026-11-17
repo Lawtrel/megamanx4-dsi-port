@@ -18,7 +18,9 @@ TOKEN_PATTERNS=[re.compile(r'gh[pousr]_[A-Za-z0-9]{30,}'),
 
 def main():
     result=subprocess.run(['git','-C',str(ROOT),'ls-files','-z','--cached','--others','--exclude-standard'],capture_output=True,check=True)
-    paths=sorted({name.decode('utf-8') for name in result.stdout.split(b'\0') if name})
+    deleted=subprocess.run(['git','-C',str(ROOT),'ls-files','--deleted','-z'],capture_output=True,check=True)
+    removed={name.decode('utf-8') for name in deleted.stdout.split(b'\0') if name}
+    paths=sorted({name.decode('utf-8') for name in result.stdout.split(b'\0') if name}-removed)
     failures=[];total=0;python_files=0
     for name in paths:
         path=ROOT/name

@@ -19,6 +19,7 @@ static uint16_t screen[256*192];
 #include "n084_controls_systems.h"
 #include "n086_continue_systems.h"
 #include "n089_frost_systems.h"
+#include "n09_debug_systems.h"
 extern void ice_core_shed_ice(struct MainObj*);
 extern void eregion_death_blink(struct MainObj*);
 extern void func_80027344(s32,s32,s32);
@@ -61,6 +62,7 @@ int main(int argc,char** argv){
  if(!strcmp(mode,"selectgiga"))return n084_select_giga(argv[1],character)?0:1;
  if(!strcmp(mode,"sigmagear"))return n083_render_system(argv[1],character,0)?0:1;
  if(!strncmp(mode,"refight",7))return n083_render_system(argv[1],character,strtoul(mode+7,NULL,0))?0:1;
+ if(n09_debug_system(argv[1],mode,character))return 0;
  if(n07_system(argv[1],mode,character))return 0;
  if(!strcmp(mode,"restart")){
   x4_video_enabled=getenv("X4_GPU")!=NULL;if(x4_video_enabled)x4_video_viewport(32,24,256,192);

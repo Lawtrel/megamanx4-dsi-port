@@ -15,6 +15,7 @@
 #include "x4_arm7_audio.h"
 #include "x4_sfx.h"
 #include "x4_controls.h"
+#include "x4_lower_ui.h"
 #include <calico/system/tick.h>
 _Static_assert(KEY_A==X4_NDS_A&&KEY_B==X4_NDS_B&&KEY_SELECT==X4_NDS_SELECT&&KEY_START==X4_NDS_START&&
  KEY_RIGHT==X4_NDS_RIGHT&&KEY_LEFT==X4_NDS_LEFT&&KEY_UP==X4_NDS_UP&&KEY_DOWN==X4_NDS_DOWN&&
@@ -22,8 +23,8 @@ _Static_assert(KEY_A==X4_NDS_A&&KEY_B==X4_NDS_B&&KEY_SELECT==X4_NDS_SELECT&&KEY_
 #ifdef X4_N06_GPU
 void x4_gpu_init(void);void x4_gpu_prepare(void);void x4_gpu_present(void);unsigned x4_gpu_words(void);
 unsigned x4_gpu_upload_batches(void);unsigned x4_gpu_upload_tiles(void);
-#define VERSION "BETA 8.11"
-#define LOG_PREFIX "native_n0811"
+#define VERSION "BETA 8.15"
+#define LOG_PREFIX "native_n0815"
 #else
 #define VERSION "N05"
 #define LOG_PREFIX "native_n05_flow"
@@ -32,7 +33,41 @@ unsigned x4_gpu_upload_batches(void);unsigned x4_gpu_upload_tiles(void);
 /* Original C game logic on ARM9. No PS1 CPU, GPU, SPU or BIOS runtime. */
 static uint16_t pixels[256*192] __attribute__((aligned(32)));
 static volatile unsigned vblanks;
-static unsigned character,stage,area,muted,audio_open,campaign=1;
+static unsigned character,stage,area,muted,audio_open,campaign=1,show_selector;
+static unsigned lower_graphical,lower_valid;
+static unsigned lower_updates,lower_tiles,lower_total_us,lower_max_us;
+static unsigned char lower_cache[X4_LOWER_TILE_BYTES] __attribute__((aligned(4)));
+static void lower_console(void){
+ consoleInit(NULL,0,BgType_Text4bpp,BgSize_T_256x256,15,0,false,true);
+ lower_graphical=0;lower_valid=0;
+}
+static void lower_update(void){
+ if(x4_lower_mode()==X4_LOWER_DEBUG)return;
+ uint64_t started=tickGetCount();
+ X4PlayerPanel player;X4Radar radar={0};x4_flow_player_panel(&player);
+ if(x4_lower_mode()==X4_LOWER_MAP)x4_flow_radar(&radar);
+ const unsigned char* image=x4_lower_render(&player,&radar,muted,(const unsigned char*)consoleGetDefault()->font.gfx);
+ if(!lower_graphical){
+  REG_BG0CNT_SUB=BG_COLOR_16|BG_MAP_BASE(15)|BG_TILE_BASE(0);
+  volatile uint16_t* map=BG_MAP_RAM_SUB(15);
+  for(unsigned i=0;i<32*24;++i)map[i]=i;
+  for(unsigned i=0;i<16;++i)BG_PALETTE_SUB[i]=x4_lower_palette()[i];
+  lower_graphical=1;lower_valid=0;
+ }
+ for(unsigned i=0;i<X4_LOWER_TILE_BYTES;i+=32)if(!lower_valid||memcmp(image+i,lower_cache+i,32)){
+  volatile uint16_t* dest=(volatile uint16_t*)((unsigned char*)BG_GFX_SUB+i);
+  const uint16_t* source=(const uint16_t*)(image+i);
+  for(unsigned j=0;j<16;++j)dest[j]=source[j];
+  memcpy(lower_cache+i,image+i,32);++lower_tiles;
+ }
+ lower_valid=1;++lower_updates;
+ unsigned us=(tickGetCount()-started)*1000000/TICK_FREQ;lower_total_us+=us;if(us>lower_max_us)lower_max_us=us;
+}
+static void lower_screen_begin(void){
+ if(x4_lower_mode()==X4_LOWER_DEBUG){
+  lower_console();iprintf("\x1b[2J\x1b[0;0HDIAGNOSTICO\x1b[17;0HSigma 1 golpe: %s\x1b[18;0H[FASE]\x1b[18;11H[SIGMA1H]\x1b[18;22H[CREDITOS]\x1b[20;0HFase/creditos: sai da partida.\x1b[22;0H[ PAINEL ] [ DEBUG ] [ MAPA ]",x4_flow_debug_sigma_hitkill_enabled()?"ON ":"OFF");
+ }else lower_update();
+}
 static FILE* log_file;
 static char log_path[128];
 static volatile unsigned diagnostic_phase;
@@ -44,6 +79,7 @@ static void commit_log(void){
 }
 static void crash_handler(ExcptContext* ctx,unsigned flags){
  /* Never access FAT/audio from the exception context. Photograph this. */
+ lower_console();
  iprintf("\x1b[2JX4 " VERSION " - falha ARM9\nFase execucao:%u flags:%x\nPC:%08lx LR:%08lx\nSP:%08lx CPSR:%08lx\nFase:%d/%d X:%d Y:%d\nTick:%u\nFotografe esta tela.\n",diagnostic_phase,flags,
   (unsigned long)ctx->r[15],(unsigned long)ctx->r[14],(unsigned long)ctx->r[13],(unsigned long)ctx->cpsr,
   diagnostic_state.stage,diagnostic_state.area,diagnostic_state.x,diagnostic_state.y,diagnostic_state.frames);
@@ -79,11 +115,12 @@ static void initialize_logs(void){
  }
 }
 static void fail(const char* text,int code){
- audio_stop();iprintf("\nFalha: %s\nCodigo: %d\n",text,code);
+ audio_stop();lower_console();iprintf("\nFalha: %s\nCodigo: %d\n",text,code);
  if(log_file){fprintf(log_file,"FAIL %s code=%d\n",text,code);fflush(log_file);}
  while(pmMainLoop())swiWaitForVBlank();
 }
 static int select_stage(void){
+ lower_console();
  iprintf("\x1b[2J");memset(pixels,0,sizeof pixels);
  while(pmMainLoop()){
   scanKeys();unsigned down=keysDown();
@@ -138,9 +175,10 @@ int main(int argc,char** argv){
 #else
   DC_FlushRange(pixels,sizeof pixels);dmaCopy(pixels,bgGetGfxPtr(bg),sizeof pixels);
 #endif
-  if(!select_stage())break;
+  if(show_selector&&!select_stage())break;
+  show_selector=0;
   x4_audio_init("nitro:/music","nitro:/sfx");
-  iprintf("\x1b[2JCarregando %s fase %02u/%u...",character?"Zero":"X",stage,area);
+  lower_console();iprintf("\x1b[2J");
   if(log_file){fprintf(log_file,"BEGIN campaign=%u character=%u stage=%u area=%u debug_loadout=%u\n",campaign,character,stage,area,!campaign);commit_log();}
   int error=campaign?x4_flow_title("nitro:/content"):x4_flow_begin_debug("nitro:/content",character,stage,area);
   if(error){fail("Carregamento",error);break;}
@@ -152,15 +190,36 @@ int main(int argc,char** argv){
   uint64_t previous_present=0,frame_sum=0;
   unsigned previous_field=0,frame_samples=0,frame_max_us=0,work_max_us=0,late_frames=0;
   unsigned frame_histogram[101]={0},diagnostic_us=0;
-  iprintf("\x1b[2JMEGA MAN X4 " VERSION "\n\n\n\n"
-   "B:pulo A:dash Y:ataque\nX:especial L/R:arma\nSTART:menu SELECT:giga\nL+R+SELECT:selecao de teste\n");
+  lower_updates=lower_tiles=lower_total_us=lower_max_us=0;
+  unsigned panel_field=vblanks;x4_lower_reset();lower_screen_begin();
   while(pmMainLoop()){
    uint64_t frame_start=tickGetCount();
    diagnostic_phase=1;x4_flow_state(&diagnostic_state);
    uint64_t t0=tickGetCount();x4_audio_update();if(audio_open)mmStreamUpdate();audio_ticks+=tickGetCount()-t0;
    scanKeys();unsigned held=keysHeld(),down=keysDown();
-   if((held&(KEY_L|KEY_R|KEY_SELECT))==(KEY_L|KEY_R|KEY_SELECT))break;
+   if((held&(KEY_L|KEY_R|KEY_SELECT))==(KEY_L|KEY_R|KEY_SELECT)){show_selector=1;campaign=0;break;}
    if((held&(KEY_SELECT|KEY_X))==(KEY_SELECT|KEY_X)&&(down&(KEY_SELECT|KEY_X))){muted^=1;x4_arm7_audio_mute(muted);}
+   if(down&KEY_TOUCH){
+    touchPosition touch;touchRead(&touch);X4PlayerPanel player;x4_flow_player_panel(&player);
+    unsigned mode=x4_lower_mode();int weapon=x4_lower_touch(touch.px,touch.py,&player);
+    if(weapon==X4_LOWER_OPEN_TEST){show_selector=1;campaign=0;break;}
+    if(weapon>=0)x4_flow_request_weapon((unsigned)weapon);
+    if(weapon==X4_LOWER_SIGMA_HITKILL){
+     x4_flow_debug_sigma_hitkill(!x4_flow_debug_sigma_hitkill_enabled());
+     iprintf("\x1b[17;0HSigma 1 golpe: %s",x4_flow_debug_sigma_hitkill_enabled()?"ON ":"OFF");
+     if(log_file)fprintf(log_file,"DEBUG sigma_hitkill=%d\n",x4_flow_debug_sigma_hitkill_enabled());
+    }
+    if(weapon==X4_LOWER_CREDITS){
+     int result=x4_flow_debug_credits();
+     if(log_file){fprintf(log_file,"DEBUG credits result=%d\n",result);commit_log();}
+     if(result)iprintf("\x1b[17;0HCreditos indisponiveis (%d)   ",result);
+     else{
+      simulation_clock=tickGetCount();last_simulation=0;previous=0;
+      lower_screen_begin();
+     }
+    }
+    if(mode!=x4_lower_mode())lower_screen_begin();
+   }
    unsigned input=x4_controls_buttons(held);
    t0=tickGetCount();
    diagnostic_phase=2;
@@ -201,6 +260,7 @@ int main(int argc,char** argv){
     if(field-previous_field>2)++late_frames;
    }
    previous_present=presented;previous_field=field;
+   if(vblanks-panel_field>=6){lower_update();panel_field=vblanks;}
    unsigned elapsed=vblanks-last;
    if(elapsed>=60){
     uint64_t diagnostic_start=tickGetCount();
@@ -213,9 +273,9 @@ int main(int argc,char** argv){
     unsigned percentile=0,cumulative=0;
     for(unsigned i=0;i<101;++i){cumulative+=frame_histogram[i];if(cumulative*100>=frame_samples*95){percentile=i==100?frame_max_us:(i+1)*1000;break;}}
     /* Static controls stay on screen; redraw only changing diagnostic rows. */
-    iprintf("\x1b[1;0H%s Fase %02d/%d  FPS:%2u    \nHP:%2d Checkpoint:%d          "
-     "\x1b[9;0HSom:%s  Faixa:%2d            \nImagem:%u Audio:%u            \nEfeitos pendentes:%u          \nARM7 FX:%u Cache:%uKB        \nLog:%s                     "
-     "\x1b[15;0HX:%5d Y:%5d              \nEstado:%d/%d Bloqueio:%d     \nCPU logica:%5uus          \nDesenho:%5uus GPU:%5uus    \nTiles:%u +%u  Limite:%u     \nPrep:%5uus                 \nQuadro max:%6uus         \nP95 <=%6uus atrasos:%u    ",
+    if(x4_lower_mode()==X4_LOWER_DEBUG)iprintf("\x1b[1;0H%s Fase %02d/%d  FPS:%2u    \nHP:%2d Checkpoint:%d          "
+     "\x1b[3;0HSom:%s  Faixa:%2d            \nImagem:%u Audio:%u            \nEfeitos pendentes:%u          \nARM7 FX:%u Cache:%uKB        \nLog:%s                     "
+     "\x1b[9;0HX:%5d Y:%5d              \nEstado:%d/%d Bloqueio:%d     \nCPU logica:%5uus          \nDesenho:%5uus GPU:%5uus    \nTiles:%u +%u  Limite:%u     \nPrep:%5uus                 \nQuadro max:%6uus         \nP95 <=%6uus atrasos:%u    ",
      s.character?"Zero":"X",s.stage,s.area+1,fps,s.hp,s.checkpoint,muted?"OFF":"ON",x4_audio_track(),gfx_errors,x4_audio_errors(),x4_n05_missing_sfx(),fx.active,fx.bytes/1024,log_file?"ativo":"indisponivel",s.x,s.y,s.state,s.substate,s.locked,logic_us,draw_us,present_us,v.hits,v.misses,v.overflow,prepare_us,frame_max_us,percentile,late_frames);
     if(log_file){fprintf(log_file,"frame=%u ticks=%u char=%d stage=%d area=%d fps=%u x=%d y=%d hp=%d checkpoint=%d engine=%d/%d player=%d locked=%d gfxerr=%u audioerr=%u missingfx=%u track=%d\n",
      vblanks,s.frames,s.character,s.stage,s.area,fps,s.x,s.y,s.hp,s.checkpoint,s.state,s.substate,s.player_state,s.locked,gfx_errors,x4_audio_errors(),x4_n05_missing_sfx(),x4_audio_track());
@@ -225,6 +285,7 @@ int main(int argc,char** argv){
      fprintf(log_file,"FRAME_TIME samples=%u mean_us=%u max_us=%u p95_upper_us=%u over_two_fields=%u work_max_us=%u diagnostic_previous_us=%u\n",frame_samples,frame_samples?(unsigned)(frame_sum*1000000/TICK_FREQ/frame_samples):0,frame_max_us,percentile,late_frames,work_max_us,diagnostic_us);
      X4GpuTransferStats transfer=x4_gpu_transfer_stats();
      fprintf(log_file,"VRAM_WINDOW waits=%u start_max=%u restore_max=%u late=%u gpu_flags=%x underflows=%u overflows=%u total_late=%u total_waits=%u\n",transfer.waits,transfer.start_max,transfer.restore_max,transfer.late,transfer.status,transfer.underflows,transfer.overflows,transfer.total_late,transfer.total_waits);
+     fprintf(log_file,"LOWER_SCREEN mode=%u updates=%u tiles=%u mean_us=%u max_us=%u\n",x4_lower_mode(),lower_updates,lower_tiles,lower_updates?lower_total_us/lower_updates:0,lower_max_us);
      fprintf(log_file,"TEXTURE_SHARING shared=%u alias_hits=%u\n",v.shared,v.alias_hits);
      X4VideoFault vf=x4_video_last_fault();
      if(vf.count!=logged_video_faults){
@@ -244,13 +305,14 @@ int main(int argc,char** argv){
      fprintf(log_file,"UPLOAD tiles=%u batches=%u\n",x4_gpu_upload_tiles(),x4_gpu_upload_batches());
 #endif
      commit_log();}
+    lower_updates=lower_tiles=lower_total_us=lower_max_us=0;
     diagnostic_us=(tickGetCount()-diagnostic_start)*1000000/TICK_FREQ;
     frame_sum=0;frame_samples=frame_max_us=work_max_us=late_frames=0;
     memset(frame_histogram,0,sizeof frame_histogram);
    }
   }
   if(log_file)fflush(log_file);
-  if(error)break;
+  if(error||!pmMainLoop())break;
  }
  audio_stop();x4_flow_close();if(log_file)fclose(log_file);return 0;
 }

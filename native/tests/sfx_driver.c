@@ -5,7 +5,7 @@
 #include <string.h>
 static unsigned le32(const unsigned char* b){return b[0]|(unsigned)b[1]<<8|(unsigned)b[2]<<16|(unsigned)b[3]<<24;}
 static unsigned playing[8],hardware_signal;
-static int hw_play(unsigned v,const int16_t* pcm,size_t samples,int loop){(void)loop;assert(v<8&&!((uintptr_t)pcm&31));playing[v]=1;
+static int hw_play(unsigned v,const int16_t* pcm,size_t samples,int loop,unsigned pan,unsigned gain){(void)loop;assert(pan<=127&&gain<=128);assert(v<8&&!((uintptr_t)pcm&31));playing[v]=1;
  for(size_t i=0;i<samples&&i<4096;++i)if(pcm[i]){++hardware_signal;break;}return 0;}
 static void hw_stop(unsigned v){assert(v<8);playing[v]=0;}
 static int hw_active(unsigned v){assert(v<8);return playing[v];}

@@ -35,14 +35,14 @@ outra edição exige adaptação e verificação; renomear o arquivo não basta.
 ## Compilar
 
 ```sh
-python3 native/compile.py --n0811
+python3 native/compile.py
 ```
 
 A compilação verifica os patches locais, prepara recursos e áudio, compila o
 código ARM9, executa os testes e verifica os cabeçalhos, símbolos e dados
 internos antes de criar o pacote local.
 
-Saída: `dist/native-n0811/mmx4_native_n0811.nds`.
+Saída: `dist/native-n0815/mmx4_native_n0815.nds`.
 Logs de compilação: `build/native/logs/compile_*.log`.
 Os objetos são reutilizados apenas quando as verificações de fontes,
 cabeçalhos e opções permitem.
@@ -53,8 +53,10 @@ No Windows, depois do setup:
 .\COMPILAR_JOGO.cmd --no-pause
 ```
 
-`COMPILAR_N0811.cmd` é um atalho equivalente; `COMPILAR_N06.cmd` mantém compatibilidade. A distribuição WSL padrão desses
-atalhos é `Arch`, usada no ambiente de desenvolvimento. Para outra:
+`COMPILAR_JOGO.cmd` é o único atalho e sempre compila a versão atual, sem
+fixar um número de versão. Os atalhos `COMPILAR_N*.cmd` foram removidos;
+as referências a eles em documentos antigos são históricas. A distribuição
+WSL padrão é `Arch`. Para outra:
 
 ```powershell
 $env:X4_WSL_DISTRO = 'Ubuntu'
@@ -87,8 +89,8 @@ não é requisito para iniciar uma compilação.
 
 ## Uso e limites
 
-Inicie o resultado em modo DSi. Consulte [os controles e limites](docs/STATUS_N0811.md).
-A beta 8.11 tem correções verificadas no computador e ainda precisa de medição e
+Inicie o resultado em modo DSi. Consulte [os controles e limites](docs/STATUS_N0815.md).
+A beta 8.15 tem correções verificadas no computador e ainda precisa de medição e
 qualificação física no DSi.
 Compilar com sucesso e passar testes no computador não confirmam estabilidade
 ou 30 FPS no hardware.
@@ -99,6 +101,6 @@ não o anexe ao repositório público ou a uma release.
 
 ## Cutscenes desativadas
 
-A beta 8.11 não prepara nem inclui vídeos, e não requer FFmpeg. As chamadas
+A beta 8.15 não prepara nem inclui vídeos, e não requer FFmpeg. As chamadas
 originais seguem imediatamente para o próximo evento. Os arquivos e
 ferramentas históricos da N08 não entram na compilação atual.

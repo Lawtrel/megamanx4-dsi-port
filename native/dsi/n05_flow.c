@@ -7,6 +7,7 @@
 #include "main/objects.h"
 #include "main/stage_layouts.h"
 #include "main/55C4.h"
+#include "main/player_weapon.h"
 #include "main/object_update.h"
 #include "x4_flow.h"
 #include "x4_n05_actors.h"
@@ -24,7 +25,8 @@ extern u8* D_8010FFDC[17][2];
 extern u16 D_800EE430[16];
 static unsigned frames,draw_errors,draw_requested;
 static unsigned fade_alpha;
-static unsigned debug_loadout;
+static unsigned debug_loadout,debug_sigma_hitkill;
+static int requested_weapon=-1;
 static char root_path[1024];
 extern int x4_original_camera_mode;
 extern void x4_flow_ui_begin_frame(void);
@@ -77,7 +79,7 @@ void func_80028FEC(s16 l,s16 r,s16 t,s16 b,u8 direction){
  assert(x4_stage_spawn_visible(l,r,t,b,direction)>=0);
 }
 void x4_flow_close(void){
- debug_loadout=0;
+ debug_loadout=0;debug_sigma_hitkill=0;requested_weapon=-1;
  x4_flow_ui_reset();
  x4_n05_set_common_graphics(NULL);x4_flow_loading_close();x4_n05_platform_close();
 }
@@ -118,7 +120,60 @@ int x4_flow_title(const char* root){
  extern void func_8001DC30(void);
  memset(&game_info,0,sizeof game_info);func_8001DC30();return 0;
 }
+
+static int weapon_selection_allowed(void){
+ return engine_obj.state==6&&engine_obj.cur_character==0&&g_Player.active&&((u8)g_Player.hp&127)&&
+  !g_Player.input_locked&&!g_Player.is_clone&&!g_Player.special_shot_count&&!g_Player.ride_state&&
+  !g_Player.nova_strike_active&&!engine_obj.gameplay_locked;
+}
+int x4_flow_request_weapon(unsigned weapon){
+ if(weapon>8||engine_obj.cur_character!=0||(weapon&&!((u8)g_Player.boss_flags&(1u<<(weapon-1)))))return -1;
+ if(!weapon_selection_allowed())return -2;
+ requested_weapon=(int)weapon;return 0;
+}
+static void consume_weapon_request(void){
+ int target=requested_weapon;requested_weapon=-1;
+ if(target<0||!weapon_selection_allowed()||(target&&!((u8)g_Player.boss_flags&(1u<<(target-1)))))return;
+ /* Reuse the original cycling function, preserving its charge reset, stock
+  * charge, sound and restrictions. No synthetic input reaches the scheduler. */
+ int original_weapon=g_Player.weapon;
+ u16 saved_pressed=g_Player.pressed_input,saved_held=g_Player.input.buttons.held;
+ g_Player.pressed_input=0x200;g_Player.input.buttons.held=0;
+ for(unsigned n=0;n<9&&g_Player.weapon!=target;++n){
+  int before=g_Player.weapon;func_80036F50(&g_Player);if(g_Player.weapon==before)break;
+ }
+ g_Player.pressed_input=saved_pressed;g_Player.input.buttons.held=saved_held;
+ /* Complete the same post-selection work as player_update_weapon. Doing
+  * this once for the final target avoids spawning intermediate weapons. */
+ player_update_shot_types(&g_Player);
+ if(original_weapon!=g_Player.weapon)player_equip_weapon(&g_Player);
+}
+static void debug_sigma_prepare(void);
+void x4_flow_debug_sigma_hitkill(int enabled){debug_sigma_hitkill=!!enabled;debug_sigma_prepare();}
+int x4_flow_debug_sigma_hitkill_enabled(void){return debug_sigma_hitkill;}
+static void debug_sigma_prepare(void){
+ if(!debug_sigma_hitkill||engine_obj.state!=6||engine_obj.stage!=12||engine_obj.substage!=1||
+  !engine_obj.enable_boss||engine_obj.gameplay_locked)return;
+ struct MainObj* boss=engine_obj.boss_ptr;
+ uintptr_t p=(uintptr_t)boss,start=(uintptr_t)main_objects;
+ if(p<start||p-start>=sizeof main_objects||(p-start)%sizeof *boss)return;
+ /* Both real Sigma actors use state1 for battle. Intro HP filling and
+  * scripted reveal/death states must never be rewritten by this cheat. */
+ if(!boss->active||boss->state!=1||boss->hp<=1)return;
+ if(boss->id==0x44||(boss->id==0x4a&&boss->ext.main_74.target))boss->hp=1;
+}
+int x4_flow_debug_credits(void){
+ if(!root_path[0]||(unsigned)engine_obj.cur_character>1)return -1;
+ char content[sizeof root_path];strcpy(content,root_path);
+ unsigned character=(u8)engine_obj.cur_character;
+ /* Recreate the native task arena instead of overwriting a suspended boss
+  * script/menu coroutine. The stored save journal is never touched. */
+ int error=x4_flow_begin(content,character,1,0);
+ if(!error){engine_obj.state=11;engine_obj.unk1=0;engine_obj.unk2=0;}
+ return error;
+}
 int x4_flow_step(unsigned held,unsigned pressed){
+ consume_weapon_request();debug_sigma_prepare();
  controller_input.previous=controller_input.held;
  controller_input.held=controller_input.pressed=0;
  for(unsigned i=0;i<16;++i){if(held&(1u<<i))controller_input.held|=D_800EE430[i];if(pressed&(1u<<i))controller_input.pressed|=D_800EE430[i];}
@@ -143,6 +198,69 @@ void x4_flow_state(X4FlowState* out){
  *out=(X4FlowState){engine_obj.state,engine_obj.unk1,engine_obj.stage,engine_obj.substage,engine_obj.cur_character,
  engine_obj.checkpoint,g_Player.x_pos.i.hi,g_Player.y_pos.i.hi,(u8)g_Player.hp&127,g_Player.state,engine_obj.gameplay_locked,
  frames,draw_errors,(unsigned)!!x4_flow_load_error()};
+}
+void x4_flow_player_panel(X4PlayerPanel* out){
+ memset(out,0,sizeof *out);
+ out->active=engine_obj.state==6&&g_Player.active;
+ out->character=engine_obj.cur_character;out->stage=engine_obj.stage;out->area=engine_obj.substage;
+ out->hp=(u8)g_Player.hp&127;out->max_hp=(u8)engine_obj.max_hp;
+ out->lives=engine_obj.player_lives;out->weapon=(u8)g_Player.weapon;
+ /* Same live unlock bits and indices used by player_weapon_bits/pause_menu.
+  * Debug grants affect only g_Player, so use that source for the panel too. */
+ out->weapons=(u8)g_Player.boss_flags;out->armor=(u8)engine_obj.armor_parts;
+ /* Pickup bits0..7: hearts; bits12..14: tanks; bit15: EX.
+  * Tank bit7 is an original menu flag rather than stored energy. */
+ out->upgrades=engine_obj.collected_upgrades;
+ for(unsigned i=0;i<9;++i)out->energy[i]=(u8)g_Player.weapon_energy[i];
+ for(unsigned i=0;i<3;++i)out->tanks[i]=(u8)engine_obj.sub_tanks[i]&127;
+}
+
+static int radar_origin(int player,int visible,int extent){
+ int value=(player-visible/2)&~15;
+ int maximum=extent>visible?extent-visible:0;
+ if(value<0)value=0;if(value>maximum)value=maximum;
+ return value;
+}
+static void radar_marker(X4Radar* out,int x,int y,unsigned kind){
+ x-=out->origin_x;y-=out->origin_y;
+ if(x<0||x>=512||y<0||y>=288||out->marker_count>=X4_RADAR_MAX_MARKERS)return;
+ out->markers[out->marker_count++]=(X4RadarMarker){x,y,kind};
+}
+void x4_flow_radar(X4Radar* out){
+ memset(out,0,sizeof *out);
+ if(engine_obj.state!=6||!g_Player.active||!layout_width||!layout_height||!SP_BG_TILEMAP)return;
+ int layer=g_Player.bg_offset;if(layer<0||layer>=3)return;
+ const X4Archive* archive=x4_flow_archive();
+ const X4ArchiveMember* tiles=x4_archive_find(archive,0,0);
+ const X4ArchiveMember* attrs=x4_archive_find(archive,1,0);
+ if(!tiles||!attrs||!SP_BG_TILE_PIXELS||!SP_BG_TILE_ATTRS||layout_size<(unsigned)layout_width*layout_height)return;
+ out->active=1;
+ out->origin_x=radar_origin(g_Player.x_pos.i.hi,512,(int)layout_width*256);
+ out->origin_y=radar_origin(g_Player.y_pos.i.hi,288,(int)layout_height*256);
+ out->player_x=g_Player.x_pos.i.hi-out->origin_x;out->player_y=g_Player.y_pos.i.hi-out->origin_y;
+ for(unsigned row=0;row<X4_RADAR_ROWS;++row)for(unsigned col=0;col<X4_RADAR_COLUMNS;++col){
+  unsigned x=out->origin_x+col*16,y=out->origin_y+row*16;
+  if(x>=(unsigned)layout_width*256||y>=(unsigned)layout_height*256)continue;
+  unsigned offset=layer*layout_size+(y/256)*layout_width+x/256;
+  if(offset>=(unsigned)layout_size*3)continue;
+  unsigned block=SP_BG_TILEMAP[offset];if(!block)continue;
+  unsigned index=block*256+((y/16)&15)*16+((x/16)&15);
+  if(index>=tiles->size/2)continue;
+  unsigned tile=SP_BG_TILE_PIXELS[index]&0x3fff;if(tile>=attrs->size/4)continue;
+  out->cells[row][col]=(uint8_t)SP_BG_TILE_ATTRS[tile]!=0;
+ }
+ for(unsigned i=0;i<COUNT(main_objects);++i){
+  const struct MainObj* object=&main_objects[i];
+  if(object->active&&object->on_screen&&object->hp>0&&object->hurt_box&&object->bg_offset==layer)
+   radar_marker(out,object->x_pos.i.hi,object->y_pos.i.hi,1);
+ }
+ for(unsigned i=0;i<COUNT(item_objects);++i){
+  const struct ItemObj* object=&item_objects[i];
+  /* Only actual visible pickups; the item array also owns doors, platforms
+   * and hidden/destructible structures that are not radar collectibles. */
+  if(object->active&&object->on_screen&&object->id==2&&object->state==1&&object->bg_offset==layer)
+   radar_marker(out,object->x_pos.i.hi,object->y_pos.i.hi,2);
+ }
 }
 void x4_flow_debug(char* text,unsigned capacity){
  extern u16 g_FilterAmountG;

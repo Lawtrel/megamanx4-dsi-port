@@ -1,5 +1,12 @@
 # Possibilidade de armas de X5 no debug de X4
 
+## Atualização de 17/11/2026 — dump fornecido
+
+O dump USA foi verificado pelo `tools/prepare_x5_disc.py`; os arquivos de
+boot, overlays e dados estão em `private/x5-disc/`, fora do Git. Isso permite
+preparar os recursos originais, mas não fornece um motor ARM9 pronto.
+O índice dos recursos e a adaptação do motor seguem pendentes.
+
 ## Atualização de 16/11/2026 — descompilação de anzaldoivan
 
 O usuário indicou [anzaldoivan/mmx5](https://github.com/anzaldoivan/mmx5).
@@ -24,7 +31,8 @@ Conclusão da inspeção: usar esta descompilação como referência principal
 para localizar uma arma específica, suas tabelas e dependências. O projeto
 reconstrói binários do PS1; isso não equivale a um port pronto para ARM9.
 Não foi verificado que todas as armas já tenham rotinas C identificadas e
-prontas para adaptação, nem foi executada a reconstrução com um dump de X5.
+prontas para adaptação. A reconstrução do executável de PS1 não transforma
+essas rotinas automaticamente em código ARM9.
 
 O próximo trabalho de integração continua sendo delimitar uma arma, mapear
 seus tiros normal/carregado, adaptar atualização/colisão/energia, preparar
@@ -50,9 +58,9 @@ chefes; simplesmente acrescentar novos números nessa estrutura causaria
 acessos a tabelas incompatíveis. O banco extra precisaria de atualização,
 desenho e colisão próprios, usando os serviços nativos já existentes.
 
-Para fidelidade aos sprites e sons originais, a preparação precisaria de um
-dump de X5 fornecido pelo usuário. Nenhum dump de X5 foi fornecido nesta etapa.
-Uma primeira implementação deve delimitar uma arma, seus tiros normal e
+Para fidelidade aos sprites e sons originais, agora há um dump local validado.
+A extração e análise dos membros do arquivo de dados ainda precisam ser
+implementadas. Uma primeira implementação deve delimitar uma arma, seus tiros normal e
 carregado e os efeitos contra inimigos/chefes. As demais viriam depois da
 validação, mantendo a campanha normal e seus saves compatíveis.
 

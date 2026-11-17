@@ -2,7 +2,7 @@
 
 Prioridades registradas e aprovadas pelo usuário em 16/11/2026.
 
-1. **30 FPS sustentados — foco atual.** Reduzir o custo e a variação do tempo
+1. **30 FPS sustentados — base 8.11 preservada.** Reduzir o custo e a variação do tempo
    de desenho, preparação e envio, preservando escala, animações, controles
    e a simulação original a 60 ticks/s. Medir tempo total por quadro e perdas
    de prazo, incluindo o custo dos diagnósticos. Priorizar a introdução,
@@ -18,21 +18,36 @@ Prioridades registradas e aprovadas pelo usuário em 16/11/2026.
    positivo do usuário. Preservar essa base e investigar os picos pontuais
    entre quadros; repetir a medição nas outras fases pesadas. As amostras
    de FPS não encerram a meta de regularidade para todos os quadros.
-2. **Completar o áudio.** Resolver seis comandos de sequência e refinar
+2. **Completar o áudio — foco atual.** Resolver seis comandos de sequência e refinar
    loops, estéreo/panning e reverberação. A reprodução nativa pelo ARM7
    permanece como base.
-3. **Polir a experiência de jogo — implementação futura.** Iniciar direto
-   no título original, tornar o debug opcional, permitir ocultar os
-   diagnósticos da tela inferior e oferecer configurações persistentes.
-4. **Validar a campanha completa — ao final.** Conferir as rotas de X/Zero,
-   oito Mavericks, upgrades, salvar/carregar, Sigma e os encerramentos sem
-   cutscenes. Menus, saves e progressão já têm implementação; esta etapa
-   é a qualificação integral, não uma declaração de que toda a campanha
-   ainda precisa ser reimplementada.
+   A [8.12 em teste](STATUS_N0812.md) acrescenta posição e ganho dos efeitos
+   diretos, respeitando mono/estéreo. Os seis descritores, loops precisos,
+   estéreo dos recursos e reverberação permanecem abertos. Ainda requer DSi.
+   Em paralelo, um painel de vida, armas, energia e upgrades passa a ocupar
+   a tela inferior, com diagnóstico acessível por toque no topo.
+3. **Polir a experiência de jogo.** A [beta 8.13 em teste](STATUS_N0813.md)
+   acrescenta painel gráfico com poderes/upgrades e troca de armas por toque,
+   radar local sem revelar segredos e botão de diagnósticos. Mantém os dados
+   consultivos separados das solicitações explícitas de troca de arma.
+   O usuário aprovou a tela inferior e não percebeu quedas com o radar ativo
+   no DSi. O custo em tempos por quadro ainda não recebeu novo log.
+   A [beta 8.14](STATUS_N0814.md) inicia diretamente no título original,
+   mantendo o seletor de testes acessível pela aba Debug/atalho. Os
+   diagnósticos já ficam numa aba separada. Configurações persistentes
+   permanecem pendentes; o início direto ainda precisa de teste físico.
+4. **Campanhas de X e Zero validadas pelo usuário no DSi.** Em 17/11/2026,
+   confirmou conclusão com ambos os personagens, Sigma derrotado e créditos,
+   sem problemas percebidos durante a campanha. Isso substitui a pendência
+   genérica de exigir novo playthrough integral. Ver [o registro](TESTE_N0813_CAMPANHAS.md).
+   Há relato de tela preta depois dos créditos; seu fluxo permanece aberto.
+   Não há novo log para encerrar a medição de FPS/regularidade.
 5. **Conteúdo extra depois da base estável.** Investigar uma arma de X5 por
    vez no banco experimental do debug, com normal/carregado, colisão,
    energia e recursos preparados do dump do usuário. Não integra a meta
-   atual de desempenho. Ver [referências e limites](X5_ARMAS_DEBUG.md).
+   atual de desempenho. O usuário também propôs integrar a campanha de X5
+   como continuação após os créditos de X4. É uma direção futura de pesquisa,
+   sem implementação ou prazo assumidos. Ver [referências e limites](X5_ARMAS_DEBUG.md).
 
 ## Estado confirmado e limites
 
@@ -70,5 +85,21 @@ Prioridades registradas e aprovadas pelo usuário em 16/11/2026.
   [teste aleatório da 8.3](TESTE_N083_ALEATORIO.md). Percursos diferentes
   não comprovam ganho percentual entre versões.
 - Testes automatizados e benchmarks de instruções não medem FPS no console
-  nem qualificam a campanha inteira. Não há confirmação de 30/60 FPS
+  nem substituem a validação física das campanhas relatada pelo usuário. Não há confirmação de 30/60 FPS
   sustentados em todas as fases na versão atual.
+
+## Preparação da beta 9 — pedido de 17/11/2026
+
+- Polir gráficos; a 8.15 começa pelo painel inferior com nomes e energia
+  legíveis, contraste e cabeçalho do radar. Ajustes do renderer superior
+  precisam de casos visuais concretos; não são declarados concluídos.
+- Debug com Sigma 1 golpe e acesso direto aos créditos para testar o final.
+- Iniciar X5 jogável depois dos créditos passa a integrar o objetivo pedido
+  para a beta 9. Não é só uma imagem/tela de transição. O dump USA foi
+  recebido e verificado; boot, overlays e arquivo de dados estão extraídos
+  em `private/x5-disc/`. Ainda falta indexar/adaptar os recursos e integrar
+  o motor X5 ao ARM9. A 8.15 é preparação, sem declarar a beta 9 pronta.
+- O usuário pediu polimento nas duas telas. A 8.15 ajustou apenas a inferior;
+  não há alteração no renderer superior nem alvo visual concreto registrado
+  ainda. Tratar o polimento de ambas como pendência da beta 9.
+- Manter título original direto e a validação de X/Zero já fornecida.

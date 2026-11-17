@@ -12,6 +12,75 @@ static void n07_menu_image(const char* kind,unsigned character){
  for(unsigned i=0;i<n;++i)if(cmds[i].screen_space&&cmds[i].order== -8193)++foreground;
  assert(foreground>10);char p[64];snprintf(p,sizeof p,"menu_%s_slot_%u.ppm",kind,character);n06_preview(p);
 }
+static void n0812_check_player_panel_snapshot(void){
+ unsigned char player_before[sizeof g_Player],engine_before[sizeof engine_obj],input_before[sizeof controller_input];
+ memcpy(player_before,&g_Player,sizeof g_Player);memcpy(engine_before,&engine_obj,sizeof engine_obj);
+ memcpy(input_before,&controller_input,sizeof controller_input);
+ X4PlayerPanel panel,again;x4_flow_player_panel(&panel);x4_flow_player_panel(&again);
+ assert(!memcmp(&panel,&again,sizeof panel));
+ assert(!memcmp(player_before,&g_Player,sizeof g_Player)&&!memcmp(engine_before,&engine_obj,sizeof engine_obj));
+ assert(!memcmp(input_before,&controller_input,sizeof controller_input));
+ assert(panel.active==(engine_obj.state==6&&g_Player.active));
+ assert(panel.character==engine_obj.cur_character&&panel.stage==engine_obj.stage&&panel.area==engine_obj.substage);
+ assert(panel.hp==((u8)g_Player.hp&127)&&panel.max_hp==(u8)engine_obj.max_hp);
+ assert(panel.lives==engine_obj.player_lives&&panel.weapon==(u8)g_Player.weapon);
+ assert(panel.weapons==(u8)g_Player.boss_flags&&panel.armor==(u8)engine_obj.armor_parts&&panel.upgrades==engine_obj.collected_upgrades);
+ for(unsigned i=0;i<9;++i)assert(panel.energy[i]==(u8)g_Player.weapon_energy[i]);
+ for(unsigned i=0;i<3;++i)assert(panel.tanks[i]==((u8)engine_obj.sub_tanks[i]&127));
+}
+static void n0813_check_radar_and_touch(unsigned character,unsigned* previous){
+ X4Radar radar,again;unsigned char player_before[sizeof g_Player],engine_before[sizeof engine_obj],input_before[sizeof controller_input];
+ memcpy(player_before,&g_Player,sizeof g_Player);memcpy(engine_before,&engine_obj,sizeof engine_obj);memcpy(input_before,&controller_input,sizeof controller_input);
+ x4_flow_radar(&radar);x4_flow_radar(&again);
+ assert(radar.active&&!memcmp(&radar,&again,sizeof radar));
+ assert(!memcmp(player_before,&g_Player,sizeof g_Player)&&!memcmp(engine_before,&engine_obj,sizeof engine_obj)&&!memcmp(input_before,&controller_input,sizeof controller_input));
+ assert(radar.origin_x>=0&&radar.origin_y>=0&&radar.marker_count<=80);
+ assert(radar.player_x==g_Player.x_pos.i.hi-radar.origin_x&&radar.player_y==g_Player.y_pos.i.hi-radar.origin_y);
+ for(unsigned y=0;y<18;++y)for(unsigned x=0;x<32;++x)assert(radar.cells[y][x]<=1);
+ s16 old_x=g_Player.x_pos.i.hi,old_y=g_Player.y_pos.i.hi;
+ g_Player.x_pos.i.hi=-100;g_Player.y_pos.i.hi=-100;x4_flow_radar(&again);assert(again.origin_x==0&&again.origin_y==0);
+ g_Player.x_pos.i.hi=32767;g_Player.y_pos.i.hi=32767;x4_flow_radar(&again);
+ assert(again.origin_x==((int)layout_width*256>512?(int)layout_width*256-512:0));
+ assert(again.origin_y==((int)layout_height*256>288?(int)layout_height*256-288:0));
+ g_Player.x_pos.i.hi=old_x;g_Player.y_pos.i.hi=old_y;
+ /* Controlled active objects test filtering without running AI/spawn code. */
+ struct MainObj saved_enemy=main_objects[0];struct ItemObj saved_item=item_objects[0];
+ main_objects[0].active=1;main_objects[0].on_screen=1;main_objects[0].hp=10;main_objects[0].hurt_box=&saved_enemy;
+ main_objects[0].bg_offset=g_Player.bg_offset;main_objects[0].x_pos.i.hi=g_Player.x_pos.i.hi;main_objects[0].y_pos.i.hi=g_Player.y_pos.i.hi;
+ item_objects[0].active=1;item_objects[0].on_screen=1;item_objects[0].id=2;item_objects[0].state=1;
+ item_objects[0].bg_offset=g_Player.bg_offset;item_objects[0].x_pos.i.hi=g_Player.x_pos.i.hi;item_objects[0].y_pos.i.hi=g_Player.y_pos.i.hi;
+ x4_flow_radar(&radar);unsigned enemy=0,item=0;
+ for(unsigned i=0;i<radar.marker_count;++i){assert(radar.markers[i].x>=0&&radar.markers[i].x<512&&radar.markers[i].y>=0&&radar.markers[i].y<288);enemy+=radar.markers[i].kind==1;item+=radar.markers[i].kind==2;}
+ assert(enemy&&item);main_objects[0]=saved_enemy;item_objects[0]=saved_item;
+ /* Terrain reads the live attribute bank and does not cache static content. */
+ const X4Archive* archive=x4_flow_archive();const X4ArchiveMember* tiles=x4_archive_find(archive,0,0),*attrs=x4_archive_find(archive,1,0);
+ int changed=0;
+ for(unsigned row=0;row<18&&!changed;++row)for(unsigned col=0;col<32&&!changed;++col){
+  unsigned x=radar.origin_x+col*16,y=radar.origin_y+row*16;
+  if(x>=(unsigned)layout_width*256||y>=(unsigned)layout_height*256)continue;
+  unsigned block=SP_BG_TILEMAP[g_Player.bg_offset*layout_size+(y/256)*layout_width+x/256];if(!block)continue;
+  unsigned index=block*256+((y/16)&15)*16+((x/16)&15);if(index>=tiles->size/2)continue;
+  unsigned tile=SP_BG_TILE_PIXELS[index]&0x3fff;if(tile>=attrs->size/4)continue;
+  u32 saved=SP_BG_TILE_ATTRS[tile];SP_BG_TILE_ATTRS[tile]=(saved&~255u)|((saved&255)?0:1);
+  x4_flow_radar(&again);assert(again.cells[row][col]!=radar.cells[row][col]);SP_BG_TILE_ATTRS[tile]=saved;changed=1;
+ }
+ assert(changed);
+ int state=engine_obj.state;engine_obj.state=10;x4_flow_radar(&again);assert(!again.active&&!again.marker_count);engine_obj.state=state;
+ assert(x4_flow_request_weapon(9)==-1);
+ int weapon=g_Player.weapon;
+ if(character){assert(x4_flow_request_weapon(1)==-1);}
+ else{
+  int lock=engine_obj.gameplay_locked;engine_obj.gameplay_locked=1;assert(x4_flow_request_weapon(1)==-2);engine_obj.gameplay_locked=lock;
+  assert(!x4_flow_request_weapon(1));assert(g_Player.weapon==weapon);
+  n07_tick(0,previous);assert(g_Player.weapon==1);
+  assert(!x4_flow_request_weapon(6));n07_tick(0,previous);assert(g_Player.weapon==6);
+  assert(g_Player.shot_types[0]==6);unsigned laser=0;
+  for(unsigned i=0;i<COUNT(weapon_objects);++i)laser+=weapon_objects[i].active&&weapon_objects[i].id==6;
+  assert(laser); /* Equipping Aiming Laser must initialize its real objects. */
+  assert(!x4_flow_request_weapon(0));n07_tick(0,previous);assert(g_Player.weapon==0);
+ }
+ puts("PASS radar: deterministic read-only snapshot, live terrain, markers, inactive view and guarded touch weapon selection");
+}
 static int n07_system(const char* root,const char* mode,unsigned character){
  if(!strcmp(mode,"debugloadout")){
   extern u8 D_800F48EC[8];
@@ -19,12 +88,15 @@ static int n07_system(const char* root,const char* mode,unsigned character){
   assert(!x4_flow_begin_debug(root,character,1,0));
   x4_video_enabled=1;x4_video_viewport(32,24,256,192);
   unsigned previous=0;
+  n0812_check_player_panel_snapshot();
   assert(engine_obj.max_hp==48&&engine_obj.collected_upgrades==0xF0FF);
   assert((u8)engine_obj.sub_tanks[0]==0xA0&&(u8)engine_obj.sub_tanks[1]==0xA0&&engine_obj.sub_tanks[2]==32);
   assert(engine_obj.armor_parts==(character?0:15)&&engine_obj.arm_type==(character?0:2));
   assert(engine_obj.palette_flags==0&&engine_obj.unk5F==0);
   for(unsigned tick=0;tick<600;++tick)n07_tick(0,&previous);
   assert(engine_obj.state==6&&!engine_obj.gameplay_locked);
+  n0812_check_player_panel_snapshot();
+  n0813_check_radar_and_touch(character,&previous);
   assert((u8)g_Player.boss_flags==255&&g_Player.hp==48);
   assert(g_Player.armor_parts==(character?0:15));
   for(unsigned i=0;i<16;++i)assert(g_Player.weapon_energy[i]==48);
@@ -46,6 +118,7 @@ static int n07_system(const char* root,const char* mode,unsigned character){
   /* The loadout is not invincibility or continuous refill. */
   g_Player.hp=45;g_Player.weapon_energy[0]=17;engine_obj.sub_tanks[0]=(s8)0x9C;
   for(unsigned t=0;t<60;++t)n07_tick(0,&previous);
+  n0812_check_player_panel_snapshot();
   assert(g_Player.hp==45&&g_Player.weapon_energy[0]==17&&(u8)engine_obj.sub_tanks[0]==0x9C);
   engine_obj.state=5;engine_obj.unk1=0;engine_obj.unk1E=0;
   for(unsigned t=0;t<600;++t)n07_tick(0,&previous);
@@ -57,6 +130,7 @@ static int n07_system(const char* root,const char* mode,unsigned character){
   assert(engine_obj.max_hp==32&&!engine_obj.armor_parts&&!engine_obj.collected_upgrades);
   assert(!x4_flow_begin(root,character,1,0));previous=0;
   for(unsigned t=0;t<600;++t)n07_tick(0,&previous);
+  n0812_check_player_panel_snapshot();
   assert(!g_Player.boss_flags&&!g_Player.armor_parts&&g_Player.hp==32&&!engine_obj.collected_upgrades);
   x4_flow_close();x4_audio_close();
   puts("PASS debug full loadout, weapon cycling/techniques, pause, finite resources, respawn and normal campaign reset");return 1;

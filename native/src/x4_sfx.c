@@ -50,8 +50,8 @@ static Cached* load_cached(FILE* f,unsigned bank,unsigned index,size_t samples,u
  if(backend.prepare)backend.prepare(pcm,bytes);
  *slot=(Cached){memory,pcm,bytes,samples,bank,index,loop,++cache_age,0};cache_bytes+=bytes;return slot;
 }
-static int start_cached(Voice* v,Cached* c,unsigned mask,unsigned priority){
- if(backend.play((unsigned)(v-voices),c->pcm,c->samples,c->loop)){++errors;return -2;}
+static int start_cached(Voice* v,Cached* c,unsigned mask,unsigned priority,unsigned pan,unsigned gain){
+ if(backend.play((unsigned)(v-voices),c->pcm,c->samples,c->loop,pan,gain)){++errors;return -2;}
  ++c->pins;*v=(Voice){.bank=c->bank,.index=c->index,.mask=mask,.priority=priority,.loop=c->loop,.samples=c->samples,.cached=c};++stats.starts;return 0;
 }
 unsigned x4_sfx_errors(void){return errors;}
@@ -78,17 +78,26 @@ static unsigned mask_of(const Entry* e){
  unsigned voice=e->command>>24&31,count=1+((e->command>>29)&3);
  return voice<24?(((1u<<count)-1)<<voice)&0xffffff:0;
 }
-int x4_sfx_play(unsigned bank,unsigned index){
+int x4_sfx_play(unsigned bank,unsigned index){return x4_sfx_play_at(bank,index,-1,0);}
+int x4_sfx_play_at(unsigned bank,unsigned index,int position,int stereo){
  if(bank>=6||index>=banks[bank].count)return -1;
  Bank* b=&banks[bank];Entry* e=&b->entries[index];if(!e->command)return -5;
  if(!e->samples&&(e->loop&2))return 0; /* Original zero-volume/empty tone. */
  unsigned sequence=(e->command&0xc0)==0x40;
+ unsigned pan=64,gain=128;
+ if(stereo&&position>=0&&(e->command&0xc0)>=0x80&&!(e->command&0x8000)){
+  if(position<5)position=5;if(position>27)position=27;
+  unsigned left=position>16?32-position:16,right=position<16?position:16;
+  /* Calico uses complementary linear gains. Normalize the original two
+   * sides and compensate their sum, retaining the centered PCM level. */
+  pan=(right*127+(left+right)/2)/(left+right);gain=(left+right)*4;
+ }
  if(!e->samples&&!sequence)return -6;unsigned mask=mask_of(e),priority=e->command>>16&15;
  for(unsigned i=0;i<8;++i)if(active(&voices[i])&&(voices[i].mask&mask)&&voices[i].priority>priority)return -4;
  Voice* slot=NULL;
  for(unsigned i=0;i<8;++i){if(active(&voices[i])&&(voices[i].mask&mask))stop(&voices[i]);if(!active(&voices[i])&&!slot)slot=&voices[i];}
  if(!slot)return -7;
- if(backend.play){Cached* c=find_cached(bank,index);if(c){++stats.hits;return start_cached(slot,c,mask,priority);}++stats.misses;}
+ if(backend.play){Cached* c=find_cached(bank,index);if(c){++stats.hits;return start_cached(slot,c,mask,priority,pan,gain);}++stats.misses;}
  char filename[1100];const char* path=b->path;long start=b->data+e->offset;unsigned samples=e->samples,loop=e->loop&1;
  if(sequence){unsigned access=e->command>>8&127,number=e->command>>24&31;
   if(access>1||number>=(access?2u:8u))return -6;
@@ -100,7 +109,7 @@ int x4_sfx_play(unsigned bank,unsigned index){
   if(!samples){fclose(f);return 0;}
  }
  if(fseek(f,start,SEEK_SET)){fclose(f);++errors;return -2;}
- if(backend.play){Cached* c=load_cached(f,bank,index,samples,loop);fclose(f);if(!c){++errors;return -2;}return start_cached(slot,c,mask,priority);}
+ if(backend.play){Cached* c=load_cached(f,bank,index,samples,loop);fclose(f);if(!c){++errors;return -2;}return start_cached(slot,c,mask,priority,pan,gain);}
  setvbuf(f,NULL,_IOFBF,2048);*slot=(Voice){f,bank,index,mask,priority,loop,start,0,samples};return 0;
 }
 void x4_sfx_stop(unsigned bank,unsigned index){

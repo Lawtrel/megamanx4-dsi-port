@@ -52,7 +52,7 @@ for s in sources:
  objects.append(str(o))
 original=[r['object'] for r in json.loads((CORE/'report.json').read_text())['sources'] if Path(r['source']).name not in replacements]
 objects+=original+[str(ROOT/'build/native/n05-tasks/n05_tasks.arm9.o')]
-target=OUT/'flow.o';roots=['x4_flow_'+n for n in ('begin','begin_debug','new_game','title','step','state','debug','draw','close')]
+target=OUT/'flow.o';roots=['x4_flow_'+n for n in ('begin','begin_debug','new_game','title','step','state','player_panel','radar','request_weapon','debug_sigma_hitkill','debug_sigma_hitkill_enabled','debug_credits','debug','draw','close')]
 roots+=['x4_audio_'+n for n in ('init','update','read','close','errors','track')]+['x4_save_set_root','x4_n05_missing_sfx']
 roots+=['x4_video_'+n for n in ('commands','texture','rgba_texture','dirty_tiles','palette','clear','alpha','stats','viewport','get_viewport','last_fault','peek_rgba','peek_indexed','peek_palette','dirty_palettes','set_indexed')]
 roots+=['x4_sfx_set_backend','x4_sfx_stats']

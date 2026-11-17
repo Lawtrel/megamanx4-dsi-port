@@ -1,3 +1,11 @@
+# Retorno físico — beta 8.13
+
+O usuário confirmou conclusão com X e Zero, Sigma e créditos, sem problemas
+percebidos durante as campanhas. Aprovou o painel e não percebeu quedas com
+o radar ativo. Relatou tela preta após os créditos. Sem novo log de tempos:
+a validação da campanha fica registrada, e a medição objetiva do desempenho
+permanece separada. Veja [o registro](TESTE_N0813_CAMPANHAS.md).
+
 # Retorno físico — beta 8.11
 
 O usuário confirmou que a 8.11 está rodando muito bem no DSi. O log contém
