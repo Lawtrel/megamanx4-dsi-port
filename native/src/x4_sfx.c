@@ -12,6 +12,8 @@ typedef struct {FILE* file;unsigned bank,index,mask,priority,loop;long start;uin
 static Bank banks[6];static Voice voices[8];static char root[1024];static unsigned errors,character;
 static Cached cache[CACHE_SLOTS];static unsigned cache_bytes,cache_age;static X4SfxStats stats;
 static X4SfxBackend backend;
+static size_t cache_limit=CACHE_LIMIT;
+void x4_sfx_set_cache_limit(size_t bytes){cache_limit=bytes;}
 void x4_sfx_character(unsigned value){character=!!value;}
 static uint32_t le32(const unsigned char* b){return b[0]|(uint32_t)b[1]<<8|(uint32_t)b[2]<<16|(uint32_t)b[3]<<24;}
 static void stop(Voice* v){
@@ -32,7 +34,7 @@ static Cached* find_cached(unsigned bank,unsigned index){
  return NULL;
 }
 static Cached* load_cached(FILE* f,unsigned bank,unsigned index,size_t samples,unsigned loop){
- if(!samples||samples>CACHE_LIMIT/2)return NULL;
+ if(!samples||samples>cache_limit/2)return NULL;
  size_t bytes=(samples*2+31)&~(size_t)31;Cached* slot=NULL;
  for(unsigned i=0;i<8;++i)active(&voices[i]);
  for(;;){
@@ -40,7 +42,7 @@ static Cached* load_cached(FILE* f,unsigned bank,unsigned index,size_t samples,u
   for(unsigned i=0;i<CACHE_SLOTS;++i){Cached* c=&cache[i];if(!c->pcm){slot=c;continue;}
    if(!c->pins&&(!oldest||c->age<oldest->age))oldest=c;
   }
-  if(slot&&cache_bytes+bytes<=CACHE_LIMIT)break;
+  if(slot&&cache_bytes+bytes<=cache_limit)break;
   if(!oldest)return NULL;evict(oldest);
  }
  void* memory=malloc(bytes+31);if(!memory)return NULL;
@@ -83,7 +85,15 @@ int x4_sfx_play_at(unsigned bank,unsigned index,int position,int stereo){
  if(bank>=6||index>=banks[bank].count)return -1;
  Bank* b=&banks[bank];Entry* e=&b->entries[index];if(!e->command)return -5;
  if(!e->samples&&(e->loop&2))return 0; /* Original zero-volume/empty tone. */
- unsigned sequence=(e->command&0xc0)==0x40;
+ unsigned type=e->command&0xc0,sequence=type<0x80;
+ unsigned access=0,number=0;
+ if(sequence){
+  access=e->command>>8&127;
+  /* Libsnd's SsSeqPlay selects sequence 0. SsSepPlay uses the index
+   * stored in the command. Reject unknown entries before stopping a voice. */
+  if(type==0x40)number=e->command>>24&31;
+  if(access>1||number>=(access?2u:8u))return -6;
+ }else if(!e->samples)return -6;
  unsigned pan=64,gain=128;
  if(stereo&&position>=0&&(e->command&0xc0)>=0x80&&!(e->command&0x8000)){
   if(position<5)position=5;if(position>27)position=27;
@@ -92,15 +102,14 @@ int x4_sfx_play_at(unsigned bank,unsigned index,int position,int stereo){
    * sides and compensate their sum, retaining the centered PCM level. */
   pan=(right*127+(left+right)/2)/(left+right);gain=(left+right)*4;
  }
- if(!e->samples&&!sequence)return -6;unsigned mask=mask_of(e),priority=e->command>>16&15;
+ unsigned mask=mask_of(e),priority=e->command>>16&15;
  for(unsigned i=0;i<8;++i)if(active(&voices[i])&&(voices[i].mask&mask)&&voices[i].priority>priority)return -4;
  Voice* slot=NULL;
  for(unsigned i=0;i<8;++i){if(active(&voices[i])&&(voices[i].mask&mask))stop(&voices[i]);if(!active(&voices[i])&&!slot)slot=&voices[i];}
  if(!slot)return -7;
  if(backend.play){Cached* c=find_cached(bank,index);if(c){++stats.hits;return start_cached(slot,c,mask,priority,pan,gain);}++stats.misses;}
  char filename[1100];const char* path=b->path;long start=b->data+e->offset;unsigned samples=e->samples,loop=e->loop&1;
- if(sequence){unsigned access=e->command>>8&127,number=e->command>>24&31;
-  if(access>1||number>=(access?2u:8u))return -6;
+ if(sequence){
   int n=snprintf(filename,sizeof filename,"%s/seq_%u_%u_%u.pcm",root,character,access,number);if(n<0||(size_t)n>=sizeof filename)return -2;path=filename;
  }
  FILE* f=fopen(path,"rb");if(!f){++errors;return -2;}
@@ -109,7 +118,11 @@ int x4_sfx_play_at(unsigned bank,unsigned index,int position,int stereo){
   if(!samples){fclose(f);return 0;}
  }
  if(fseek(f,start,SEEK_SET)){fclose(f);++errors;return -2;}
- if(backend.play){Cached* c=load_cached(f,bank,index,samples,loop);fclose(f);if(!c){++errors;return -2;}return start_cached(slot,c,mask,priority,pan,gain);}
+ if(backend.play){Cached* c=load_cached(f,bank,index,samples,loop);
+  if(c){fclose(f);return start_cached(slot,c,mask,priority,pan,gain);}
+  /* Long effects and cache pressure use the existing streamed mixer. */
+  if(fseek(f,start,SEEK_SET)){fclose(f);++errors;return -2;}
+ }
  setvbuf(f,NULL,_IOFBF,2048);*slot=(Voice){f,bank,index,mask,priority,loop,start,0,samples};return 0;
 }
 void x4_sfx_stop(unsigned bank,unsigned index){
@@ -121,7 +134,8 @@ int x4_sfx_finished(unsigned bank,unsigned index){
  unsigned mask=mask_of(&banks[bank].entries[index]);for(unsigned i=0;i<8;++i)if(active(&voices[i])&&(voices[i].mask&mask))return 0;return 1;
 }
 void x4_sfx_mix(int16_t* out,size_t frames){
- if(backend.play)return; /* ARM7 and the sound hardware now own these voices. */
+ int streaming=0;for(unsigned i=0;i<8;++i)streaming|=voices[i].file!=NULL;
+ if(!streaming)return;
  int16_t temporary[256];int32_t accum[256];
  for(size_t base=0;base<frames;base+=256){size_t count=frames-base;if(count>256)count=256;
   for(size_t j=0;j<count;++j)accum[j]=out[base+j];

@@ -12,6 +12,7 @@ typedef struct {
  void (*prepare)(const int16_t* pcm,size_t bytes);
 } X4SfxBackend;
 typedef struct {unsigned hits,misses,bytes,starts,active;} X4SfxStats;
+void x4_sfx_set_cache_limit(size_t bytes);
 void x4_sfx_set_backend(const X4SfxBackend* backend);
 X4SfxStats x4_sfx_stats(void);
 void x4_sfx_config(const char* root);

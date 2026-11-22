@@ -1,13 +1,22 @@
 #include "x4_video.h"
 #include <string.h>
 int x4_video_enabled;
-#ifdef X4_N06_INDEXED
+#ifdef X4_DEVICE_INDEXED
+/* Both consoles use the RGB256 hardware compositor. RGBA is a host diagnostic. */
+static const int gpu_indexed=1;
+#elif defined(X4_N06_INDEXED)
 static int gpu_indexed=1;
 #else
 static int gpu_indexed;
 #endif
 int x4_video_is_indexed(void){return gpu_indexed;}
-void x4_video_set_indexed(int enabled){if(gpu_indexed!=!!enabled){gpu_indexed=!!enabled;x4_video_invalidate();}}
+void x4_video_set_indexed(int enabled){
+#ifndef X4_DEVICE_INDEXED
+ if(gpu_indexed!=!!enabled){gpu_indexed=!!enabled;x4_video_invalidate();}
+#else
+ (void)enabled;
+#endif
+}
 uint32_t x4_video_generation=1;
 typedef struct {
  const uint8_t* source;uint32_t tag,frame,generation,palette_version;unsigned stride;uint16_t palette;
@@ -98,7 +107,11 @@ void x4_video_invalidate(void){
  ++x4_video_generation;
  /* Keep textures referenced by the preceding GPU frame alive. A generation
   * key rejects old resources without reusing their VRAM slots immediately. */
- if(!initialized){memset(content_buckets,0xff,sizeof content_buckets);memset(content_next,0xff,sizeof content_next);memset(aliases,0,sizeof aliases);memset(alias_buckets,0xff,sizeof alias_buckets);memset(alias_next,0xff,sizeof alias_next);memset(tiles,0,sizeof tiles);memset(palettes,0,sizeof palettes);memset(buckets,0xff,sizeof buckets);memset(next,0xff,sizeof next);memset(palette_buckets,0xff,sizeof palette_buckets);memset(palette_next,0xff,sizeof palette_next);}
+ if(!initialized){
+#ifndef X4_DEVICE_INDEXED
+ memset(content_buckets,0xff,sizeof content_buckets);memset(content_next,0xff,sizeof content_next);memset(aliases,0,sizeof aliases);memset(alias_buckets,0xff,sizeof alias_buckets);memset(alias_next,0xff,sizeof alias_next);
+#endif
+ memset(tiles,0,sizeof tiles);memset(palettes,0,sizeof palettes);memset(buckets,0xff,sizeof buckets);memset(next,0xff,sizeof next);memset(palette_buckets,0xff,sizeof palette_buckets);memset(palette_next,0xff,sizeof palette_next);}
  for(unsigned i=0;i<X4_VIDEO_PALETTES;++i)palettes[i].frame=0;
  initialized=1;
 }
@@ -172,10 +185,12 @@ static int gpu_palette_slot(unsigned pi){
 }
 static void unlink_tile(unsigned slot){
  Tile* t=&tiles[slot];if(!t->source)return;
+#ifndef X4_DEVICE_INDEXED
  if(!(t->bits&16)){
   int16_t* link=&content_buckets[content_keys[slot]&4095];
   while(*link>=0&&*link!=(int)slot)link=&content_next[*link];if(*link>=0)*link=content_next[slot];
  }
+#endif
  unsigned oldhash=hash_key(t->source,t->stride,t->bits,t->palette,t->w,t->h,t->tag,t->generation,t->palette_version);
  int16_t* link=&buckets[oldhash];while(*link>=0&&*link!=(int)slot)link=&next[*link];if(*link>=0)*link=next[slot];
 }
@@ -189,7 +204,10 @@ static int indexed_tile(const uint8_t* raw,unsigned stride,unsigned bits,const u
  if(slot==X4_VIDEO_TILES){
   for(unsigned n=0;n<X4_VIDEO_TILES;++n){unsigned i=eviction_cursor++%X4_VIDEO_TILES;if(!tiles[i].source||tiles[i].frame+1<frame){slot=i;break;}}
   if(slot==X4_VIDEO_TILES)return fail(X4_VIDEO_FAULT_TILES);
-  unlink_tile(slot);Tile* t=&tiles[slot];t->source=NULL;t->frame=0;++slot_serial[slot];
+  unlink_tile(slot);Tile* t=&tiles[slot];t->source=NULL;t->frame=0;
+#ifndef X4_DEVICE_INDEXED
+  ++slot_serial[slot];
+#endif
   if(w!=16||h!=16)memset(indexed[slot],0,sizeof indexed[slot]);
   if(bits==4&&colors==16&&w==16){
    const uint16_t* pairs=index_tables[pi].pairs;

@@ -1,10 +1,12 @@
 #include <nds.h>
 #include <filesystem.h>
 #include <fat.h>
+#include <calico/nds/scfg.h>
 #include <maxmod9.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/iosupport.h>
 #include "x4_flow.h"
 #include "x4_audio.h"
 #include "x4_save.h"
@@ -23,29 +25,57 @@ _Static_assert(KEY_A==X4_NDS_A&&KEY_B==X4_NDS_B&&KEY_SELECT==X4_NDS_SELECT&&KEY_
 #ifdef X4_N06_GPU
 void x4_gpu_init(void);void x4_gpu_prepare(void);void x4_gpu_present(void);unsigned x4_gpu_words(void);
 unsigned x4_gpu_upload_batches(void);unsigned x4_gpu_upload_tiles(void);
-#define VERSION "BETA 8.15"
-#define LOG_PREFIX "native_n0815"
+#define VERSION "BETA 9"
+#define LOG_PREFIX "native_n09"
 #else
 #define VERSION "N05"
 #define LOG_PREFIX "native_n05_flow"
 #endif
 
 /* Original C game logic on ARM9. No PS1 CPU, GPU, SPU or BIOS runtime. */
+#ifdef X4_N06_GPU
+/* All drawing emits GPU commands in this build. */
+static uint16_t* const pixels=NULL;
+#else
 static uint16_t pixels[256*192] __attribute__((aligned(32)));
+#endif
 static volatile unsigned vblanks;
 static unsigned character,stage,area,muted,audio_open,campaign=1,show_selector;
 static unsigned lower_graphical,lower_valid;
-static unsigned lower_updates,lower_tiles,lower_total_us,lower_max_us;
+static unsigned lower_updates,lower_skips,lower_tiles,lower_total_us,lower_max_us;
+static unsigned lower_previous_mode,lower_previous_muted,lower_previous_selection;
+static X4PlayerPanel lower_previous_panel;
+static X4Radar lower_previous_radar;
 static unsigned char lower_cache[X4_LOWER_TILE_BYTES] __attribute__((aligned(4)));
 static void lower_console(void){
  consoleInit(NULL,0,BgType_Text4bpp,BgSize_T_256x256,15,0,false,true);
  lower_graphical=0;lower_valid=0;
 }
+static int lower_same_radar(const X4Radar* a,const X4Radar* b){
+ if(a->active!=b->active)return 0;
+ if(!a->active)return 1;
+ if(a->player_x!=b->player_x||a->player_y!=b->player_y||a->marker_count!=b->marker_count||
+    memcmp(a->cells,b->cells,sizeof a->cells))return 0;
+ /* The marker struct may have padding. Compare only what is displayed. */
+ for(unsigned i=0;i<a->marker_count&&i<X4_RADAR_MAX_MARKERS;++i){
+  const X4RadarMarker* x=&a->markers[i];const X4RadarMarker* y=&b->markers[i];
+  if(x->x!=y->x||x->y!=y->y||x->kind!=y->kind)return 0;
+ }
+ return 1;
+}
 static void lower_update(void){
- if(x4_lower_mode()==X4_LOWER_DEBUG)return;
+ unsigned mode=x4_lower_mode(),selection=x4_lower_selection();
+ if(mode==X4_LOWER_DEBUG)return;
  uint64_t started=tickGetCount();
- X4PlayerPanel player;X4Radar radar={0};x4_flow_player_panel(&player);
- if(x4_lower_mode()==X4_LOWER_MAP)x4_flow_radar(&radar);
+ X4PlayerPanel player;X4Radar radar;
+ if(mode==X4_LOWER_MAP)x4_flow_radar(&radar);
+ else x4_flow_player_panel(&player);
+ if(lower_valid&&mode==lower_previous_mode){
+  int same=mode==X4_LOWER_MAP?lower_same_radar(&radar,&lower_previous_radar):
+   (muted==lower_previous_muted&&selection==lower_previous_selection&&
+    !memcmp(&player,&lower_previous_panel,sizeof player));
+  if(same){++lower_skips;return;}
+ }
  const unsigned char* image=x4_lower_render(&player,&radar,muted,(const unsigned char*)consoleGetDefault()->font.gfx);
  if(!lower_graphical){
   REG_BG0CNT_SUB=BG_COLOR_16|BG_MAP_BASE(15)|BG_TILE_BASE(0);
@@ -60,12 +90,16 @@ static void lower_update(void){
   for(unsigned j=0;j<16;++j)dest[j]=source[j];
   memcpy(lower_cache+i,image+i,32);++lower_tiles;
  }
+ if(mode==X4_LOWER_MAP)lower_previous_radar=radar;
+ else lower_previous_panel=player;
+ lower_previous_mode=mode;lower_previous_muted=muted;lower_previous_selection=selection;
  lower_valid=1;++lower_updates;
  unsigned us=(tickGetCount()-started)*1000000/TICK_FREQ;lower_total_us+=us;if(us>lower_max_us)lower_max_us=us;
 }
 static void lower_screen_begin(void){
  if(x4_lower_mode()==X4_LOWER_DEBUG){
-  lower_console();iprintf("\x1b[2J\x1b[0;0HDIAGNOSTICO\x1b[17;0HSigma 1 golpe: %s\x1b[18;0H[FASE]\x1b[18;11H[SIGMA1H]\x1b[18;22H[CREDITOS]\x1b[20;0HFase/creditos: sai da partida.\x1b[22;0H[ PAINEL ] [ DEBUG ] [ MAPA ]",x4_flow_debug_sigma_hitkill_enabled()?"ON ":"OFF");
+  lower_console();
+  iprintf("\x1b[2J\x1b[0;0HDIAGNOSTICO\x1b[17;0HSigma 1 golpe: %s\x1b[18;0H[FASE]\x1b[18;11H[SIGMA1H]\x1b[18;22H[CREDITOS]\x1b[20;0HFase/creditos: sai da partida.\x1b[22;0H[ PAINEL ] [ DEBUG ] [ MAPA ]",x4_flow_debug_sigma_hitkill_enabled()?"ON ":"OFF");
  }else lower_update();
 }
 static FILE* log_file;
@@ -100,6 +134,7 @@ static void audio_start(void){
 static void initialize_logs(void){
  const char* roots[]={"sd:/mmx4","fat:/mmx4"};char name[128];
  for(unsigned d=0;d<2&&!save_root;++d){
+  if(FindDevice(roots[d])<0)continue;
   mkdir(roots[d],0777);struct stat info;if(stat(roots[d],&info)||!S_ISDIR(info.st_mode))continue;
   save_root=roots[d];
   for(unsigned i=0;i<1000;++i){
@@ -111,7 +146,9 @@ static void initialize_logs(void){
  if(save_root)x4_save_set_root(save_root);
  if(log_file){
   fprintf(log_file,VERSION "; native ARM9; DSi=%d; id=%s; build=%s %s\n",isDSiMode(),X4_BUILD_ID,__DATE__,__TIME__);
-  fprintf(log_file,"Development, incomplete qualification. All stage resources; 80 PCM tracks; native PCM effects. Cutscenes disabled; six sound commands and effect fidelity pending.\n");commit_log();
+  fprintf(log_file,"PROFILE_HW mode=%s arm9_mhz=%u\n",isDSiMode()?"TWL":"NTR",
+   isDSiMode()&&(REG_SCFG_CLK&SCFG_CLK_CPU_134MHz)?134u:67u);
+  fprintf(log_file,"Development, incomplete qualification. All stage resources; 80 PCM tracks; native PCM effects. Cutscenes disabled; four SEP commands and effect fidelity pending.\n");commit_log();
  }
 }
 static void fail(const char* text,int code){
@@ -121,7 +158,10 @@ static void fail(const char* text,int code){
 }
 static int select_stage(void){
  lower_console();
- iprintf("\x1b[2J");memset(pixels,0,sizeof pixels);
+ iprintf("\x1b[2J");
+#ifndef X4_N06_GPU
+ memset(pixels,0,sizeof pixels);
+#endif
  while(pmMainLoop()){
   scanKeys();unsigned down=keysDown();
   if(down&KEY_SELECT){campaign^=1;iprintf("\x1b[2J");}
@@ -159,9 +199,12 @@ int main(int argc,char** argv){
 #endif
  lcdMainOnTop();
  setExceptionHandler(crash_handler);
- if(!isDSiMode()){fail("Inicie em modo DSi",-1);return 1;}
+ int dsi=isDSiMode();
+ if(dsi)setCpuClock(true);
+ x4_n05_set_dsi_mode(dsi);
+ x4_sfx_set_cache_limit(dsi?4*1024*1024:96*1024);
  if(!nitroFSInit(NULL)){fail("Nao abriu os dados internos",-2);return 1;}
- fatInitDefault();initialize_logs();
+ if(fatInitDefault())initialize_logs();
 #ifdef X4_N06_GPU
  x4_gpu_init();
 #else
@@ -169,7 +212,10 @@ int main(int argc,char** argv){
 #endif
  mm_ds_system system={0};mmInit(&system);x4_arm7_audio_init();irqSet(IRQ_VBLANK,on_vblank);irqEnable(IRQ_VBLANK);
  for(;;){
-  audio_stop();x4_flow_close();memset(pixels,0,sizeof pixels);
+  audio_stop();x4_flow_close();
+#ifndef X4_N06_GPU
+ memset(pixels,0,sizeof pixels);
+#endif
 #ifdef X4_N06_GPU
   x4_video_begin(0);swiWaitForVBlank();x4_gpu_present();
 #else
@@ -190,14 +236,16 @@ int main(int argc,char** argv){
   uint64_t previous_present=0,frame_sum=0;
   unsigned previous_field=0,frame_samples=0,frame_max_us=0,work_max_us=0,late_frames=0;
   unsigned frame_histogram[101]={0},diagnostic_us=0;
-  lower_updates=lower_tiles=lower_total_us=lower_max_us=0;
+  lower_updates=lower_skips=lower_tiles=lower_total_us=lower_max_us=0;
   unsigned panel_field=vblanks;x4_lower_reset();lower_screen_begin();
   while(pmMainLoop()){
    uint64_t frame_start=tickGetCount();
    diagnostic_phase=1;x4_flow_state(&diagnostic_state);
    uint64_t t0=tickGetCount();x4_audio_update();if(audio_open)mmStreamUpdate();audio_ticks+=tickGetCount()-t0;
    scanKeys();unsigned held=keysHeld(),down=keysDown();
-   if((held&(KEY_L|KEY_R|KEY_SELECT))==(KEY_L|KEY_R|KEY_SELECT)){show_selector=1;campaign=0;break;}
+   if((held&(KEY_L|KEY_R|KEY_SELECT))==(KEY_L|KEY_R|KEY_SELECT)){
+    show_selector=1;campaign=0;break;
+   }
    if((held&(KEY_SELECT|KEY_X))==(KEY_SELECT|KEY_X)&&(down&(KEY_SELECT|KEY_X))){muted^=1;x4_arm7_audio_mute(muted);}
    if(down&KEY_TOUCH){
     touchPosition touch;touchRead(&touch);X4PlayerPanel player;x4_flow_player_panel(&player);
@@ -285,7 +333,7 @@ int main(int argc,char** argv){
      fprintf(log_file,"FRAME_TIME samples=%u mean_us=%u max_us=%u p95_upper_us=%u over_two_fields=%u work_max_us=%u diagnostic_previous_us=%u\n",frame_samples,frame_samples?(unsigned)(frame_sum*1000000/TICK_FREQ/frame_samples):0,frame_max_us,percentile,late_frames,work_max_us,diagnostic_us);
      X4GpuTransferStats transfer=x4_gpu_transfer_stats();
      fprintf(log_file,"VRAM_WINDOW waits=%u start_max=%u restore_max=%u late=%u gpu_flags=%x underflows=%u overflows=%u total_late=%u total_waits=%u\n",transfer.waits,transfer.start_max,transfer.restore_max,transfer.late,transfer.status,transfer.underflows,transfer.overflows,transfer.total_late,transfer.total_waits);
-     fprintf(log_file,"LOWER_SCREEN mode=%u updates=%u tiles=%u mean_us=%u max_us=%u\n",x4_lower_mode(),lower_updates,lower_tiles,lower_updates?lower_total_us/lower_updates:0,lower_max_us);
+     fprintf(log_file,"LOWER_SCREEN mode=%u updates=%u tiles=%u mean_us=%u max_us=%u skips=%u\n",x4_lower_mode(),lower_updates,lower_tiles,lower_updates?lower_total_us/lower_updates:0,lower_max_us,lower_skips);
      fprintf(log_file,"TEXTURE_SHARING shared=%u alias_hits=%u\n",v.shared,v.alias_hits);
      X4VideoFault vf=x4_video_last_fault();
      if(vf.count!=logged_video_faults){
@@ -305,7 +353,7 @@ int main(int argc,char** argv){
      fprintf(log_file,"UPLOAD tiles=%u batches=%u\n",x4_gpu_upload_tiles(),x4_gpu_upload_batches());
 #endif
      commit_log();}
-    lower_updates=lower_tiles=lower_total_us=lower_max_us=0;
+    lower_updates=lower_skips=lower_tiles=lower_total_us=lower_max_us=0;
     diagnostic_us=(tickGetCount()-diagnostic_start)*1000000/TICK_FREQ;
     frame_sum=0;frame_samples=frame_max_us=work_max_us=late_frames=0;
     memset(frame_histogram,0,sizeof frame_histogram);

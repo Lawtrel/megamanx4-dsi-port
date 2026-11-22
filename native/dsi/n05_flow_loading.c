@@ -10,10 +10,11 @@
 #include "x4_sfx.h"
 #include "x4_video.h"
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 static const char* content_root;
-static struct {unsigned type;u8* data;size_t size;} images[11],samples[6];
+static struct {unsigned type;u8* data;size_t size;} images[11];
 static size_t bank_sizes[22];
 static X4Archive view;
 static u16 native_palette[2048];
@@ -21,16 +22,31 @@ static int error;
 /* Stage add-on files contain partial sprite uploads at a later column of the
  * same logical asset. They are not a separate drawable image. Preserve and
  * patch the native packed tile bank instead of silently ignoring arg 9/10. */
-static int patch_stage_graphics(unsigned type,const u8* data,size_t size){
+static int read_member(FILE* file,const X4ArchiveEntry* member,void* destination){
+ if(fseek(file,(long)member->offset,SEEK_SET)||
+    fread(destination,1,member->size,file)!=member->size)return X4_ARC_IO;
+ return 0;
+}
+static int load_image(FILE* file,const X4ArchiveEntry* member){
  static const unsigned tile_offsets[11]={0,0,0,528,704,880,0,0,0,176,352};
- unsigned arg=type&255;
- if((type&0xffff00)!=0x10100||arg>=11||(arg!=2&&!tile_offsets[arg]))return 0;
- size_t offset=tile_offsets[arg]*128u,required=offset+size;
- size_t previous=images[2].type==0x10102?images[2].size:0;
- if(required<previous)required=previous;
- u8* next=calloc(1,required);if(!next)return X4_ARC_NOMEM;
- if(previous)memcpy(next,images[2].data,previous);memcpy(next+offset,data,size);
- free(images[2].data);images[2].data=next;images[2].size=required;images[2].type=0x10102;return 0;
+ unsigned arg=member->type&255;
+ int patch=(member->type&0xffff00)==0x10100&&(arg==2||tile_offsets[arg]);
+ size_t offset=tile_offsets[arg]*128u;
+ size_t keep=patch&&images[2].type==0x10102?images[2].size:0;
+ /* Base uploads overwrite their prefix, preserving any earlier add-on tail. */
+ size_t size=patch&&arg==2&&keep>member->size?keep:member->size;
+ u8* next=realloc(images[arg].data,size?size:1);
+ if(!next)return X4_ARC_NOMEM;
+ images[arg].data=next;images[arg].size=size;images[arg].type=member->type;
+ int result=read_member(file,member,next);
+ if(result||!patch||arg==2)return result;
+ size=offset+member->size;if(size<keep)size=keep;
+ next=realloc(images[2].data,size?size:1);
+ if(!next)return X4_ARC_NOMEM;
+ if(keep<offset)memset(next+keep,0,offset-keep);
+ memcpy(next+offset,images[arg].data,member->size);
+ images[2].data=next;images[2].size=size;images[2].type=0x10102;
+ return 0;
 }
 extern union SepBundle D_801459C8;
 static int within_arena(const void* ptr,size_t size){
@@ -57,44 +73,45 @@ void x4_flow_loading_init(const char* root){
 void x4_flow_loading_close(void){
  x4_video_invalidate();
  for(unsigned i=0;i<11;++i){free(images[i].data);images[i].data=NULL;}
- for(unsigned i=0;i<6;++i){free(samples[i].data);samples[i].data=NULL;}
  /* Size/type are part of ownership too. A stale canonical type and size
   * made the next session copy the previous bank from a NULL data pointer. */
- memset(images,0,sizeof images);memset(samples,0,sizeof samples);
+ memset(images,0,sizeof images);
  memset(&view,0,sizeof view);memset(bank_sizes,0,sizeof bank_sizes);
 }
 int x4_flow_load(unsigned id,unsigned mode,void* destination){
  x4_video_invalidate(); /* Old arena/image addresses may be reused by this load. */
- X4Content resource={0};int result=x4_content_open(&resource,content_root,id);
- if(result){error=result;return result;}
- if(!resource.is_container){
+ int result=X4_ARC_FORMAT;
+ FILE* file=NULL;const char* name=x4_content_name(id);
+ if(!name||!content_root)goto done;
+ char path[2048];int length=snprintf(path,sizeof path,"%s/%s",content_root,name);
+ if(length<0||(size_t)length>=sizeof path)goto done;
+ file=fopen(path,"rb");if(!file){result=X4_ARC_IO;goto done;}
+ size_t size=x4_content_expected_size(id);
+ if(fseek(file,0,SEEK_END)||ftell(file)!=(long)size)goto done;
+ if(!x4_content_is_container(id)){
   /* Destinations are explicit native banks with known capacity. */
   size_t capacity=destination==WINDOW_ARCHIVE_DATA?sizeof window_archive_data:
    destination==REPLAY_DATA?sizeof replay_data:
    destination==D_801459C8.raw?sizeof D_801459C8:0;
-  result=x4_content_copy(&resource,destination,capacity);
+  if(!destination||capacity<size)goto done;
+  X4ArchiveEntry raw={0,0,size};result=read_member(file,&raw,destination);
   if(!result&&destination==WINDOW_ARCHIVE_DATA)
-   result=x4_n05_install_ui(&view,WINDOW_ARCHIVE_DATA,resource.archive.size);
+   result=x4_n05_install_ui(&view,WINDOW_ARCHIVE_DATA,size);
  }else{
   u8* cursor=mode==0?MAIN_ARCHIVE_ARENA:mode==3?D_80173C80:
    mode==2?(u8*)destination:D_8015D9C8;
   if(mode>4||!within_arena(cursor,0)){result=-110;goto done;}
+  uint8_t header[2048];X4ArchiveEntry entries[128];unsigned count;
+  if(fseek(file,0,SEEK_SET)||fread(header,1,sizeof header,file)!=sizeof header){result=X4_ARC_IO;goto done;}
+  result=x4_archive_directory(entries,&count,header,size);if(result)goto done;
   size_t bytes=0;
-  for(unsigned i=0;i<resource.archive.count;++i){
-   const X4ArchiveMember* m=&resource.archive.members[i];
+  for(unsigned i=0;i<count;++i){
+   const X4ArchiveEntry* m=&entries[i];
    unsigned handler=m->type>>16,arg=handler==2||handler==3?(m->type>>8)&255:m->type&255;
    if(!handler){if(arg>=22||(arg==5&&m->size>sizeof native_palette)){result=-111;goto done;}bytes+=m->size;}
    else if((handler==1&&arg>=11)||(handler==2&&arg>=6)||handler>3){result=-112;goto done;}
   }
   if(!within_arena(cursor,bytes)){result=-113;goto done;}
-  /* Preallocate uploads before changing live pointers. */
-  u8* uploads[128]={0};
-  for(unsigned i=0;i<resource.archive.count;++i){
-   const X4ArchiveMember* m=&resource.archive.members[i];
-   if(m->type>>16){uploads[i]=malloc(m->size?m->size:1);
-    if(!uploads[i]){for(unsigned j=0;j<i;++j)free(uploads[j]);result=X4_ARC_NOMEM;goto done;}
-    memcpy(uploads[i],m->data,m->size);}
-  }
   /* Reusing the arena ends the lifetime of the old tail banks. Retaining
    * their sizes would let an obsolete player bank overlap a new menu bank
    * and incorrectly truncate its sprite assemblies during bounds checks. */
@@ -102,23 +119,20 @@ int x4_flow_load(unsigned id,unsigned mode,void* destination){
    u8* p=j==12?(u8*)D_801406A8:j==14?cur_draw_info_drawenv:j==15?cur_draw_info_dispenv_screen_w:pc_archive_slots[j];
    if(p&&within_arena(p,0)&&(uintptr_t)p+bank_sizes[j]>(uintptr_t)cursor)bank_sizes[j]=0;
   }
-  for(unsigned i=0;i<resource.archive.count;++i){
-   const X4ArchiveMember* m=&resource.archive.members[i];unsigned handler=m->type>>16,arg=handler==2||handler==3?(m->type>>8)&255:m->type&255;
+  for(unsigned i=0;i<count;++i){
+   const X4ArchiveEntry* m=&entries[i];unsigned handler=m->type>>16,arg=handler==2||handler==3?(m->type>>8)&255:m->type&255;
    if(!handler){
-    memcpy(cursor,m->data,m->size);
+    result=read_member(file,m,cursor);if(result)goto done;
     if(arg==12)D_801406A8=(u32*)cursor;
     else if(arg==4||arg==6||arg==7||arg==8)D_80141F00=cursor;
     else if(arg==14)cur_draw_info_drawenv=cursor;
     else if(arg==15)cur_draw_info_dispenv_screen_w=cursor;
-    else if(arg==5){memcpy(native_palette,m->data,m->size);pc_archive_slots[5]=(u8*)native_palette;}
+    else if(arg==5){memcpy(native_palette,cursor,m->size);pc_archive_slots[5]=(u8*)native_palette;}
     else pc_archive_slots[arg]=cursor;
     bank_sizes[arg]=arg==5?sizeof native_palette:m->size;cursor+=m->size;
    }else if(handler==1){
-    result=patch_stage_graphics(m->type,uploads[i],m->size);if(result)goto done;
-    if(m->type==0x10102){free(uploads[i]);uploads[i]=NULL;continue;}
-    free(images[arg].data);images[arg].data=uploads[i];images[arg].size=m->size;images[arg].type=m->type;
+    result=load_image(file,m);if(result)goto done;
    }else if(handler==2){
-    free(samples[arg].data);samples[arg].data=uploads[i];samples[arg].size=m->size;samples[arg].type=m->type;
     /* Preserve original command/header bindings for the native audio adapter. */
     struct SoundArchive* h=(struct SoundArchive*)D_80141F00;
     D_80141F50[arg]=h->sound_entries;D_80141EE8[arg]=(u8*)h+h->vab_offset;
@@ -126,12 +140,12 @@ int x4_flow_load(unsigned id,unsigned mode,void* destination){
     /* Native PCM descriptors are prepared from this exact resource. Missing
      * conversion is a load error, never reported as successful playback. */
     result=x4_sfx_bank(id,arg);if(result)goto done;
-   }else{free(uploads[i]);/* Sequence data is supplied separately to native audio. */}
+   } /* Converted samples and sequences are read from the native audio files. */
   }
   D_8015D9C8=cursor;D_80137DC4=cursor;
  }
 done:
- x4_content_close(&resource);rebuild_view();
+ if(file)fclose(file);rebuild_view();
  if(result){error=result;D_801406AC=0x80;}else{D_801406AC=2;D_8013BD40=0;}
  return result;
 }

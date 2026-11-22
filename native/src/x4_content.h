@@ -11,6 +11,7 @@ typedef struct {
 } X4Content;
 const char* x4_content_name(unsigned id);
 size_t x4_content_expected_size(unsigned id);
+int x4_content_is_container(unsigned id);
 int x4_content_open(X4Content* content,const char* root,unsigned id);
 int x4_content_copy(const X4Content* content,void* destination,size_t capacity);
 void x4_content_close(X4Content* content);

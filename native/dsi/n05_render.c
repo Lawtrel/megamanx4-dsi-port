@@ -17,7 +17,21 @@
 static const X4Archive* common_graphics;
 /* Pose data is immutable until a content-bank replacement. Keep it instead
  * of decompressing X/Zero and shared saber/afterimages every draw. */
-static struct {const u8* bank;unsigned pose,age;uint32_t generation,tag;size_t size;u8 data[16384];} poses[24];
+typedef struct {const u8* bank;unsigned pose,age;uint32_t generation,tag;size_t size;u8 data[16384];} Pose;
+#ifdef X4_DEVICE_INDEXED
+/* The DSi startup initializes this section only in TWL mode. */
+static Pose ds_poses[4];
+static Pose dsi_poses[24] __attribute__((section(".twl_bss.dsi_poses")));
+static Pose* poses=ds_poses;
+static unsigned pose_count=4;
+void x4_n05_set_dsi_mode(int enabled){
+ poses=enabled?dsi_poses:ds_poses;
+ pose_count=enabled?sizeof dsi_poses/sizeof *poses:sizeof ds_poses/sizeof *poses;
+}
+#else
+static Pose poses[24];
+#define pose_count (sizeof poses/sizeof *poses)
+#endif
 static unsigned pose_age;static uint32_t pose_tag;
 static int drawing_hud;
 int x4_original_camera_mode;
@@ -127,7 +141,7 @@ static int draw(uint16_t* screen,const X4Archive* p,const X4Archive* s,
         unsigned entry=le32(bank+pose*4),start=entry&0xfffff;
         if(start>=n)return 5;
         unsigned slot=0,oldest=~0u;++pose_age;
-        for(unsigned k=0;k<24;++k){
+        for(unsigned k=0;k<pose_count;++k){
             if(poses[k].bank==bank&&poses[k].pose==pose&&poses[k].generation==x4_video_generation){slot=k;goto cached_pose;}
             if(poses[k].age<oldest){oldest=poses[k].age;slot=k;}
         }

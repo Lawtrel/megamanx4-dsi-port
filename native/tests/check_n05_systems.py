@@ -11,7 +11,7 @@ if os.environ.get('X4_GPU')=='1':cases.extend([(m,c) for m in ('sigmagear','refi
 if os.environ.get('X4_GPU')=='1':cases.extend([('selectgiga',0),('selectgiga',1)])
 if os.environ.get('X4_GPU')=='1':cases.extend([('continue',0),('continue',1)])
 
-if os.environ.get('X4_GPU')=='1':cases.extend([('frostrender',0),('debugcredits',0),('debugcredits',1)])
+if os.environ.get('X4_GPU')=='1':cases.extend([('frostrender',0),('debugcredits',0),('debugcredits',1),('campaigncredits',0),('campaigncredits',1)])
 
 gpu=os.environ.get('X4_GPU')=='1';prefix='gpu_' if gpu else ''
 def check(case):

@@ -5,6 +5,7 @@
 typedef struct {unsigned enemies,enemy_shots,items,visuals;int player_hp;} X4ActorCounts;
 typedef struct {unsigned count,frame,reason;int id;unsigned pose,texture,clut;int background;} X4RenderFault;
 typedef struct {unsigned bounds_hits,bounds_misses,asset_hits,asset_misses;} X4RenderCacheStats;
+void x4_n05_set_dsi_mode(int enabled);
 void x4_n05_render_fault(X4RenderFault* out);
 void x4_n05_render_cache_stats(X4RenderCacheStats* out);
 /* Development entry into the two intro areas; full engine progression pending. */

@@ -6,6 +6,8 @@
 typedef struct {uint32_t type;const uint8_t* data;size_t size;} X4ArchiveMember;
 typedef struct {uint8_t* storage;size_t size;unsigned count;X4ArchiveMember members[128];} X4Archive;
 enum {X4_ARC_OK=0,X4_ARC_IO=-1,X4_ARC_NOMEM=-2,X4_ARC_FORMAT=-3};
+typedef struct {uint32_t type;size_t offset,size;} X4ArchiveEntry;
+int x4_archive_directory(X4ArchiveEntry entries[128],unsigned* count,const uint8_t header[2048],size_t size);
 int x4_archive_parse(X4Archive* archive,uint8_t* data,size_t size);
 /* Some retail .ARC filenames are raw font/sequence banks, not containers.
  * Caller owns the returned buffer and must free it. */

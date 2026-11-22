@@ -42,7 +42,9 @@ A compilação verifica os patches locais, prepara recursos e áudio, compila o
 código ARM9, executa os testes e verifica os cabeçalhos, símbolos e dados
 internos antes de criar o pacote local.
 
-Saída: `dist/native-n0815/mmx4_native_n0815.nds`.
+O `.nds` da beta 9 fica em `dist/native-n09/mmx4_native_n09.nds`.
+Para compilar a beta 9, use `python3 native/compile.py --n09` no Linux
+ou WSL. A saída fica em `dist/native-n09/mmx4_native_n09.nds`.
 Logs de compilação: `build/native/logs/compile_*.log`.
 Os objetos são reutilizados apenas quando as verificações de fontes,
 cabeçalhos e opções permitem.
@@ -67,6 +69,25 @@ A janela permanece aberta sem `--no-pause`. Um `.nds` antigo em `dist/` não
 prova que a nova compilação deu certo: confira a mensagem final e o log.
 Nada é instalado no cartão e nenhum loader ou firmware é atualizado.
 
+## Compilar pelo navegador
+
+Em Linux x86-64 ou WSL, na raiz do clone Git:
+
+```sh
+python3 tools/serve_builder.py
+```
+
+Abra [o compilador local](http://127.0.0.1:8765/), selecione seu BIN
+USA SLUS-00561 e clique em **Compilar e baixar**. O servidor usa uma cópia
+temporária do commit atual, verifica a SHA-256 do BIN e registra o CUE
+correspondente. O dump e o `.nds` são processados na própria máquina.
+Mantenha o terminal aberto até o download terminar. Ctrl+C encerra o
+servidor e descarta os arquivos temporários.
+
+O workflow **Compilador para Nintendo DS** publica a página de acesso.
+Em **Settings → Pages**, selecione **GitHub Actions** como fonte da página.
+O workflow inclui apenas o HTML e o CSS públicos.
+
 ## Verificar dependências sem rede
 
 ```sh
@@ -89,9 +110,7 @@ não é requisito para iniciar uma compilação.
 
 ## Uso e limites
 
-Inicie o resultado em modo DSi. Consulte [os controles e limites](docs/STATUS_N0815.md).
-A beta 8.15 tem correções verificadas no computador e ainda precisa de medição e
-qualificação física no DSi.
+Abra o mesmo arquivo no DS, DS Lite ou DSi. No DSi, selecione o modo DSi/TWL no carregador para habilitar o ARM9 a 134 MHz e o cache ampliado. Consulte [os controles e o status da beta 9](docs/STATUS_N09.md).
 Compilar com sucesso e passar testes no computador não confirmam estabilidade
 ou 30 FPS no hardware.
 
@@ -101,6 +120,6 @@ não o anexe ao repositório público ou a uma release.
 
 ## Cutscenes desativadas
 
-A beta 8.15 não prepara nem inclui vídeos, e não requer FFmpeg. As chamadas
+A beta 9 mantém os vídeos desativados e dispensa o FFmpeg. As chamadas
 originais seguem imediatamente para o próximo evento. Os arquivos e
 ferramentas históricos da N08 não entram na compilação atual.

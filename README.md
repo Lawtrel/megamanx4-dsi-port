@@ -1,7 +1,7 @@
-# Mega Man X4 para Nintendo DSi
+# Mega Man X4 para Nintendo DS e DSi
 
 Este projeto adapta o motor de **Mega Man X4** para rodar de forma nativa no
-Nintendo DSi. Ele usa o ARM9 e a GPU do console para executar o jogo. Não é um
+Nintendo DS, DS Lite e DSi. Ele usa o ARM9 e a GPU do console para executar o jogo. Não é um
 emulador de PlayStation.
 
 O código parte da descompilação de [sozud/mmx4](https://github.com/sozud/mmx4).
@@ -10,7 +10,7 @@ Eles ficam no computador e não são enviados ao GitHub.
 
 ## Estado atual
 
-A versão mais recente é a **8.15**. Ela inicia no título original e inclui:
+A compilação atual é a **beta 9**. Ela inicia no título original e inclui:
 
 - campanhas de X e Zero, validadas pelo usuário no DSi;
 - painel inferior com armas, energia, upgrades e radar;
@@ -18,16 +18,18 @@ A versão mais recente é a **8.15**. Ela inicia no título original e inclui:
 - aba de diagnóstico e ferramentas de debug;
 - opção para deixar Sigma com 1 HP e testar o encerramento direto.
 
-Depois dos créditos, a tela ainda fica preta. O projeto está preparando uma
-continuação com Mega Man X5 para a beta 9. O dump USA de X5 já foi verificado
-e catalogado localmente, mas o motor X5 ainda não foi adaptado para o DSi nem
-incluído no jogo.
+O retorno ao título depois dos créditos foi confirmado no DSi com X.
+O foco atual é fechar a qualidade de áudio, o desempenho e os detalhes
+da campanha de X4.
 
 O desempenho e alguns detalhes de áudio ainda precisam de mais medições no
 console. Os resultados conhecidos estão em [testes no DSi](docs/HARDWARE_TESTS.md).
-As mudanças da versão atual estão em [STATUS_N0815](docs/STATUS_N0815.md).
+Veja os controles e o conteúdo no [status da beta 9](docs/STATUS_N09.md).
 
 ## Preparar e compilar
+
+O [compilador local pelo navegador](COMO_COMPILAR.md#compilar-pelo-navegador)
+aceita o BIN original e baixa o arquivo `.nds` ao final.
 
 ### Requisitos
 
@@ -54,34 +56,19 @@ pelo Git.
 python3 native/compile.py
 ```
 
-O pacote `.nds` aparece em `dist/native-n0815/`. Ele contém recursos do jogo:
-use-o localmente e não o publique.
+O pacote aparece em `dist/native-n09/mmx4_native_n09.nds`. Use-o localmente,
+pois contém recursos do seu dump. Para compilar a beta 9, use
+`python3 native/compile.py --n09`.
 
 No Windows, depois de preparar o ambiente pelo Linux ou WSL, execute
 `COMPILAR_JOGO.cmd`. Esse é o único atalho `.cmd` da raiz e sempre compila a
 versão atual.
 
-## Preparar o dump de X5
-
-Esta etapa apenas verifica e cataloga os arquivos de X5. **Ela ainda não
-adiciona X5 ao `.nds`.** Com o dump USA `.bin` e `.cue` disponíveis, execute:
-
-```sh
-python3 tools/prepare_x5_disc.py \
-  '/caminho/Mega Man X5.bin' \
-  --cue '/caminho/Mega Man X5.cue'
-python3 tools/index_x5_archives.py
-```
-
-Os arquivos e índices ficam em `private/x5-disc/`, uma pasta ignorada pelo
-Git. Consulte [o plano de integração pós-créditos](docs/X5_POS_CREDITOS.md)
-para ver o que falta para X5 rodar no console.
-
 ## Onde encontrar as informações
 
 - [Roteiro de desenvolvimento](docs/ROADMAP.md)
 - [Testes físicos e resultados no DSi](docs/HARDWARE_TESTS.md)
-- [Estado da versão 8.15](docs/STATUS_N0815.md)
+- [Retorno no DSi com a beta 9](docs/STATUS_N09.md)
 - [Arquitetura do port](native/README.md)
 - [Como compilar](COMO_COMPILAR.md)
 
