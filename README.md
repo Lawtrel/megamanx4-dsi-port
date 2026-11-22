@@ -28,6 +28,9 @@ Veja os controles e o conteúdo no [status da beta 9](docs/STATUS_N09.md).
 
 ## Preparar e compilar
 
+O [compilador local pelo navegador](COMO_COMPILAR.md#compilar-pelo-navegador)
+aceita o BIN original e baixa o arquivo `.nds` ao final.
+
 ### Requisitos
 
 Use Linux ou WSL com Python 3.11 ou superior, GCC, Git, Make e Tar. O setup

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Teste do port de Mega Man X4 para DS</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header>
+    <p class="platform">Nintendo DS / DSi</p>
+    <h1>Mega Man X4</h1>
+    <p>Gere o arquivo <code>.nds</code> da beta 9 com seu dump USA <strong>SLUS-00561</strong>.</p>
+  </header>
+  <section>
+    <h2>Compilar na sua máquina</h2>
+    <p>Use Linux x86-64 ou WSL no Windows, com Python 3.11+, Git, GCC, Make e Tar. A primeira compilação baixa o SDK e as dependências.</p>
+    <p>Execute no terminal do Linux ou WSL:</p>
+    <pre><code>git clone https://github.com/Lawtrel/megamanx4-dsi-port.git
+cd megamanx4-dsi-port
+python3 tools/serve_builder.py</code></pre>
+    <p>Com o terminal aberto, selecione o <code>.bin</code> no compilador local. O navegador baixa o <code>.nds</code> quando o processo termina. O dump fica no seu computador.</p>
+    <a class="action" href="http://127.0.0.1:8765/">Abrir compilador local</a>
+  </section>
+  <section>
+    <h2>Testar o jogo</h2>
+    <p>Abra o arquivo no melonDS em modo DS ou no seu flashcart. Para usar o ARM9 a 134 MHz no DSi, inicie em modo DSi/TWL.</p>
+    <a href="https://github.com/Lawtrel/megamanx4-dsi-port/blob/main/docs/STATUS_N09.md">Controles e resultados dos testes</a>
+  </section>
+</main>
+</body>
+</html>

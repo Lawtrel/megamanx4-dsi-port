@@ -69,6 +69,25 @@ A janela permanece aberta sem `--no-pause`. Um `.nds` antigo em `dist/` não
 prova que a nova compilação deu certo: confira a mensagem final e o log.
 Nada é instalado no cartão e nenhum loader ou firmware é atualizado.
 
+## Compilar pelo navegador
+
+Em Linux x86-64 ou WSL, na raiz do clone Git:
+
+```sh
+python3 tools/serve_builder.py
+```
+
+Abra [o compilador local](http://127.0.0.1:8765/), selecione seu BIN
+USA SLUS-00561 e clique em **Compilar e baixar**. O servidor usa uma cópia
+temporária do commit atual, verifica a SHA-256 do BIN e registra o CUE
+correspondente. O dump e o `.nds` são processados na própria máquina.
+Mantenha o terminal aberto até o download terminar. Ctrl+C encerra o
+servidor e descarta os arquivos temporários.
+
+O workflow **Compilador para Nintendo DS** publica a página de acesso.
+Em **Settings → Pages**, selecione **GitHub Actions** como fonte da página.
+O workflow inclui apenas o HTML e o CSS públicos.
+
 ## Verificar dependências sem rede
 
 ```sh
