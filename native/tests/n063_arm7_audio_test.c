@@ -60,6 +60,14 @@ int main(int argc,char** argv){
  assert(!x4_sfx_play_at(2,0,16,1));assert(panning[8]==64&&volume[8]==0x7f0);
  x4_sfx_stop(255,0);assert(!x4_sfx_play_at(2,9,5,1));assert(panning[8]==64&&volume[8]==0x7f0);
  x4_sfx_close();assert(!active_mask&&!pending_stop&&syncs>=starts&&!x4_sfx_errors());
+ /* One cached hardware voice and one streamed loop must coexist when the
+  * DS PCM budget is full. Stop must release each transport independently. */
+ x4_sfx_set_cache_limit(32);assert(!x4_sfx_bank(7,2));
+ assert(!x4_sfx_play(2,0));assert(!x4_sfx_play(2,1));
+ assert(x4_sfx_stats().bytes==32&&x4_sfx_stats().active==2);
+ memset(output,0,sizeof output);x4_sfx_mix(output,12);
+ for(unsigned i=0;i<12;++i)assert(output[i]==1100+(int)(i%5));
+ x4_sfx_stop(2,1);assert(x4_sfx_finished(2,1)&&!x4_sfx_finished(2,0));
  x4_sfx_close();x4_sfx_set_backend(NULL);
  puts("PASS ARM7 PCM backend: reserved channels, alignment, padded length, stop acknowledgement, cache without file I/O, eight voices, mute, replacement lifetime and per-play spatial pan/gain");
 }

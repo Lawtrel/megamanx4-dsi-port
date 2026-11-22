@@ -42,7 +42,9 @@ A compilação verifica os patches locais, prepara recursos e áudio, compila o
 código ARM9, executa os testes e verifica os cabeçalhos, símbolos e dados
 internos antes de criar o pacote local.
 
-Saída: `dist/native-n0815/mmx4_native_n0815.nds`.
+O `.nds` da beta 9 fica em `dist/native-n09/mmx4_native_n09.nds`.
+Para compilar a beta 9, use `python3 native/compile.py --n09` no Linux
+ou WSL. A saída fica em `dist/native-n09/mmx4_native_n09.nds`.
 Logs de compilação: `build/native/logs/compile_*.log`.
 Os objetos são reutilizados apenas quando as verificações de fontes,
 cabeçalhos e opções permitem.
@@ -89,9 +91,7 @@ não é requisito para iniciar uma compilação.
 
 ## Uso e limites
 
-Inicie o resultado em modo DSi. Consulte [os controles e limites](docs/STATUS_N0815.md).
-A beta 8.15 tem correções verificadas no computador e ainda precisa de medição e
-qualificação física no DSi.
+Abra o mesmo arquivo no DS, DS Lite ou DSi. No DSi, selecione o modo DSi/TWL no carregador para habilitar o ARM9 a 134 MHz e o cache ampliado. Consulte [os controles e o status da beta 9](docs/STATUS_N09.md).
 Compilar com sucesso e passar testes no computador não confirmam estabilidade
 ou 30 FPS no hardware.
 
@@ -101,6 +101,6 @@ não o anexe ao repositório público ou a uma release.
 
 ## Cutscenes desativadas
 
-A beta 8.15 não prepara nem inclui vídeos, e não requer FFmpeg. As chamadas
+A beta 9 mantém os vídeos desativados e dispensa o FFmpeg. As chamadas
 originais seguem imediatamente para o próximo evento. Os arquivos e
 ferramentas históricos da N08 não entram na compilação atual.

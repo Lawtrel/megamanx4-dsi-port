@@ -1,6 +1,7 @@
 # Roadmap do port nativo de Mega Man X4
 
-Prioridades registradas e aprovadas pelo usuário em 16/11/2026.
+Em 18/11/2026, o usuário definiu o fechamento de Mega Man X4 como o foco
+do projeto. A beta 9 é a referência para avaliar as mudanças no DSi.
 
 1. **30 FPS sustentados — base 8.11 preservada.** Reduzir o custo e a variação do tempo
    de desenho, preparação e envio, preservando escala, animações, controles
@@ -18,12 +19,15 @@ Prioridades registradas e aprovadas pelo usuário em 16/11/2026.
    positivo do usuário. Preservar essa base e investigar os picos pontuais
    entre quadros; repetir a medição nas outras fases pesadas. As amostras
    de FPS não encerram a meta de regularidade para todos os quadros.
-2. **Completar o áudio — foco atual.** Resolver seis comandos de sequência e refinar
-   loops, estéreo/panning e reverberação. A reprodução nativa pelo ARM7
-   permanece como base.
+2. **Completar o áudio.** Resolver quatro comandos SEP e refinar loops,
+   estéreo e reverberação. A reprodução nativa pelo ARM7 permanece como base.
+   Dois comandos passam a tocar a sequência zero já preparada do dump,
+   seguindo o comportamento de `SsSeqPlay` do jogo original.
    A [8.12 em teste](STATUS_N0812.md) acrescenta posição e ganho dos efeitos
-   diretos, respeitando mono/estéreo. Os seis descritores, loops precisos,
-   estéreo dos recursos e reverberação permanecem abertos. Ainda requer DSi.
+   diretos, respeitando mono/estéreo. Os descritores restantes apontam para
+   as sequências 2 e 3 do acesso 1. O pacote de personagem abre somente
+   as sequências 0 e 1 nesse acesso. Falta confirmar a origem dos comandos
+   antes de associar algum PCM. O áudio precisa de conferência no DSi.
    Em paralelo, um painel de vida, armas, energia e upgrades passa a ocupar
    a tela inferior, com diagnóstico acessível por toque no topo.
 3. **Polir a experiência de jogo.** A [beta 8.13 em teste](STATUS_N0813.md)
@@ -40,14 +44,8 @@ Prioridades registradas e aprovadas pelo usuário em 16/11/2026.
    confirmou conclusão com ambos os personagens, Sigma derrotado e créditos,
    sem problemas percebidos durante a campanha. Isso substitui a pendência
    genérica de exigir novo playthrough integral. Ver [o registro](TESTE_N0813_CAMPANHAS.md).
-   Há relato de tela preta depois dos créditos; seu fluxo permanece aberto.
-   Não há novo log para encerrar a medição de FPS/regularidade.
-5. **Conteúdo extra depois da base estável.** Investigar uma arma de X5 por
-   vez no banco experimental do debug, com normal/carregado, colisão,
-   energia e recursos preparados do dump do usuário. Não integra a meta
-   atual de desempenho. O usuário também propôs integrar a campanha de X5
-   como continuação após os créditos de X4. É uma direção futura de pesquisa,
-   sem implementação ou prazo assumidos. Ver [referências e limites](X5_ARMAS_DEBUG.md).
+   A beta 9 corrigiu a tela preta após os créditos. O usuário confirmou o
+   retorno ao título com X no DSi. A meta de 30 FPS sustentados segue aberta.
 
 ## Estado confirmado e limites
 
@@ -88,18 +86,22 @@ Prioridades registradas e aprovadas pelo usuário em 16/11/2026.
   nem substituem a validação física das campanhas relatada pelo usuário. Não há confirmação de 30/60 FPS
   sustentados em todas as fases na versão atual.
 
-## Preparação da beta 9 — pedido de 17/11/2026
+## Beta 9 em desenvolvimento
 
-- Polir gráficos; a 8.15 começa pelo painel inferior com nomes e energia
-  legíveis, contraste e cabeçalho do radar. Ajustes do renderer superior
-  precisam de casos visuais concretos; não são declarados concluídos.
-- Debug com Sigma 1 golpe e acesso direto aos créditos para testar o final.
-- Iniciar X5 jogável depois dos créditos passa a integrar o objetivo pedido
-  para a beta 9. Não é só uma imagem/tela de transição. O dump USA foi
-  recebido e verificado; boot, overlays e arquivo de dados estão extraídos
-  em `private/x5-disc/`. Ainda falta indexar/adaptar os recursos e integrar
-  o motor X5 ao ARM9. A 8.15 é preparação, sem declarar a beta 9 pronta.
-- O usuário pediu polimento nas duas telas. A 8.15 ajustou apenas a inferior;
-  não há alteração no renderer superior nem alvo visual concreto registrado
-  ainda. Tratar o polimento de ambas como pendência da beta 9.
-- Manter título original direto e a validação de X/Zero já fornecida.
+- O retorno ao título após os créditos foi confirmado no DSi com X e no
+  computador com X e Zero. O usuário também aprovou o visual da beta 9.
+  Veja [o registro físico](STATUS_N09.md#teste-no-dsi).
+- A tela inferior destaca os poderes disponíveis e separa os detalhes dos
+  cartões. O Debug tem Sigma em um golpe e acesso direto aos créditos.
+- Veja a saída local e os controles no [status da beta 9](STATUS_N09.md).
+
+## Trabalho após a beta 9
+
+- O painel e o radar reaproveitam a imagem quando os dados exibidos
+  continuam iguais. A conferência segue a cada seis VBlanks, e o log
+  `LOWER_SCREEN` conta as atualizações dispensadas em `skips`. Medir o
+  efeito na regularidade dos quadros na introdução, na fase 11 e em Sigma.
+- Os comandos single-SEQ de `ST0B_0X.ARC` e `ST0B_0Z.ARC` passam a selecionar
+  o PCM da sequência zero. Comandos SEP sem sequência conhecida são
+  rejeitados antes de interromper um som ativo.
+- A [pesquisa de X5](X5_POS_CREDITOS.md) fica arquivada fora do roteiro de X4.

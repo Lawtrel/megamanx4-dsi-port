@@ -4,7 +4,7 @@ import subprocess,json,re,hashlib
 ROOT=Path(__file__).resolve().parents[1];REF=ROOT/'referencias/mmx4-decomp';CORE=ROOT/'build/native/gamecore'
 OUT=ROOT/'build/native/n05-flow';OUT.mkdir(parents=True,exist_ok=True);SDK=ROOT/'ambiente/sdk/devkitARM/bin'
 flags=['-std=gnu11','-Os','-mcpu=arm946e-s','-mthumb','-fno-strict-aliasing','-ffunction-sections','-fdata-sections',
- '-DMMX4_PC=1','-D__psyz=1','-DSKIP_MDEC=1','-DVERSION_US=1','-DX4_FULL_FLOW=1','-DX4_N06_INDEXED=1',
+ '-DMMX4_PC=1','-D__psyz=1','-DSKIP_MDEC=1','-DVERSION_US=1','-DX4_FULL_FLOW=1','-DX4_DEVICE_INDEXED=1','-DX4_N06_INDEXED=1',
  '-Wno-incompatible-pointer-types','-Wno-int-conversion','-I'+str(CORE/'include'),'-I'+str(REF/'src/pc'),
  '-I'+str(REF/'tools/psyz/psyz/include'),'-I'+str(ROOT/'native/src'),'-I'+str(ROOT/'build/native/content-index')]
 replacements={'55C4.c':['stop_sound','func_8001663C','func_80016F0C','func_80016448','is_sound_finished','func_800160F4','func_80016124','func_800170B0','func_800170E0','func_80017100','func_800169D8','func_80015284','func_800153D4','func_80015C10','func_80017340','func_800179BC'],
@@ -54,19 +54,11 @@ original=[r['object'] for r in json.loads((CORE/'report.json').read_text())['sou
 objects+=original+[str(ROOT/'build/native/n05-tasks/n05_tasks.arm9.o')]
 target=OUT/'flow.o';roots=['x4_flow_'+n for n in ('begin','begin_debug','new_game','title','step','state','player_panel','radar','request_weapon','debug_sigma_hitkill','debug_sigma_hitkill_enabled','debug_credits','debug','draw','close')]
 roots+=['x4_audio_'+n for n in ('init','update','read','close','errors','track')]+['x4_save_set_root','x4_n05_missing_sfx']
-roots+=['x4_video_'+n for n in ('commands','texture','rgba_texture','dirty_tiles','palette','clear','alpha','stats','viewport','get_viewport','last_fault','peek_rgba','peek_indexed','peek_palette','dirty_palettes','set_indexed')]
-roots+=['x4_sfx_set_backend','x4_sfx_stats']
+roots+=['x4_video_'+n for n in ('commands','texture','dirty_tiles','palette','clear','alpha','stats','viewport','get_viewport','last_fault','peek_indexed','peek_palette','dirty_palettes','set_indexed')]
+roots+=['x4_n05_set_dsi_mode','x4_sfx_set_cache_limit','x4_sfx_set_backend','x4_sfx_stats']
 roots+=['x4_n05_render_fault','x4_n05_render_cache_stats']
 p=subprocess.run([str(SDK/'arm-none-eabi-ld'),'-r','--gc-sections',*[a for n in roots for a in ('-u',n)],'-o',str(target),*objects],capture_output=True,text=True)
 if p.returncode:raise RuntimeError(p.stderr[-4000:])
-# The content-sharing index is DSi-only. Keep its auxiliary tables out of
-# the 3.5 MiB DS-compatible segment; Calico initializes .twl_bss in DSi mode.
-# Per-variable sections are emitted by -fdata-sections. Rename without
-# changing section flags, contents, alignment or relocation references.
-dsi_cache_sections=('aliases','decoded_indexed','decoded_rgba','slot_serial','content_keys','content_next','content_buckets','alias_buckets','alias_next','rgba','gpu_palettes')
-sections=subprocess.check_output([str(SDK/'arm-none-eabi-objdump'),'-h',str(target)],text=True)
-for name in dsi_cache_sections:assert '.bss.'+name in sections,name
-subprocess.run([str(SDK/'arm-none-eabi-objcopy'),*[arg for name in dsi_cache_sections for arg in ('--rename-section','.bss.'+name+'=.twl_bss.'+name)],str(target)],check=True)
 def run(*cmd):return subprocess.check_output([str(a) for a in cmd],text=True)
 undefined={l.split()[-1] for l in run(SDK/'arm-none-eabi-nm','-u',target).splitlines()}
 refs={re.split(r'[+-]0x',l.split()[-1])[0] for l in run(SDK/'arm-none-eabi-objdump','-r',target).splitlines() if ' R_ARM_' in l}

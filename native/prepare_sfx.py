@@ -86,9 +86,9 @@ def main():
      if not c:descriptors.append(descriptor);continue
      packed=c.to_bytes(4,'little');which=packed[0]>>6
      if which<2:
-      access=c>>8&127;sequence=c>>24&31
+      access=c>>8&127;sequence=(c>>24&31) if which==1 else 0
       descriptor['status']='sequence_external'
-      if which!=1 or access>1 or sequence>=(2 if access else 8):
+      if access>1 or sequence>=(2 if access else 8):
        descriptor['status']='sequence_pending';missing.append({'resource':r['id'],'bank':bank,'index':index,'command':c})
       descriptors.append(descriptor);continue
      target=bankmap.get(packed[0]&63)
@@ -144,7 +144,7 @@ def main():
     records.append({'resource':r['id'],'name':r['name'],'bank':bank,'file':filename,'sha256':hashlib.sha256(payload).hexdigest(),'bytes':len(payload),'entries':descriptors})
   print('Prepared SFX',r['name'],flush=True)
  report={'bank_count':len(records),'bytes':total,'banks':records,'pending':missing,
-  'limitations':['Six single-SEQ/out-of-range sequence commands remain unsupported','Looped direct effects use an approximate three-second PCM cycle','Mono conversion; reverb and spatial panning pending'],
+  'limitations':['SEP commands with no matching sequence remain unsupported','Looped direct effects use an approximate three-second PCM cycle','PCM conversion is mono; instrument stereo and reverb remain pending'],
   'runtime':'Native PCM mixing; host synthesizer excluded from NDS'}
  (OUT/'sfx_manifest.json').write_text(json.dumps(report,indent=2)+'\n')
  print('SFX banks',len(records),'bytes',total,'pending',len(missing),flush=True)

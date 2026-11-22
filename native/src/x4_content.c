@@ -7,6 +7,7 @@ static const struct {const char* name;size_t size;int container;} index_table[]=
 };
 const char* x4_content_name(unsigned id){return id<138?index_table[id].name:NULL;}
 size_t x4_content_expected_size(unsigned id){return id<138?index_table[id].size:0;}
+int x4_content_is_container(unsigned id){return id<138&&index_table[id].container;}
 void x4_content_close(X4Content* c){x4_archive_free(&c->archive);memset(c,0,sizeof *c);}
 int x4_content_open(X4Content* c,const char* root,unsigned id){
     if(!c||!root||id>=138)return X4_ARC_FORMAT;

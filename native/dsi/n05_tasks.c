@@ -16,7 +16,7 @@ typedef struct {
     CondVar wake;
     jmp_buf restart_point;
     void (*entry)(void);
-    int permit,finished,restart;
+    int permit,finished,restart,replace_current;
     unsigned id;
 } NativeTask;
 static NativeTask tasks[SLOTS];
@@ -41,6 +41,7 @@ static int worker(void* arg){
     for(;;){
         (void)setjmp(t->restart_point);
         t->restart=0;
+        t->replace_current=0;
         if(t->entry)t->entry();
         game_tasks[t->id].state=0;
         await_permit(t,1);
@@ -66,7 +67,9 @@ struct GameThread* mmx4_pc_thread_slot(int slot){
 }
 void mmx4_pc_thread_create(int slot,void (*entry)(void)){
     assert(initialized&&(unsigned)slot<SLOTS&&entry);
-    tasks[slot].entry=entry;tasks[slot].restart=1;game_tasks[slot].state=2;
+    tasks[slot].entry=entry;tasks[slot].restart=1;
+    if(current==slot)tasks[slot].replace_current=1;
+    game_tasks[slot].state=2;
 }
 void mmx4_pc_thread_run(int slot){
     assert(initialized&&current==-1&&(unsigned)slot<SLOTS);
@@ -85,7 +88,11 @@ void mmx4_pc_thread_yield(void){
 }
 void mmx4_pc_thread_close(void){
     assert((unsigned)current<SLOTS);NativeTask* t=&tasks[current];
-    game_tasks[current].state=0;t->restart=1;mmx4_pc_thread_yield();abort();
+    /* The ending schedules the title in its own slot before closing.
+     * func_800127FC marks that slot stopped just before calling us. */
+    game_tasks[current].state=t->replace_current?2:0;
+    t->restart=1;
+    mmx4_pc_thread_yield();abort();
 }
 void mmx4_pc_thread_replace(void (*entry)(void)){
     assert((unsigned)current<SLOTS&&entry);NativeTask* t=&tasks[current];

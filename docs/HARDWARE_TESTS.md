@@ -1,3 +1,10 @@
+# Retorno físico — beta 9
+
+O usuário aprovou o visual e confirmou o retorno ao título depois dos
+créditos. O log da compilação `0a425555a7f050e40731` registra o final de X
+em modo DSi, com 212 amostras nos créditos entre 52 e 60 FPS. A luta final
+teve uma amostra a 27 FPS. Veja [o registro da beta 9](STATUS_N09.md#teste-no-dsi).
+
 # Retorno físico — beta 8.13
 
 O usuário confirmou conclusão com X e Zero, Sigma e créditos, sem problemas
