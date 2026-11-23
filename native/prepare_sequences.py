@@ -2,7 +2,7 @@
 No SEP/MIDI player or sound-chip implementation is linked into the NDS.
 """
 from prepare_sfx import ROOT,OUT,DEST,resources,members,u16,u32,instruments,pitch,dsp
-import struct,ctypes,array,json,hashlib
+import struct,array,json,hashlib
 def sequences(raw,offset,count):
  result=[];position=offset
  for i in range(count):
@@ -51,7 +51,7 @@ for character,resource in enumerate((0x4b,0x4d)):
   h,body,progs=banks[access]
   for index,seq in enumerate(sequences(raw,offsets[access],count)):
    ev,end=events(seq);dsp.bake_reset(body,len(body));program=list(range(16));vol=[127]*16;pan=[64]*16
-   voices={};allocator=0;clock=0;mono=array.array('h');buf=(ctypes.c_int16*(441*2))();controls=set()
+   voices={};allocator=0;clock=0;mono=array.array('h');buf=array.array('h',[0])*(441*2);controls=set()
    def pull(until):
     global clock
     while clock<until:

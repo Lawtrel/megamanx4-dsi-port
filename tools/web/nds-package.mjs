@@ -2,6 +2,18 @@
 export const outputName = "mmx4_ds_beta.nds";
 const title = "Megaman X4 Ds;Native ARM9 engine;Beta 9";
 
+export async function validateIcon(icon) {
+  const header = new DataView(await icon.slice(0, 54).arrayBuffer());
+  if (header.byteLength !== 54 || header.getUint16(0, true) !== 0x4d42 ||
+      header.getUint32(14, true) !== 40 || header.getInt32(18, true) !== 32 ||
+      Math.abs(header.getInt32(22, true)) !== 32 || header.getUint16(26, true) !== 1 ||
+      header.getUint16(28, true) !== 4 || header.getUint32(30, true) !== 0) {
+    throw new Error("Selecione um BMP indexado de 32×32 e 4 bits, sem compressão.");
+  }
+  const offset = header.getUint32(10, true);
+  if (offset < 118 || offset + 512 > icon.size) throw new Error("O BMP está incompleto.");
+}
+
 export async function packageNds(createNdstool, {arm9, arm7, icon, assets}) {
   const files = [
     {name: "arm9.elf", data: arm9},

@@ -1,0 +1,38 @@
+name: Validar compilador WebAssembly
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Compilar o executável ARM sem dump
+        env:
+          ASAN_OPTIONS: detect_leaks=0
+        run: |
+          python3 tools/setup_native.py
+          python3 native/compile.py --engine-only
+          python3 native/tests/check_n05_flow.py --sources-only
+      - name: Compilar as ferramentas WebAssembly
+        run: |
+          mkdir -p build/browser-tools
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -e EM_CACHE=/src/build/browser-tools/emscripten-cache \
+            -v "$PWD:/src" -w /src \
+            emscripten/emsdk@sha256:460fff8f8ac87e11b16447fbd66538a686eafa0e4fb977aa0989ed19fe2079f7 \
+            bash -c 'bash tools/build_ndstool_wasm.sh && python3 tools/build_browser_preparer.py'
+      - name: Exercitar conversores com dados sintéticos
+        run: |
+          npm ci --prefix pages --ignore-scripts --no-audit --no-fund
+          node tools/test_browser_preparer.mjs
+          node --check tools/web/build-worker.mjs
+          python3 tools/build_pages.py --with-browser "$RUNNER_TEMP/browser-preview"
+          test ! -e private
+          test -z "$(find "$RUNNER_TEMP/browser-preview" -name '*.nds')"

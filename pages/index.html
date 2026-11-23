@@ -6,6 +6,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self'; base-uri 'none'; form-action 'none'">
   <title>Megaman X4 Ds · beta 9</title>
   <link rel="stylesheet" href="style.css">
+  <script src="browser-config.js" defer></script>
   <script src="verify.js" defer></script>
 </head>
 <body>
@@ -26,10 +27,17 @@
     <progress id="hash-progress" max="100" value="0" aria-label="Progresso da verificação" hidden></progress>
     <output id="hash-status" role="status" aria-live="polite"></output>
     <p class="fingerprint" id="fingerprint" hidden>SHA-256 <code></code></p>
+    <div id="build-options" hidden>
+      <label for="icon">Ícone opcional do menu do DS (BMP de 32×32 e 4 bits)</label>
+      <input type="file" id="icon" accept=".bmp,image/bmp">
+      <button type="button" id="build" class="action">Gerar .nds</button>
+      <output id="build-status" role="status" aria-live="polite"></output>
+      <a id="nds-download" download="mmx4_ds_beta.nds" hidden>Baixar mmx4_ds_beta.nds</a>
+    </div>
   </section>
   <section>
     <h2>Compilar no computador</h2>
-    <p>No Android, esta página verifica o dump. A geração do <code>.nds</code> usa o compilador local para Linux ou WSL.</p>
+    <p id="local-only-text">A geração do <code>.nds</code> nesta página está em testes. O compilador local roda em Linux ou WSL.</p>
     <p>Use Linux x86-64 ou WSL no Windows, com Python 3.11+, Git, GCC, Make e Tar. A primeira compilação baixa o SDK e as dependências.</p>
     <p>Execute no terminal do Linux ou WSL:</p>
     <pre><code>git clone https://github.com/Lawtrel/megamanx4-dsi-port.git

@@ -5,6 +5,7 @@ ROOT=Path(__file__).resolve().parents[2];REF=ROOT/'referencias/mmx4-decomp';CORE
 OUT=ROOT/'build/native/n05-flow';HOST=OUT/'host';HOST.mkdir(parents=True,exist_ok=True)
 arguments=sys.argv[1:];systems='--systems' in arguments
 if systems:arguments.remove('--systems')
+sources_only='--sources-only' in arguments
 executable=HOST/('systems_test' if systems else 'flow_test')
 (HOST/'validation.json').write_text('{"status":"running","physical_dsi_tested":false}\n')
 nm=ROOT/'ambiente/sdk/devkitARM/bin/arm-none-eabi-nm'
@@ -29,6 +30,12 @@ names=[n for n in json.loads((OUT/'required_services.json').read_text()) if n no
 trap=HOST/'diagnostic_traps.c';trap.write_text('#include <stdio.h>\n#include <stdlib.h>\n'+
  '\n'.join('__attribute__((noreturn)) void '+n+'(void){fprintf(stderr,"UNIMPLEMENTED FULL FLOW: '+n+'\\n");abort();}' for n in names)+'\n')
 selected.add(trap)
+if sources_only:
+    (HOST/'preparer_sources.json').write_text(json.dumps([
+        str(source.relative_to(ROOT)) for source in sorted(selected)
+        if source.name not in ('n05_tasks.c', 'n05_flow_driver.c', 'n05_systems_driver.c', 'shim.c')
+    ])+'\n')
+    raise SystemExit
 flags=['-std=gnu11','-Os','-g','-fno-omit-frame-pointer','-fno-strict-aliasing','-fwrapv','-fsanitize=address','--param=asan-globals=0',
  '-ffunction-sections','-fdata-sections','-DMMX4_PC=1','-D__psyz=1','-DSKIP_MDEC=1','-DVERSION_US=1','-DX4_FULL_FLOW=1','-DX4_N06_INDEXED=1',
  '-Wno-incompatible-pointer-types','-Wno-int-conversion','-I'+str(REF/'include'),'-I'+str(REF/'src/pc'),

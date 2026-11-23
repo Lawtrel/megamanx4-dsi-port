@@ -1,0 +1,15 @@
+diff --git a/src/main/player.c b/src/main/player.c
+--- a/src/main/player.c
++++ b/src/main/player.c
+@@ -969,7 +969,11 @@ void player_ride(struct PlayerObj* self)
+         return;
+     }
+     if ((self->script_state > 0) && (self->script_action == 0x17)) {
++#ifdef MMX4_PC
++        func_80034E2C();
++#else
+         func_80034E2C(self);
++#endif
+         return;
+     }
+     if (self->ride_state == 0) {

@@ -4,14 +4,11 @@ Direct commands use original program, tone, pitch and ADSR. Sequence commands
 are listed explicitly until their event player has been converted too.
 """
 from pathlib import Path
-import ctypes,struct,json,re,subprocess,hashlib,array,sys
+import struct,json,re,hashlib,array
+from sample_baker import load_baker
 ROOT=Path(__file__).resolve().parents[1];REF=ROOT/'referencias/mmx4-decomp';PSYZ=REF/'tools/psyz'
 OUT=ROOT/'build/native/full-audio';DEST=OUT/'sfx';DEST.mkdir(parents=True,exist_ok=True)
-lib=OUT/'sfx_bake.so'
-subprocess.run(['gcc','-O3','-shared','-fPIC','-D__psyz=1','-DNDEBUG=1','-I'+str(PSYZ/'psyz/include'),
- str(ROOT/'native/sfx_bake.c'),str(PSYZ/'psyz/src/psyz/psyz_spu.c'),'-o',str(lib)],check=True)
-dsp=ctypes.CDLL(str(lib));dsp.bake_reset.argtypes=[ctypes.c_void_p,ctypes.c_uint]
-dsp.bake_pull.argtypes=[ctypes.c_void_p,ctypes.c_uint];dsp.bake_active.restype=ctypes.c_uint
+dsp=load_baker(OUT)
 table=re.search(r'pitch_table\[\] = \{(.*?)\};',(PSYZ/'decomp/src/libsnd/vm_n2p.c').read_text(),re.S)[1]
 pitches=[int(n,16) for n in re.findall(r'0x[0-9A-Fa-f]+',table)]
 resources=json.loads((ROOT/'build/native/content-index/resource_index.json').read_text())['resources']
@@ -122,7 +119,7 @@ def main():
         dsp.bake_voice(voice,t['offset'],pitch(raw,raw[6],raw[5]),u16(raw,16),u16(raw,18),volume(t));valid+=1
        tone+=1
        if tone==16:program+=1;tone=0
-      buf=(ctypes.c_int16*(441*2))();mono=array.array('h');clock=0;last_nonzero=0;limit=44100*(3 if loop else 20)
+      buf=array.array('h',[0])*(441*2);mono=array.array('h');clock=0;last_nonzero=0;limit=44100*(3 if loop else 20)
       while valid and clock<limit:
        dsp.bake_pull(buf,441)
        for j in range(441):

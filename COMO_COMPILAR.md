@@ -57,11 +57,25 @@ Para desenvolver o empacotador sem carregar o dump, execute
 é o ELF ARM em `build/native/engine/mmx4_ds_beta.elf`. O índice e o
 atlas da tela inferior ficam no NitroFS do pacote final.
 
-Para testar a montagem no navegador, use a Emscripten SDK e execute
-`bash tools/build_ndstool_wasm.sh`. O adaptador em
-`tools/web/nds-package.mjs` recebe os executáveis ARM, um ícone e uma
-lista de arquivos já preparados. A etapa que prepara esses arquivos a
-partir do BIN ainda usa o compilador local.
+A montagem no navegador usa um kit de desenvolvimento. Depois do setup
+e da compilação com `--engine-only`, execute os comandos abaixo com
+Emscripten e Node.js disponíveis:
+
+```sh
+python3 native/tests/check_n05_flow.py --sources-only
+bash tools/build_ndstool_wasm.sh
+python3 tools/build_browser_preparer.py
+npm ci --prefix pages --ignore-scripts
+node tools/test_browser_preparer.mjs
+python3 tools/build_pages.py --with-browser build/browser-preview
+python3 -m http.server 8766 --bind 127.0.0.1 --directory build/browser-preview
+```
+
+O botão na [prévia local](http://127.0.0.1:8766/) só aparece após validar
+o SHA-256. O kit traz as ferramentas, e o navegador lê e processa o BIN
+no próprio aparelho. O workflow **Validar compilador WebAssembly**
+reproduz a compilação do kit e o teste sintético. A página pública segue
+com o verificador enquanto o fluxo completo aguarda validação.
 
 Logs de compilação: `build/native/logs/compile_*.log`.
 Os objetos são reutilizados apenas quando as verificações de fontes,
