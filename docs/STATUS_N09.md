@@ -1,6 +1,6 @@
-# Mega Man X4 para DSi — beta 9 em desenvolvimento
+# Megaman X4 Ds · beta 9
 
-Abra `dist/native-n09/mmx4_native_n09.nds` no modo DS ou DSi. O jogo começa no
+Abra `dist/native-n09/mmx4_ds_beta.nds` no modo DS ou DSi. O jogo começa no
 título original. Os logs ficam em `/mmx4/native_n09_000.log` ou no próximo
 número livre.
 

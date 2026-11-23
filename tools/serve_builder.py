@@ -21,7 +21,7 @@ HOST = "127.0.0.1"
 PORT = 8765
 AUTHORITY = f"{HOST}:{PORT}"
 ORIGIN = f"http://{AUTHORITY}"
-TARGET = Path("dist/native-n09/mmx4_native_n09.nds")
+TARGET = Path("dist/native-n09/mmx4_ds_beta.nds")
 BUSY = {"uploading", "validating", "setup", "building"}
 
 

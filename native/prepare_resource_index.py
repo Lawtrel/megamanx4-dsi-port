@@ -18,9 +18,11 @@ for resource_id in range(138):
     resource=by_location[(lba,size)]
     entries.append(dict(resource,id=resource_id))
 assert len({r['name'] for r in entries})==138
-lines=['/* Generated from the verified private dump. No game code. */']
-for r in entries:
-    lines.append('{"%s", %du, %du}, /* %02X */'%(r['name'],r['bytes'],r['format']=='container',r['id']))
-(OUT/'x4_content_index.inc').write_text('\n'.join(lines)+'\n')
+index=bytearray()
+for resource in entries:
+    name=resource['name'].encode('ascii')
+    assert len(name)<16
+    index+=struct.pack('<16sIB',name,resource['bytes'],resource['format']=='container')
+(ROOT/'build/native/full-content/resources.idx').write_bytes(index)
 (OUT/'resource_index.json').write_text(json.dumps({'exe_sha256':hashlib.sha256(exe).hexdigest(),'resources':entries},indent=2)+'\n')
 print('Resolved 138 original IDs to filenames and exact sizes')

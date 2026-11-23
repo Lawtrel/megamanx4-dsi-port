@@ -62,10 +62,8 @@ def nearest(v):
  return min(range(1,16),key=lambda i:sum((((v>>c)&31)-((palette[i]>>c)&31))**2 for c in (0,5,10)))
 lookup={v:nearest(v) for sheet in icons for icon in sheet for v in icon}
 pixels=[[[lookup[v] for v in icon] for icon in sheet] for sheet in icons]
-header='/* Generated locally from original X4 sprite assemblies; never commit. */\n#include <stdint.h>\n'
-header+='static const uint16_t x4_lower_icon_palette[16]={'+','.join(map(str,palette))+'};\n'
-header+='static const uint8_t x4_lower_icon_pixels[2][18][576]={'+','.join('{'+','.join('{'+','.join(map(str,icon))+'}' for icon in sheet)+'}' for sheet in pixels)+'};\n'
-(OUT/'x4_lower_icons.h').write_text(header)
+atlas=struct.pack('<16H',*palette)+bytes(pixel for sheet in pixels for icon in sheet for pixel in icon)
+(OUT/'lower-ui.dat').write_bytes(atlas)
 # Standalone visual contact sheet for reviewing the prepared resources.
 with (OUT/'icons.ppm').open('wb') as f:
  f.write(b'P6\n432 48\n255\n')
@@ -73,7 +71,7 @@ with (OUT/'icons.ppm').open('wb') as f:
   for x in range(432):
    c=palette[pixels[y//24][x//24][(y%24)*24+x%24]]
    f.write(bytes(((c&31)*255//31,((c>>5)&31)*255//31,((c>>10)&31)*255//31)))
-report={'status':'passed','icons':36,'palette_colors':16,'header_sha256':hashlib.sha256(header.encode()).hexdigest(),'bake_key':key,
+report={'status':'passed','icons':36,'palette_colors':16,'atlas_sha256':hashlib.sha256(atlas).hexdigest(),'bake_key':key,
  'sources':{str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in (Path(__file__).resolve(),ROOT/'native/lower_icons_bake.c')},'physical_dsi_tested':False}
 (OUT/'validation.json').write_text(json.dumps(report,indent=2)+'\n')
 print('Prepared 36 original lower-screen icons and shared palette',flush=True)

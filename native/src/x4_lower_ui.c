@@ -1,8 +1,30 @@
 /* CPU-side indexed tiles for the independent lower 2D engine. */
 #include "x4_lower_ui.h"
-#include "x4_lower_icons.h"
 #include <stdio.h>
 #include <string.h>
+static uint16_t x4_lower_icon_palette[16];
+static uint8_t x4_lower_icon_pixels[2][18][576];
+
+int x4_lower_load_atlas(const char* path){
+ if(!path)return -1;
+ FILE* file=fopen(path,"rb");
+ if(!file)return -1;
+ uint8_t colors[32];
+ int valid=fread(colors,1,sizeof colors,file)==sizeof colors&&
+           fread(x4_lower_icon_pixels,1,sizeof x4_lower_icon_pixels,file)==sizeof x4_lower_icon_pixels&&
+           fgetc(file)==EOF&&!ferror(file);
+ fclose(file);
+ if(!valid)return -2;
+ for(unsigned i=0;i<16;++i){
+  unsigned color=colors[i*2]|colors[i*2+1]<<8;
+  if(color>0x7fff)return -2;
+  x4_lower_icon_palette[i]=color;
+ }
+ for(unsigned c=0;c<2;++c)for(unsigned i=0;i<18;++i)for(unsigned p=0;p<576;++p)
+  if(x4_lower_icon_pixels[c][i][p]>15)return -2;
+ return 0;
+}
+
 static unsigned char tiles[X4_LOWER_TILE_BYTES] __attribute__((aligned(4)));
 static unsigned mode,selected;
 static int clip_y0,clip_y1=192;

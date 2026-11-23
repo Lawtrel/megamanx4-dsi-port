@@ -42,9 +42,27 @@ A compilação verifica os patches locais, prepara recursos e áudio, compila o
 código ARM9, executa os testes e verifica os cabeçalhos, símbolos e dados
 internos antes de criar o pacote local.
 
-O `.nds` da beta 9 fica em `dist/native-n09/mmx4_native_n09.nds`.
+O `.nds` da beta 9 fica em `dist/native-n09/mmx4_ds_beta.nds`.
 Para compilar a beta 9, use `python3 native/compile.py --n09` no Linux
-ou WSL. A saída fica em `dist/native-n09/mmx4_native_n09.nds`.
+ou WSL. A saída fica em `dist/native-n09/mmx4_ds_beta.nds`.
+Para usar uma imagem própria no menu do console, forneça um BMP indexado de 32×32
+e 4 bits, com até 15 cores além da transparência:
+
+```sh
+python3 native/compile.py --icon-bmp '/caminho/icone.bmp'
+```
+
+Para desenvolver o empacotador sem carregar o dump, execute
+`python3 native/compile.py --engine-only` após o setup do SDK. O resultado
+é o ELF ARM em `build/native/engine/mmx4_ds_beta.elf`. O índice e o
+atlas da tela inferior ficam no NitroFS do pacote final.
+
+Para testar a montagem no navegador, use a Emscripten SDK e execute
+`bash tools/build_ndstool_wasm.sh`. O adaptador em
+`tools/web/nds-package.mjs` recebe os executáveis ARM, um ícone e uma
+lista de arquivos já preparados. A etapa que prepara esses arquivos a
+partir do BIN ainda usa o compilador local.
+
 Logs de compilação: `build/native/logs/compile_*.log`.
 Os objetos são reutilizados apenas quando as verificações de fontes,
 cabeçalhos e opções permitem.

@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 int main(int argc,char** argv){
-    assert(argc==2);X4Content c={0};unsigned containers=0,raw=0;size_t bytes=0;
+    assert(argc==2);assert(!x4_content_load_index(argv[1]));X4Content c={0};unsigned containers=0,raw=0;size_t bytes=0;
     for(unsigned repeat=0;repeat<3;++repeat)for(unsigned id=0;id<138;++id){
         assert(!x4_content_open(&c,argv[1],id));assert(c.id==id);
         assert(c.archive.size==x4_content_expected_size(id));

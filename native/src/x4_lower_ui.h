@@ -3,6 +3,7 @@
 #include "x4_flow.h"
 enum {X4_LOWER_SIGMA_HITKILL=-4,X4_LOWER_CREDITS=-3,X4_LOWER_OPEN_TEST=-2,X4_LOWER_PANEL=0,X4_LOWER_DEBUG,X4_LOWER_MAP,X4_LOWER_TILE_BYTES=24576};
 /* Actions are returned to the frontend; this renderer never mutates game state. */
+int x4_lower_load_atlas(const char* path);
 void x4_lower_reset(void);
 unsigned x4_lower_mode(void);
 unsigned x4_lower_selection(void);

@@ -205,6 +205,7 @@ int main(int argc,char** argv){
  x4_sfx_set_cache_limit(dsi?4*1024*1024:96*1024);
  if(!nitroFSInit(NULL)){fail("Nao abriu os dados internos",-2);return 1;}
  if(fatInitDefault())initialize_logs();
+ if(x4_lower_load_atlas("nitro:/ui/lower-ui.dat")){fail("Atlas do painel indisponivel",-3);return 1;}
 #ifdef X4_N06_GPU
  x4_gpu_init();
 #else

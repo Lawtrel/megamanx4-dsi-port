@@ -14,4 +14,4 @@ for s in sources[:2]:
     subprocess.run([str(ROOT/'ambiente/sdk/devkitARM/bin/arm-none-eabi-gcc'),*flags,'-mcpu=arm946e-s','-mthumb','-c',str(s),'-o',str(OUT/(s.stem+'.arm9.o'))],check=True)
 (OUT/'validation.json').write_text(json.dumps({'status':'passed','resources':138,'replacement_cycles':414,
  'host_address_sanitizer':True,'arm9_compiled':True,'physical_dsi_tested':False,
- 'source_sha256':{str(s.relative_to(ROOT)):hashlib.sha256(s.read_bytes()).hexdigest() for s in sources+[ROOT/'build/native/content-index/x4_content_index.inc']}},indent=2)+'\n')
+ 'source_sha256':{str(s.relative_to(ROOT)):hashlib.sha256(s.read_bytes()).hexdigest() for s in sources+[ROOT/'build/native/full-content/resources.idx']}},indent=2)+'\n')

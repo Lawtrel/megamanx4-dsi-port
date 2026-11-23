@@ -3,9 +3,10 @@ from pathlib import Path
 import hashlib,json,struct,subprocess,sys,shutil,os
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'tools'))
 from nds_header import crc16
+from build_n05_flow import build_id as engine_build_id
 N06=True
 BUILD=ROOT/('build/native/n09' if N06 else 'build/native/n05-integrated');DIST=ROOT/('dist/native-n09' if N06 else 'dist/native-n05-flow');FLOW=ROOT/'build/native/n05-flow'
-target='mmx4_native_n09' if N06 else 'mmx4_native_n05_flow'
+target='mmx4_ds_beta' if N06 else 'mmx4_native_n05_flow'
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 inputs=json.loads((FLOW/'build_inputs.json').read_text())
 assert sha(FLOW/'flow.o')==inputs['flow_sha256']==sha(BUILD/'flow.o')
@@ -14,7 +15,7 @@ assert sha(BUILD/'source/main.c')==sha(ROOT/'native/dsi/n05_flow_main.c')
 assert sha(BUILD/'source/x4_controls.h')==sha(ROOT/'native/src/x4_controls.h')
 for name in ('x4_lower_ui.h','x4_lower_ui.c'):
  assert sha(BUILD/'source'/name)==sha(ROOT/'native/src'/name)
-build_id=hashlib.sha256((BUILD/'flow.o').read_bytes()+b''.join(p.read_bytes() for p in sorted((BUILD/'source').iterdir()) if p.suffix in ('.c','.h') and p.name!='build_id.h')+json.dumps(json.loads((BUILD/'assets.json').read_text()),sort_keys=True).encode()).hexdigest()[:20]
+build_id=engine_build_id(BUILD)
 assert (BUILD/'source/build_id.h').read_text()=='#define X4_BUILD_ID "'+build_id+'"\n'
 reports=[('flow_test','matrix_gpu.json' if N06 else 'matrix.json'),('systems_test','systems_gpu.json' if N06 else 'systems.json')]
 for name,report in reports:
@@ -75,10 +76,11 @@ if N06:
  assert not {'rgba','rgba_tables','aliases'}&records.keys()
  assert '__dldi_start' in records and b'\xed\xa5\x8d\xbf Chishm\x00' in data
 assets=json.loads((ROOT/'build/native/lower-assets/validation.json').read_text());assert assets['status']=='passed'
-assert sha(BUILD/'source/x4_lower_icons.h')==sha(ROOT/'build/native/lower-assets/x4_lower_icons.h')==assets['header_sha256']
+assert files['ui/lower-ui.dat']==sha(ROOT/'build/native/lower-assets/lower-ui.dat')==assets['atlas_sha256']
+assert files['content/resources.idx']==sha(ROOT/'build/native/full-content/resources.idx')
 for path,digest in assets['sources'].items():assert sha(ROOT/path)==digest,path
 lower=json.loads((ROOT/'build/native/lower-ui-tests/validation.json').read_text());assert lower['status']=='passed'
-assert lower['atlas_sha256']==assets['header_sha256']
+assert lower['atlas_sha256']==assets['atlas_sha256']
 for path,digest in lower['sources'].items():assert sha(ROOT/path)==digest,path
 panel=json.loads((ROOT/'build/native/player-panel-tests/validation.json').read_text());assert panel['status']=='passed'
 for path,digest in panel['sources'].items():assert sha(ROOT/path)==digest,path
