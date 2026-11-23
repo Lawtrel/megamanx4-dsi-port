@@ -16,13 +16,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - name: Verificar código e pacote público
         run: |
           python3 tools/check_source_tree.py
           python3 -m unittest discover -s tools -p test_serve_builder.py
           node --check tools/web/builder.js
-          mkdir _site
-          cp pages/index.html pages/style.css _site/
+          node --check pages/verify.js
+          node --check pages/verify-worker.js
+          npm ci --prefix pages --ignore-scripts --no-audit --no-fund
+          python3 tools/build_pages.py _site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:

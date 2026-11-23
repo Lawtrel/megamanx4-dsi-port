@@ -1,0 +1,7 @@
+{
+  "name": "mmx4-build-pages",
+  "private": true,
+  "dependencies": {
+    "hash-wasm": "4.12.0"
+  }
+}

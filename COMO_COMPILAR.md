@@ -86,7 +86,9 @@ servidor e descarta os arquivos temporários.
 
 O workflow **Compilador para Nintendo DS** publica a página de acesso.
 Em **Settings → Pages**, selecione **GitHub Actions** como fonte da página.
-O workflow inclui apenas o HTML e o CSS públicos.
+O workflow inclui a interface e o verificador SHA-256. A página
+verifica o BIN em blocos no navegador, inclusive no celular. O compilador
+local continua sendo o caminho para gerar o `.nds` no Linux ou WSL.
 
 ## Verificar dependências sem rede
 

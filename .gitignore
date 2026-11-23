@@ -57,3 +57,7 @@ __pycache__/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Dependencies and output for the GitHub Pages build
+/pages/node_modules/
+/_site/

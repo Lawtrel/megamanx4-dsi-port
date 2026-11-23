@@ -36,3 +36,6 @@ label, input { display: block; }
 input { font: inherit; margin: .5rem 0 1rem; max-width: 100%; }
 output { display: block; min-height: 1.6em; margin-top: .8rem; }
 [hidden] { display: none; }
+
+progress { display: block; width: 100%; margin-top: 1rem; accent-color: #72d7fc; }
+.fingerprint code { display: block; overflow-wrap: anywhere; }
