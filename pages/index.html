@@ -36,15 +36,14 @@
     </div>
   </section>
   <section>
-    <h2>Compilar no computador</h2>
-    <p id="local-only-text">A geração do <code>.nds</code> nesta página está em testes. O compilador local roda em Linux ou WSL.</p>
-    <p>Use Linux x86-64 ou WSL no Windows, com Python 3.11+, Git, GCC, Make e Tar. A primeira compilação baixa o SDK e as dependências.</p>
-    <p>Execute no terminal do Linux ou WSL:</p>
-    <pre><code>git clone https://github.com/Lawtrel/megamanx4-dsi-port.git
-cd megamanx4-dsi-port
-python3 tools/serve_builder.py</code></pre>
-    <p>Com o terminal aberto, selecione o <code>.bin</code> no compilador local. O navegador baixa o <code>.nds</code> quando o processo termina. O dump fica no seu computador.</p>
-    <a class="action" href="http://127.0.0.1:8765/">Abrir compilador local</a>
+    <h2>Gerar o .nds no computador</h2>
+    <p>Extraia o ZIP, abra o launcher e selecione seu BIN original. O launcher verifica o SHA-256 e salva <code>mmx4_ds_beta.nds</code> na pasta que você escolher.</p>
+    <a class="action" href="megaman-x4-ds-launcher-linux-wsl-x64.zip" download>Baixar launcher para Linux / Windows com WSL</a>
+    <ul>
+      <li><strong>Windows:</strong> abra <code>ABRIR_NO_WINDOWS.cmd</code>. É necessário ter WSL x64 com Python 3.11 ou superior.</li>
+      <li><strong>Linux x64:</strong> execute <code>python3 launcher.py</code> na pasta extraída. Use Python 3.11 ou superior com Tkinter.</li>
+    </ul>
+    <p>O processamento é local. No Android, use esta página para verificar o BIN.</p>
   </section>
   <section>
     <h2>Testar o jogo</h2>

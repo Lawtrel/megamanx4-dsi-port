@@ -121,11 +121,17 @@ def package(engine, icon=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--engine-only", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--engine-only", action="store_true")
+    mode.add_argument("--package-engine", type=Path,
+                      help="Package a precompiled ARM9 engine and the prepared local assets")
     parser.add_argument("--icon-bmp", type=Path, help="User-provided 32×32 BMP for the console banner")
     args = parser.parse_args()
     if args.icon_bmp and (args.engine_only or not args.icon_bmp.is_file()):
         parser.error("--icon-bmp requires an existing 32×32 BMP and a full build")
+    if args.package_engine:
+        package(args.package_engine.resolve(strict=True), args.icon_bmp)
+        return
     output = ROOT / ("build/native/engine" if args.engine_only else "build/native/n09")
     engine = link_engine(output)
     if args.engine_only:
