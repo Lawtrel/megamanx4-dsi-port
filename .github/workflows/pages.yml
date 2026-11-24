@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   launcher:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       ASAN_OPTIONS: detect_leaks=0
     steps:

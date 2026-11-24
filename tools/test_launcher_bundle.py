@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -62,8 +63,14 @@ def smoke(archive):
         }
         for path, manifest in manifests.items():
             path.write_text(json.dumps(manifest))
-        for tool in ("ambiente/sdk/tools/bin/ndstool", "host/xa_to_pcm", "host/atlas"):
-            (runtime / tool).chmod(0o700)
+        for tool in ("ambiente/sdk/tools/bin/ndstool", "host/xa_to_pcm", "host/atlas",
+                     "host/sfx_bake.so"):
+            binary = runtime / tool
+            binary.chmod(0o700)
+            versions = subprocess.check_output(["readelf", "--version-info", str(binary)], text=True)
+            glibc = [tuple(map(int, version.split(".")))
+                     for version in re.findall(r"\bGLIBC_([0-9.]+)", versions)]
+            assert glibc and max(glibc) <= (2, 35), (tool, glibc)
         dependencies = subprocess.check_output(["ldd", str(runtime / "host/atlas")], text=True)
         assert "not found" not in dependencies, dependencies
         sector = bytearray(2352)
