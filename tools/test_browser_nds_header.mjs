@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-import {headerSize, validateNdsHeader} from "./web/nds-header.mjs";
+import {headerSize, validateNdsHeader, validateNitroFs} from "./web/nds-header.mjs";
 
 // Artificial coordinates only. No Nintendo logo, banner or executable bytes.
 const fixture = new Uint8Array(headerSize);
@@ -30,10 +30,36 @@ const overlapping = fixture.slice();
 new DataView(overlapping.buffer).setUint32(0x1c0, 0x4100, true);
 assert.throws(() => validateNdsHeader(overlapping, size, 1), /sobrepõem/);
 
+const nameTable = Buffer.alloc(37);
+nameTable.writeUInt32LE(16, 0);
+nameTable.writeUInt16LE(2, 6);
+nameTable.writeUInt32LE(27, 8);
+nameTable.writeUInt16LE(0xf000, 14);
+nameTable[16] = 0x87;
+nameTable.write("content", 17);
+nameTable.writeUInt16LE(0xf001, 24);
+nameTable[27] = 8;
+nameTable.write("test.bin", 28);
+const fat = Buffer.alloc(8);
+fat.writeUInt32LE(0x4600, 0);
+fat.writeUInt32LE(0x4620, 4);
+const expected = new Map([["content/test.bin", 32]]);
+assert.doesNotThrow(() => validateNitroFs(nameTable, fat, size, expected));
+assert.throws(() => validateNitroFs(nameTable, fat, size,
+                                   new Map([["content/lost.bin", 32]])), /inesperado/);
+assert.throws(() => validateNitroFs(nameTable, fat, size,
+                                   new Map([["content/test.bin", 33]])), /endereço/);
+assert.throws(() => validateNitroFs(nameTable, fat, 0x4610, expected), /endereço/);
+assert.throws(() => validateNitroFs(nameTable, fat, size, expected,
+                                   [{offset: 0x4610, length: 0x20, name: "metadata"}]), /sobrepostas/);
+const badDirectory = Buffer.from(nameTable);
+badDirectory.writeUInt16LE(0xf001, 14);
+assert.throws(() => validateNitroFs(badDirectory, fat, size, expected), /diretório/);
+
 if (process.argv[2]) {
   const nds = await readFile(process.argv[2]);
   const tableLength = nds.readUInt32LE(0x4c);
   validateNdsHeader(nds.subarray(0, headerSize), nds.length, tableLength / 8);
 }
 
-console.log("PASS NDS header, CRC, DS/DSi sections and NitroFS table");
+console.log("PASS NDS header, CRC, DS/DSi sections, NitroFS file names, sizes and bounds");

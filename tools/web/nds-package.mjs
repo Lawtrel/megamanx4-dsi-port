@@ -1,5 +1,5 @@
 // Browser worker adapter for the pinned ndstool WebAssembly build.
-import {headerSize, validateNdsHeader} from "./nds-header.mjs";
+import {headerSize, validateNdsHeader, validateNitroFs} from "./nds-header.mjs";
 
 export const outputName = "mmx4_ds_beta.nds";
 const title = "Megaman X4 Ds;Native ARM9 engine;Beta 9";
@@ -22,14 +22,14 @@ export async function packageNds(createNdstool, {arm9, arm7, icon, assets}) {
     {name: "arm7.elf", data: arm7},
     {name: "icon.bmp", data: icon},
   ];
-  const paths = new Set();
+  const paths = new Map();
   for (const [path, data] of assets) {
     const elements = path.split("/");
     if (path.length > 240 || elements.some(element => !/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,126}$/.test(element))
         || paths.has(path) || !(data instanceof Blob)) {
       throw new Error(`Caminho inválido ou duplicado no NitroFS: ${path}`);
     }
-    paths.add(path);
+    paths.set(path, data.size);
     files.push({name: `data/${path}`, data});
   }
   if (!paths.size) throw new Error("Nenhum arquivo foi preparado para o NitroFS.");
@@ -56,7 +56,15 @@ export async function packageNds(createNdstool, {arm9, arm7, icon, assets}) {
       if (fs.read(stream, header, 0, header.length, 0) !== headerSize) {
         throw new Error("O cabeçalho do .nds está incompleto.");
       }
-      validateNdsHeader(header, size, paths.size);
+      const {names, allocations, regions} = validateNdsHeader(header, size, paths.size);
+      function readTable({offset, length}) {
+        const table = new Uint8Array(length);
+        if (fs.read(stream, table, 0, length, offset) !== length) {
+          throw new Error("Tabela NitroFS incompleta.");
+        }
+        return table;
+      }
+      validateNitroFs(readTable(names), readTable(allocations), size, paths, regions);
       for (let pos = 0; pos < size;) {
         const chunk = new Uint8Array(Math.min(1024 * 1024, size - pos));
         const read = fs.read(stream, chunk, 0, chunk.length, pos);
