@@ -42,9 +42,41 @@ A compilação verifica os patches locais, prepara recursos e áudio, compila o
 código ARM9, executa os testes e verifica os cabeçalhos, símbolos e dados
 internos antes de criar o pacote local.
 
-O `.nds` da beta 9 fica em `dist/native-n09/mmx4_native_n09.nds`.
+O `.nds` da beta 9 fica em `dist/native-n09/mmx4_ds_beta.nds`.
 Para compilar a beta 9, use `python3 native/compile.py --n09` no Linux
-ou WSL. A saída fica em `dist/native-n09/mmx4_native_n09.nds`.
+ou WSL. A saída fica em `dist/native-n09/mmx4_ds_beta.nds`.
+Para usar uma imagem própria no menu do console, forneça um BMP indexado de 32×32
+e 4 bits, com até 15 cores além da transparência:
+
+```sh
+python3 native/compile.py --icon-bmp '/caminho/icone.bmp'
+```
+
+Para desenvolver o empacotador sem carregar o dump, execute
+`python3 native/compile.py --engine-only` após o setup do SDK. O resultado
+é o ELF ARM em `build/native/engine/mmx4_ds_beta.elf`. O índice e o
+atlas da tela inferior ficam no NitroFS do pacote final.
+
+A montagem no navegador usa um kit de desenvolvimento. Depois do setup
+e da compilação com `--engine-only`, execute os comandos abaixo com
+Emscripten e Node.js disponíveis:
+
+```sh
+python3 native/tests/check_n05_flow.py --sources-only
+bash tools/build_ndstool_wasm.sh
+python3 tools/build_browser_preparer.py
+npm ci --prefix pages --ignore-scripts
+node tools/test_browser_preparer.mjs
+python3 tools/build_pages.py --with-browser build/browser-preview
+python3 -m http.server 8766 --bind 127.0.0.1 --directory build/browser-preview
+```
+
+O botão na [prévia local](http://127.0.0.1:8766/) só aparece após validar
+o SHA-256. O kit traz as ferramentas, e o navegador lê e processa o BIN
+no próprio aparelho. O workflow **Validar compilador WebAssembly**
+reproduz a compilação do kit e o teste sintético. A página pública segue
+com o verificador enquanto o fluxo completo aguarda validação.
+
 Logs de compilação: `build/native/logs/compile_*.log`.
 Os objetos são reutilizados apenas quando as verificações de fontes,
 cabeçalhos e opções permitem.
@@ -86,7 +118,9 @@ servidor e descarta os arquivos temporários.
 
 O workflow **Compilador para Nintendo DS** publica a página de acesso.
 Em **Settings → Pages**, selecione **GitHub Actions** como fonte da página.
-O workflow inclui apenas o HTML e o CSS públicos.
+O workflow inclui a interface e o verificador SHA-256. A página
+verifica o BIN em blocos no navegador, inclusive no celular. O compilador
+local continua sendo o caminho para gerar o `.nds` no Linux ou WSL.
 
 ## Verificar dependências sem rede
 

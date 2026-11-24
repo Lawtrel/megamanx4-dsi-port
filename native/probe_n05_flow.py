@@ -6,7 +6,7 @@ OUT=ROOT/'build/native/n05-flow';OUT.mkdir(parents=True,exist_ok=True);SDK=ROOT/
 flags=['-std=gnu11','-Os','-mcpu=arm946e-s','-mthumb','-fno-strict-aliasing','-ffunction-sections','-fdata-sections',
  '-DMMX4_PC=1','-D__psyz=1','-DSKIP_MDEC=1','-DVERSION_US=1','-DX4_FULL_FLOW=1','-DX4_DEVICE_INDEXED=1','-DX4_N06_INDEXED=1',
  '-Wno-incompatible-pointer-types','-Wno-int-conversion','-I'+str(CORE/'include'),'-I'+str(REF/'src/pc'),
- '-I'+str(REF/'tools/psyz/psyz/include'),'-I'+str(ROOT/'native/src'),'-I'+str(ROOT/'build/native/content-index')]
+ '-I'+str(REF/'tools/psyz/psyz/include'),'-I'+str(ROOT/'native/src')]
 replacements={'55C4.c':['stop_sound','func_8001663C','func_80016F0C','func_80016448','is_sound_finished','func_800160F4','func_80016124','func_800170B0','func_800170E0','func_80017100','func_800169D8','func_80015284','func_800153D4','func_80015C10','func_80017340','func_800179BC'],
  '3D88.c':['func_80013AD8','func_80013890'], '323C.c':['func_80012A3C'],
  '144A4.c':['func_80023CE0','func_80023D68','init_objects'],'165A0.c':['func_80026118'],'E47C.c':['func_8001E980'],

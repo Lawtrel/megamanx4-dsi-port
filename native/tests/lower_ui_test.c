@@ -10,7 +10,7 @@ static void preview(const char* root,const char* name,const unsigned char* data)
  assert(!fclose(f));
 }
 int main(int argc,char** argv){
- assert(argc==3);unsigned char font[2048];FILE* f=fopen(argv[1],"rb");assert(f&&fread(font,1,2048,f)==2048);fclose(f);
+ assert(argc==4);assert(!x4_lower_load_atlas(argv[3]));unsigned char font[2048];FILE* f=fopen(argv[1],"rb");assert(f&&fread(font,1,2048,f)==2048);fclose(f);
  X4PlayerPanel p={.active=1,.max_hp=48,.hp=37,.lives=3,.weapon=4,.weapons=255,.armor=15,.upgrades=0xf0ff};
  for(unsigned i=0;i<9;++i)p.energy[i]=48-i*3;
  p.tanks[0]=32;p.tanks[1]=17;p.tanks[2]=4;

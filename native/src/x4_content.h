@@ -9,6 +9,7 @@ typedef struct {
     unsigned id;
     int is_container;
 } X4Content;
+int x4_content_load_index(const char* root);
 const char* x4_content_name(unsigned id);
 size_t x4_content_expected_size(unsigned id);
 int x4_content_is_container(unsigned id);

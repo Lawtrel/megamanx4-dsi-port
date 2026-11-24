@@ -9,6 +9,7 @@ static int clamp(int s){return s<-32768?-32768:s>32767?32767:s;}
 static void output(FILE* f,int s){uint16_t v=(uint16_t)(int16_t)clamp(s);unsigned char b[2]={v,v>>8};if(fwrite(b,1,2,f)!=2)exit(3);}
 int main(int argc,char** argv){
  if(argc!=7)return 2;FILE* in=fopen(argv[1],"rb"),*out=fopen(argv[6],"wb");if(!in||!out)return 3;
+ previous[0]=previous[1]=older[0]=older[1]=0;
  unsigned long lba=strtoul(argv[2],0,0),channel=strtoul(argv[3],0,0),start=strtoul(argv[4],0,0),end=strtoul(argv[5],0,0);
  static const int pos[4]={0,60,115,98},neg[4]={0,0,-52,-55};unsigned char raw[2352];unsigned count=0,samples=0;
  for(unsigned long sector=start*8+channel;sector<end*8+channel;sector+=8){

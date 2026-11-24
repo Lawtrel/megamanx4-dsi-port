@@ -64,11 +64,12 @@ static void rebuild_view(void){
 }
 const X4Archive* x4_flow_archive(void){rebuild_view();return &view;}
 int x4_flow_load_error(void){return error;}
-void x4_flow_loading_init(const char* root){
+int x4_flow_loading_init(const char* root){
  content_root=root;error=0;memset(bank_sizes,0,sizeof bank_sizes);
  memset(pc_archive_slots,0,sizeof pc_archive_slots);D_801406A8=NULL;
  D_8015D9C8=MAIN_ARCHIVE_ARENA;D_80137DC4=D_8015D9C8;D_80173C80=D_8015D9C8;
  D_801406AC=2;D_8013BD40=0;D_8013BD44=1;
+ return error=x4_content_load_index(root);
 }
 void x4_flow_loading_close(void){
  x4_video_invalidate();

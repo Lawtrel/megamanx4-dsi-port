@@ -1,21 +1,26 @@
 """Prepare original pause icons offline; generated game images stay local."""
 from pathlib import Path
-import json,subprocess,hashlib,struct
+import json,subprocess,hashlib,struct,sys
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'build/native/lower-assets';OUT.mkdir(parents=True,exist_ok=True)
 REF=ROOT/'referencias/mmx4-decomp'
-inputs=json.loads((ROOT/'build/native/n05-flow/host/systems_test_inputs.json').read_text())['sources']
-sources=[ROOT/p for p in inputs if p.endswith('.c') and not p.endswith('n05_systems_driver.c')]
-sources.append(ROOT/'native/lower_icons_bake.c')
-flags=['-std=gnu11','-Os','-fno-strict-aliasing','-fwrapv','-ffunction-sections','-fdata-sections','-D__psyz=1','-DSKIP_MDEC=1','-DX4_N06_INDEXED=1','-Wno-incompatible-pointer-types','-Wno-int-conversion','-DMMX4_PC=1','-DVERSION_US=1','-DX4_FULL_FLOW=1','-Wl,--gc-sections']
-flags += ['-I'+str(p) for p in (ROOT/'build/native/gamecore/include',REF/'src/pc',REF/'tools/psyz/include',REF/'tools/psyz/psyz/include',ROOT/'native/src',ROOT/'native/dsi',ROOT/'native/tests/thread_host_shim',ROOT/'build/native/content-index')]
-dependencies=sources+list((ROOT/'build/native/gamecore/include').rglob('*.h'))+list((ROOT/'native/src').glob('*.h'))
-key=hashlib.sha256(json.dumps(flags).encode()+b''.join(p.read_bytes() for p in sorted(dependencies))).hexdigest()
-cache=OUT/'bake_key.txt'
-if not (cache.is_file() and cache.read_text()==key and (OUT/'sprites.rgb555').is_file()):
- subprocess.run(['gcc',*flags,*map(str,sources),'-o',str(OUT/'bake')],check=True,cwd=ROOT)
- subprocess.run([str(OUT/'bake'),str(ROOT/'build/native/full-content'),str(OUT/'sprites.rgb555')],check=True,cwd=ROOT)
- cache.write_text(key)
+if sys.platform=='emscripten':
+ from x4_browser_native import run_atlas
+ run_atlas(str(ROOT/'build/native/full-content'),str(OUT/'sprites.rgb555'))
+ key='wasm'
+else:
+ inputs=json.loads((ROOT/'build/native/n05-flow/host/systems_test_inputs.json').read_text())['sources']
+ sources=[ROOT/p for p in inputs if p.endswith('.c') and not p.endswith('n05_systems_driver.c')]
+ sources.append(ROOT/'native/lower_icons_bake.c')
+ flags=['-std=gnu11','-Os','-fno-strict-aliasing','-fwrapv','-ffunction-sections','-fdata-sections','-D__psyz=1','-DSKIP_MDEC=1','-DX4_N06_INDEXED=1','-Wno-incompatible-pointer-types','-Wno-int-conversion','-DMMX4_PC=1','-DVERSION_US=1','-DX4_FULL_FLOW=1','-Wl,--gc-sections']
+ flags += ['-I'+str(p) for p in (ROOT/'build/native/gamecore/include',REF/'src/pc',REF/'tools/psyz/include',REF/'tools/psyz/psyz/include',ROOT/'native/src',ROOT/'native/dsi',ROOT/'native/tests/thread_host_shim',ROOT/'build/native/content-index')]
+ dependencies=sources+list((ROOT/'build/native/gamecore/include').rglob('*.h'))+list((ROOT/'native/src').glob('*.h'))
+ key=hashlib.sha256(json.dumps(flags).encode()+b''.join(p.read_bytes() for p in sorted(dependencies))).hexdigest()
+ cache=OUT/'bake_key.txt'
+ if not (cache.is_file() and cache.read_text()==key and (OUT/'sprites.rgb555').is_file()):
+  subprocess.run(['gcc',*flags,*map(str,sources),'-o',str(OUT/'bake')],check=True,cwd=ROOT)
+  subprocess.run([str(OUT/'bake'),str(ROOT/'build/native/full-content'),str(OUT/'sprites.rgb555')],check=True,cwd=ROOT)
+  cache.write_text(key)
 raw=(OUT/'sprites.rgb555').read_bytes()
 assert len(raw)==2*54*128*128*2
 sprites=[]
@@ -62,10 +67,8 @@ def nearest(v):
  return min(range(1,16),key=lambda i:sum((((v>>c)&31)-((palette[i]>>c)&31))**2 for c in (0,5,10)))
 lookup={v:nearest(v) for sheet in icons for icon in sheet for v in icon}
 pixels=[[[lookup[v] for v in icon] for icon in sheet] for sheet in icons]
-header='/* Generated locally from original X4 sprite assemblies; never commit. */\n#include <stdint.h>\n'
-header+='static const uint16_t x4_lower_icon_palette[16]={'+','.join(map(str,palette))+'};\n'
-header+='static const uint8_t x4_lower_icon_pixels[2][18][576]={'+','.join('{'+','.join('{'+','.join(map(str,icon))+'}' for icon in sheet)+'}' for sheet in pixels)+'};\n'
-(OUT/'x4_lower_icons.h').write_text(header)
+atlas=struct.pack('<16H',*palette)+bytes(pixel for sheet in pixels for icon in sheet for pixel in icon)
+(OUT/'lower-ui.dat').write_bytes(atlas)
 # Standalone visual contact sheet for reviewing the prepared resources.
 with (OUT/'icons.ppm').open('wb') as f:
  f.write(b'P6\n432 48\n255\n')
@@ -73,7 +76,7 @@ with (OUT/'icons.ppm').open('wb') as f:
   for x in range(432):
    c=palette[pixels[y//24][x//24][(y%24)*24+x%24]]
    f.write(bytes(((c&31)*255//31,((c>>5)&31)*255//31,((c>>10)&31)*255//31)))
-report={'status':'passed','icons':36,'palette_colors':16,'header_sha256':hashlib.sha256(header.encode()).hexdigest(),'bake_key':key,
+report={'status':'passed','icons':36,'palette_colors':16,'atlas_sha256':hashlib.sha256(atlas).hexdigest(),'bake_key':key,
  'sources':{str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in (Path(__file__).resolve(),ROOT/'native/lower_icons_bake.c')},'physical_dsi_tested':False}
 (OUT/'validation.json').write_text(json.dumps(report,indent=2)+'\n')
 print('Prepared 36 original lower-screen icons and shared palette',flush=True)

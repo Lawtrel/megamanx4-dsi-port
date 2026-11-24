@@ -5,6 +5,7 @@ ROOT=Path(__file__).resolve().parents[2];REF=ROOT/'referencias/mmx4-decomp';CORE
 OUT=ROOT/'build/native/n05-flow';HOST=OUT/'host';HOST.mkdir(parents=True,exist_ok=True)
 arguments=sys.argv[1:];systems='--systems' in arguments
 if systems:arguments.remove('--systems')
+sources_only='--sources-only' in arguments
 executable=HOST/('systems_test' if systems else 'flow_test')
 (HOST/'validation.json').write_text('{"status":"running","physical_dsi_tested":false}\n')
 nm=ROOT/'ambiente/sdk/devkitARM/bin/arm-none-eabi-nm'
@@ -23,12 +24,18 @@ else:
 for n in json.loads((OUT/'replaced_sources.json').read_text()):selected.discard(REF/'src/main'/n)
 selected.update(ROOT/n for n in json.loads((OUT/'adapter_sources.json').read_text()))
 selected.update([ROOT/'native/dsi/n05_tasks.c',ROOT/'native/tests/thread_host_shim/shim.c',ROOT/'native/tests'/('n05_systems_driver.c' if systems else 'n05_flow_driver.c')])
-standard={'abort','memcpy','memmove','memset','memcmp','fopen','fclose','fflush','fgetc','fread','fwrite','fprintf','fseek','ftell','rewind','malloc','realloc','free','snprintf','strlen','strcpy','strcmp','strrchr','strtoul','getenv','__assert_func','__getreent',
+standard={'abort','memcpy','memmove','memset','memcmp','fopen','fclose','fflush','fgetc','ferror','fread','fwrite','fprintf','fseek','ftell','rewind','malloc','realloc','free','snprintf','strlen','strcpy','strcmp','strrchr','strtoul','getenv','__assert_func','__getreent',
  'calloc','setjmp','longjmp','setvbuf','condvarSignal','condvarWait','mutexLock','mutexUnlock','threadAttachLocalStorage','threadPrepare','threadStart'}
 names=[n for n in json.loads((OUT/'required_services.json').read_text()) if n not in standard and not n.startswith(('__aeabi_','__gnu_'))]
 trap=HOST/'diagnostic_traps.c';trap.write_text('#include <stdio.h>\n#include <stdlib.h>\n'+
  '\n'.join('__attribute__((noreturn)) void '+n+'(void){fprintf(stderr,"UNIMPLEMENTED FULL FLOW: '+n+'\\n");abort();}' for n in names)+'\n')
 selected.add(trap)
+if sources_only:
+    (HOST/'preparer_sources.json').write_text(json.dumps([
+        str(source.relative_to(ROOT)) for source in sorted(selected)
+        if source.name not in ('n05_tasks.c', 'n05_flow_driver.c', 'n05_systems_driver.c', 'shim.c')
+    ])+'\n')
+    raise SystemExit
 flags=['-std=gnu11','-Os','-g','-fno-omit-frame-pointer','-fno-strict-aliasing','-fwrapv','-fsanitize=address','--param=asan-globals=0',
  '-ffunction-sections','-fdata-sections','-DMMX4_PC=1','-D__psyz=1','-DSKIP_MDEC=1','-DVERSION_US=1','-DX4_FULL_FLOW=1','-DX4_N06_INDEXED=1',
  '-Wno-incompatible-pointer-types','-Wno-int-conversion','-I'+str(REF/'include'),'-I'+str(REF/'src/pc'),

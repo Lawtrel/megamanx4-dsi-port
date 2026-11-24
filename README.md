@@ -1,4 +1,4 @@
-# Mega Man X4 para Nintendo DS e DSi
+# Megaman X4 Ds
 
 Este projeto adapta o motor de **Mega Man X4** para rodar de forma nativa no
 Nintendo DS, DS Lite e DSi. Ele usa o ARM9 e a GPU do console para executar o jogo. Não é um
@@ -56,7 +56,7 @@ pelo Git.
 python3 native/compile.py
 ```
 
-O pacote aparece em `dist/native-n09/mmx4_native_n09.nds`. Use-o localmente,
+O pacote aparece em `dist/native-n09/mmx4_ds_beta.nds`. Use-o localmente,
 pois contém recursos do seu dump. Para compilar a beta 9, use
 `python3 native/compile.py --n09`.
 

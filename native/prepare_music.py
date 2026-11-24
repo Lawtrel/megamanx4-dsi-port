@@ -7,7 +7,12 @@ OUT=ROOT/'build/native/full-audio/music';OUT.mkdir(parents=True,exist_ok=True)
 exe=(ROOT/'private/SLUS_005.61').read_bytes();assert hashlib.sha256(exe).hexdigest()=='dae43d44a9f3176208830ddbba0607bb627ebcd7faf9b36fc03dd0ffda34d2e8'
 dump=disc_path();assert sha256(dump)==EXPECTED_SHA256
 decoder=ROOT/'build/native/full-audio/xa_to_pcm'
-subprocess.run(['gcc','-std=gnu11','-O3',str(ROOT/'native/xa_to_pcm.c'),'-o',str(decoder)],check=True)
+if sys.platform=='emscripten':
+ from x4_browser_native import run_xa
+else:
+ subprocess.run(['gcc','-std=gnu11','-O3',str(ROOT/'native/xa_to_pcm.c'),'-o',str(decoder)],check=True)
+ def run_xa(*arguments):
+  subprocess.run([str(decoder),*arguments],check=True)
 archive_ids=[0x95,0x96,0x97,0x98,0x99,0x9b,0x9c,0x9d,0x9e,0x9f,0x9a]
 enum=(ROOT/'referencias/mmx4-decomp/include/main/xa_sequence_data.h').read_text()
 tracks=sorted((int(value,16),name) for name,value in re.findall(r'\b((?:MUSIC|VOICE)_\w+)\s*=\s*(0x[0-9A-Fa-f]+)',enum))
@@ -32,8 +37,7 @@ try:
   assert source,(group,metadata_lba,list(directory))
   target=OUT/f'{selection:02x}.pcm';previous=cache.get(selection)
   if not(previous and target.exists() and sha256(target)==previous['sha256']):
-   p=subprocess.run([str(decoder),str(dump),str(metadata_lba),str(channel),str(start),str(end),str(target)],capture_output=True,text=True)
-   if p.returncode:raise RuntimeError(name+': '+p.stderr)
+   run_xa(str(dump),str(metadata_lba),str(channel),str(start),str(end),str(target))
   size=target.stat().st_size
   record={'selection':selection,'name':name,'source':source,'channel':channel,'start':start,'end':end,
    'sample_rate':18900,'format':'PCM16LE mono','bytes':size,'seconds':size/2/18900,'sha256':sha256(target),

@@ -6,6 +6,8 @@ import os
 import subprocess
 import sys
 
+from build_n05_flow import validate_icon
+
 ROOT=Path(__file__).resolve().parents[1]
 LOGS=ROOT/'build/native/logs'
 LOGS.mkdir(parents=True,exist_ok=True)
@@ -14,15 +16,26 @@ logpath=LOGS/(datetime.datetime.now().strftime('compile_%Y%m%d_%H%M%S_%f')+'.log
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--n09','--n0815','--n0814','--n0813','--n0812','--n0811','--n0810','--n089','--n088','--n087','--n086','--n085','--n084','--n083','--n082','--n081','--n08','--n07','--n06',action='store_true',help='Compile the current beta 9 native target')
-    parser.parse_args()
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--engine-only', action='store_true', help='Link only the ARM executable, without a game dump')
+    mode.add_argument('--icon-bmp', type=Path, help='Use your 32×32 BMP for the console banner')
+    args = parser.parse_args()
+    if args.icon_bmp:
+        args.icon_bmp = args.icon_bmp.resolve()
+        try:
+            validate_icon(args.icon_bmp)
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
     if sys.platform!='linux':
         raise RuntimeError('Use COMPILAR_JOGO.cmd on Windows, or run under Linux/WSL.')
     sys.path.insert(0,str(ROOT/'tools'))
     from setup_native import prepare_sources
     prepare_sources(offline=True)
-    for path in ('ambiente/sdk/devkitARM/bin/arm-none-eabi-gcc','native/Makefile.nds','private/SLUS_005.61'):
+    for path in ('ambiente/sdk/devkitARM/bin/arm-none-eabi-gcc','native/Makefile.nds'):
         if not (ROOT/path).is_file():
             raise RuntimeError('Missing '+path+'. Run tools/setup_native.py --disc /path/to/game.bin first.')
+    if not args.engine_only and not (ROOT/'private/SLUS_005.61').is_file():
+        raise RuntimeError('Missing private/SLUS_005.61. Run tools/setup_native.py --disc /path/to/game.bin first.')
     os.environ.update(X4_N06='1',X4_GPU='1')
     with logpath.open('w',encoding='utf-8') as log:
         def say(message):
@@ -35,9 +48,14 @@ def main():
                 for line in process.stdout:
                     print(line,end='',flush=True);log.write(line);log.flush()
                 if process.wait():raise RuntimeError('Etapa interrompida: '+script)
-        say('Beta 9: X4 nativo com retorno ao titulo apos os creditos.')
+        say('Megaman X4 Ds · beta 9')
         say('Log: '+str(logpath))
         run('native/build_gamecore.py')
+        if args.engine_only:
+            run('native/tests/check_n05_tasks.py')
+            run('native/probe_n05_flow.py')
+            run('native/build_n05_flow.py','--engine-only')
+            return
         if not (ROOT/'build/native/full-content/manifest.json').is_file():run('native/prepare_full_content.py')
         for script in ('prepare_resource_index.py','prepare_music.py','prepare_sfx.py','prepare_sequences.py'):
             run('native/'+script)
@@ -52,9 +70,9 @@ def main():
         run('native/prepare_lower_assets.py')
         run('native/tests/check_lower_ui.py')
         run('native/tests/n06_preview_png.py')
-        run('native/build_n05_flow.py')
+        run('native/build_n05_flow.py', *(['--icon-bmp',str(args.icon_bmp)] if args.icon_bmp else []))
         run('native/package_n05_flow.py')
-        say('\nSUCESSO DE COMPILACAO (EM TESTE): '+str(ROOT/'dist/native-n09/mmx4_native_n09.nds'))
+        say('\nSUCESSO DE COMPILACAO (EM TESTE): '+str(ROOT/'dist/native-n09/mmx4_ds_beta.nds'))
         say('Use somente no seu ambiente local. O NDS contem recursos extraidos do seu dump.')
 
 if __name__=='__main__':

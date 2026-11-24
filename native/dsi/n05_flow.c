@@ -18,7 +18,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-extern void x4_flow_loading_init(const char*);
+extern int x4_flow_loading_init(const char*);
 extern void x4_flow_loading_close(void);
 extern void func_80012600(void),clear_vram_rect_ptrs(void),func_8001FB50(void);
 extern u8* D_8010FFDC[17][2];
@@ -85,7 +85,9 @@ void x4_flow_close(void){
 }
 int x4_flow_begin(const char* root,unsigned character,unsigned stage,unsigned area){
  if(!root||strlen(root)>=sizeof root_path||character>1||stage>12||area>1||((stage==9||stage==10)&&area))return -1;
- x4_flow_close();strcpy(root_path,root);x4_n05_platform_init(root_path);x4_flow_loading_init(root_path);x4_sfx_character(character);
+ x4_flow_close();strcpy(root_path,root);x4_n05_platform_init(root_path);
+ if(x4_flow_loading_init(root_path))return -2;
+ x4_sfx_character(character);
  mmx4_pc_threads_init();reset_game_engine();reset_objects();
  /* The native entry bypasses func_8001213C's device setup, including its
   * RNG seed. Zero is an absorbing state and hangs ice_core_shed_ice when
