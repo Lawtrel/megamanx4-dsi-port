@@ -32,6 +32,7 @@ jobs:
         run: |
           npm ci --prefix pages --ignore-scripts --no-audit --no-fund
           node tools/test_browser_preparer.mjs
+          node tools/test_browser_nds_header.mjs
           node --check tools/web/build-worker.mjs
           python3 tools/build_pages.py --with-browser "$RUNNER_TEMP/browser-preview"
           test ! -e private

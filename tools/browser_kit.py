@@ -26,6 +26,7 @@ FILES = {
     "build-worker.mjs": ROOT / "tools/web/build-worker.mjs",
     "browser-native.mjs": ROOT / "tools/web/browser-native.mjs",
     "nds-package.mjs": ROOT / "tools/web/nds-package.mjs",
+    "nds-header.mjs": ROOT / "tools/web/nds-header.mjs",
     "kit/prepare.py": ROOT / "tools/web/browser-prepare.py",
     "kit/arm9.elf": ROOT / "build/native/engine/mmx4_ds_beta.elf",
     "kit/arm7.elf": SDK / "bin/ds7_maine.elf",

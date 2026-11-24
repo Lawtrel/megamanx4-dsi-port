@@ -47,6 +47,8 @@ input.addEventListener("change", () => {
   fingerprint.hidden = true;
 });
 
+icon.addEventListener("change", clearBuild);
+
 form.addEventListener("submit", (event) => {
   event.preventDefault();
   const file = input.files[0];

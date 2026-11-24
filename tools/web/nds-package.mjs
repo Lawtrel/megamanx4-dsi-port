@@ -1,4 +1,6 @@
 // Browser worker adapter for the pinned ndstool WebAssembly build.
+import {headerSize, validateNdsHeader} from "./nds-header.mjs";
+
 export const outputName = "mmx4_ds_beta.nds";
 const title = "Megaman X4 Ds;Native ARM9 engine;Beta 9";
 
@@ -50,6 +52,11 @@ export async function packageNds(createNdstool, {arm9, arm7, icon, assets}) {
     const size = fs.stat(output).size;
     const stream = fs.open(output, "r");
     try {
+      const header = new Uint8Array(headerSize);
+      if (fs.read(stream, header, 0, header.length, 0) !== headerSize) {
+        throw new Error("O cabeçalho do .nds está incompleto.");
+      }
+      validateNdsHeader(header, size, paths.size);
       for (let pos = 0; pos < size;) {
         const chunk = new Uint8Array(Math.min(1024 * 1024, size - pos));
         const read = fs.read(stream, chunk, 0, chunk.length, pos);
