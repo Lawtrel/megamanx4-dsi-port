@@ -2,17 +2,44 @@ name: Compilador para Nintendo DS
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: github-pages
+  group: github-pages-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
+  launcher:
+    runs-on: ubuntu-24.04
+    env:
+      ASAN_OPTIONS: detect_leaks=0
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Preparar o motor e as ferramentas sem dump
+        run: |
+          python3 tools/setup_native.py
+          python3 native/compile.py --engine-only
+          python3 native/tests/check_n05_flow.py --sources-only
+          git clone --quiet --depth 1 --branch v2.3.1 https://github.com/devkitPro/ndstool.git build/browser-tools/ndstool
+      - name: Empacotar e testar o launcher com dados sintéticos
+        run: |
+          python3 tools/build_launcher.py "$RUNNER_TEMP/megaman-x4-ds-launcher-linux-wsl-x64.zip"
+          python3 tools/test_launcher_bundle.py "$RUNNER_TEMP/megaman-x4-ds-launcher-linux-wsl-x64.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mmx4-linux-wsl-launcher
+          path: ${{ runner.temp }}/megaman-x4-ds-launcher-linux-wsl-x64.zip
+          if-no-files-found: error
   site:
+    needs: launcher
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -28,11 +55,19 @@ jobs:
           node --check pages/verify-worker.js
           npm ci --prefix pages --ignore-scripts --no-audit --no-fund
           python3 tools/build_pages.py _site
+      - name: Incluir o ZIP do launcher
+        uses: actions/download-artifact@v4
+        with:
+          name: mmx4-linux-wsl-launcher
+          path: _site
       - uses: actions/configure-pages@v5
+        if: github.event_name != 'pull_request'
       - uses: actions/upload-pages-artifact@v4
+        if: github.event_name != 'pull_request'
         with:
           path: _site
   deploy:
+    if: github.event_name != 'pull_request'
     needs: site
     runs-on: ubuntu-latest
     permissions:

@@ -1,6 +1,6 @@
 """Convert all 80 named USA music/voice selections to native PCM offline."""
 from pathlib import Path
-import subprocess,sys,re,json,hashlib,struct
+import os,subprocess,sys,re,json,hashlib,struct
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'tools'))
 from prepare_disc import RawDisc,sha256,EXPECTED_SHA256,disc_path
 OUT=ROOT/'build/native/full-audio/music';OUT.mkdir(parents=True,exist_ok=True)
@@ -10,7 +10,11 @@ decoder=ROOT/'build/native/full-audio/xa_to_pcm'
 if sys.platform=='emscripten':
  from x4_browser_native import run_xa
 else:
- subprocess.run(['gcc','-std=gnu11','-O3',str(ROOT/'native/xa_to_pcm.c'),'-o',str(decoder)],check=True)
+ kit=os.environ.get('X4_HOST_TOOLS')
+ if kit:
+  decoder=Path(kit)/'xa_to_pcm'
+ else:
+  subprocess.run(['gcc','-std=gnu11','-O3',str(ROOT/'native/xa_to_pcm.c'),'-o',str(decoder)],check=True)
  def run_xa(*arguments):
   subprocess.run([str(decoder),*arguments],check=True)
 archive_ids=[0x95,0x96,0x97,0x98,0x99,0x9b,0x9c,0x9d,0x9e,0x9f,0x9a]

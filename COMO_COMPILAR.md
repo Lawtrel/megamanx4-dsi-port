@@ -1,5 +1,16 @@
 # Compilação local
 
+## Launcher para jogadores
+
+Baixe o launcher na [página do projeto](https://lawtrel.github.io/megamanx4-dsi-port/)
+e extraia o ZIP inteiro. No Windows com WSL x64, abra `ABRIR_NO_WINDOWS.cmd`.
+No Linux x86-64 com Tkinter, rode `python3 launcher.py` na pasta extraída.
+Ambos exigem Python 3.11 ou superior.
+
+Selecione seu BIN original USA SLUS-00561 e uma pasta de destino.
+O launcher verifica o SHA-256, converte os dados no aparelho e monta
+`mmx4_ds_beta.nds` com o motor pré-compilado.
+
 ## Requisitos
 
 - Linux x86-64 ou WSL com uma distribuição Linux x86-64.
@@ -118,9 +129,8 @@ servidor e descarta os arquivos temporários.
 
 O workflow **Compilador para Nintendo DS** publica a página de acesso.
 Em **Settings → Pages**, selecione **GitHub Actions** como fonte da página.
-O workflow inclui a interface e o verificador SHA-256. A página
-verifica o BIN em blocos no navegador, inclusive no celular. O compilador
-local continua sendo o caminho para gerar o `.nds` no Linux ou WSL.
+O workflow publica a interface, o verificador SHA-256 e o ZIP do launcher.
+A página verifica o BIN em blocos no navegador, inclusive no celular.
 
 ## Verificar dependências sem rede
 

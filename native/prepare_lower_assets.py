@@ -1,13 +1,18 @@
 """Prepare original pause icons offline; generated game images stay local."""
 from pathlib import Path
-import json,subprocess,hashlib,struct,sys
+import json,os,subprocess,hashlib,struct,sys
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'build/native/lower-assets';OUT.mkdir(parents=True,exist_ok=True)
 REF=ROOT/'referencias/mmx4-decomp'
+kit=os.environ.get('X4_HOST_TOOLS')
 if sys.platform=='emscripten':
  from x4_browser_native import run_atlas
  run_atlas(str(ROOT/'build/native/full-content'),str(OUT/'sprites.rgb555'))
  key='wasm'
+elif kit:
+ binary=Path(kit)/'atlas'
+ subprocess.run([str(binary),str(ROOT/'build/native/full-content'),str(OUT/'sprites.rgb555')],check=True)
+ key=hashlib.sha256(binary.read_bytes()).hexdigest()
 else:
  inputs=json.loads((ROOT/'build/native/n05-flow/host/systems_test_inputs.json').read_text())['sources']
  sources=[ROOT/p for p in inputs if p.endswith('.c') and not p.endswith('n05_systems_driver.c')]

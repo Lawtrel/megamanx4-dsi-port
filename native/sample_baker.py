@@ -1,4 +1,5 @@
 """Use the same sample renderer through the native or browser ABI."""
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -14,12 +15,16 @@ def load_baker(output):
 
     import ctypes
 
-    library = output / "sfx_bake.so"
-    subprocess.run([
-        "gcc", "-O3", "-shared", "-fPIC", "-D__psyz=1", "-DNDEBUG=1",
-        "-I" + str(PSYZ / "psyz/include"), str(ROOT / "native/sfx_bake.c"),
-        str(PSYZ / "psyz/src/psyz/psyz_spu.c"), "-o", str(library),
-    ], check=True)
+    kit = os.environ.get("X4_HOST_TOOLS")
+    if kit:
+        library = Path(kit) / "sfx_bake.so"
+    else:
+        library = output / "sfx_bake.so"
+        subprocess.run([
+            "gcc", "-O3", "-shared", "-fPIC", "-D__psyz=1", "-DNDEBUG=1",
+            "-I" + str(PSYZ / "psyz/include"), str(ROOT / "native/sfx_bake.c"),
+            str(PSYZ / "psyz/src/psyz/psyz_spu.c"), "-o", str(library),
+        ], check=True)
     dsp = ctypes.CDLL(str(library))
     dsp.bake_reset.argtypes = [ctypes.c_void_p, ctypes.c_uint]
     dsp.bake_pull.argtypes = [ctypes.c_void_p, ctypes.c_uint]

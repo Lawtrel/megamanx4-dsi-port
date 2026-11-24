@@ -85,7 +85,7 @@ form.addEventListener("submit", (event) => {
           }
           status.textContent = data.state === "valid"
             ? (browserBuildAvailable ? "Dump compatível com a beta 9."
-              : "Dump compatível com a beta 9. Veja a opção de compilação para computador abaixo.")
+              : "Dump compatível com a beta 9. Use o launcher para gerar o .nds no computador.")
             : "O SHA-256 difere da edição USA SLUS-00561 suportada.";
           hashValue.textContent = data.sha256;
           fingerprint.hidden = false;
