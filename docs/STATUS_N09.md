@@ -26,10 +26,11 @@ Foram 48 entradas em fase, incluindo a segunda área das 11 fases que a oferecem
 inferior da BIOS ARM7 de teste. A cópia local original tem os vetores iniciais
 preenchidos com FF e travou antes de iniciar o jogo.
 
-O driver oficial DSpico DLDI v1.0.1 coube na área reservada do binário em um
-teste de aplicação com dlditool. A execução no cartucho e os tempos de quadro
-desta compilação no hardware continuam pendentes. O DeSmuME testado também
-ficou pendente. O emulador validado para jogar é o melonDS DS.
+O driver oficial DSpico DLDI v1.0.1 coube na área reservada em um teste
+com dlditool. O mesmo binário também chegou à luta de Sigma com Zero por
+DSpico em modo TWL. O teste físico em DS/DS Lite no perfil NTR e a
+persistência de save depois de reiniciar continuam pendentes. O emulador
+validado para jogar é o melonDS DS.
 
 ## O que mudou
 

@@ -2,8 +2,10 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 $title = 'Megaman X4 Ds'
 $null = [System.Windows.Forms.Application]::EnableVisualStyles()
+$python = Join-Path $PSScriptRoot 'python/python.exe'
+$native = Test-Path -LiteralPath $python
 $wsl = Get-Command wsl.exe -ErrorAction SilentlyContinue
-if (-not $wsl) {
+if (-not $native -and -not $wsl) {
     [System.Windows.Forms.MessageBox]::Show('Instale o WSL com uma distribuicao Linux x64 para executar este launcher.', $title) | Out-Null
     exit 1
 }
@@ -33,9 +35,16 @@ try {
                     '--windows-paths', '--dump', $dump.FileName, '--output-dir', $output.SelectedPath)
     if ($replace) { $arguments += '--replace' }
     Write-Host 'Preparando o jogo. Acompanhe as etapas nesta janela.'
-    & $wsl.Source @arguments
+    if ($native) {
+        $nativeArguments = @('-X', 'utf8', (Join-Path $PSScriptRoot 'launcher.py'),
+                             '--dump', $dump.FileName, '--output-dir', $output.SelectedPath)
+        if ($replace) { $nativeArguments += '--replace' }
+        & $python @nativeArguments
+    } else {
+        & $wsl.Source @arguments
+    }
     if ($LASTEXITCODE -ne 0) {
-        [System.Windows.Forms.MessageBox]::Show($display, 'A compilacao falhou. Confira os detalhes na janela de terminal. O WSL precisa ter Python 3.11 ou mais recente.', $title) | Out-Null
+        [System.Windows.Forms.MessageBox]::Show($display, 'A compilacao falhou. Confira os detalhes na janela de terminal.', $title) | Out-Null
         exit 1
     }
     [System.Windows.Forms.MessageBox]::Show($display, "Arquivo salvo em `n$target", $title) | Out-Null

@@ -28,8 +28,8 @@ Veja os controles e o conteúdo no [status da beta 9](docs/STATUS_N09.md).
 
 ## Preparar e compilar
 
-O [compilador local pelo navegador](COMO_COMPILAR.md#compilar-pelo-navegador)
-aceita o BIN original e baixa o arquivo `.nds` ao final.
+O [launcher](COMO_COMPILAR.md#launcher-para-jogadores) aceita o BIN original
+e salva o `.nds` no aparelho.
 
 ### Requisitos
 

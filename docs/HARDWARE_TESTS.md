@@ -1,3 +1,32 @@
+# DSpico em modo TWL — Sigma com Zero
+
+Log de 24/11/2026, compilação `203399c63432e6717b90`.
+O log identifica `PROFILE_HW mode=TWL arm9_mhz=134`. O cartão contém
+o mesmo SHA-256 da build usada nos testes
+NTR/TWL do melonDS DS 1.4.0:
+`262ba2738f416c3d9621fe2afbada3a7e8e06675fa622e043272a9ae44dc97e9`.
+
+Zero iniciou a área 2 da fase 12 pelo seletor com equipamento de debug e
+chegou ao estado de créditos `11/3`. O recorte de controle livre e
+personagem vivo (`engine=6/0`, `locked=0`, `hp>0`) contém 14 janelas.
+
+| Medição | Resultado |
+| --- | ---: |
+| FPS mínimo / média / máximo das janelas | 48 / 57 / 59 |
+| Intervalos de apresentação medidos | 799 |
+| Intervalos acima de dois campos de vídeo | 6 |
+| Maior intervalo entre apresentações | 83,58 ms |
+| Maior limite superior de p95 por janela | 34 ms |
+| Custo médio do diagnóstico anterior | 8,63 ms |
+
+Nas 136 janelas do log, os contadores de erro de imagem, áudio e efeitos
+pendentes ficaram em zero. A prova cobre o DSpico em TWL e o percurso
+capturado. Ainda falta repetir em NTR físico, confirmar save após reiniciar
+e medir o novo código de gravação do log no console.
+
+SHA-256 do log
+`f5cdefb6d443d8d32449d6cfa55c1ad1fb6c6475461063c4cf4ffe1104964830`.
+
 # Retorno físico — beta 9
 
 O usuário aprovou o visual e confirmou o retorno ao título depois dos

@@ -16,6 +16,10 @@ concurrency:
 jobs:
   launcher:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [linux-wsl-x64, windows-x64, android-arm64]
     env:
       ASAN_OPTIONS: detect_leaks=0
     steps:
@@ -23,23 +27,62 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+      - uses: actions/cache@v4
+        with:
+          path: ambiente/packages
+          key: sdk-devkitpro-${{ hashFiles('tools/setup_sdk.py') }}
+      - name: Instalar o compilador Windows x64
+        if: matrix.target == 'windows-x64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++-mingw-w64-x86-64-posix
+      - name: Preparar o NDK Android ARM64
+        if: matrix.target == 'android-arm64'
+        run: |
+          sdkmanager "ndk;28.2.13676358"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
       - name: Preparar o motor e as ferramentas sem dump
         run: |
           python3 tools/setup_native.py
           python3 native/compile.py --engine-only
           python3 native/tests/check_n05_flow.py --sources-only
           git clone --quiet --depth 1 --branch v2.3.1 https://github.com/devkitPro/ndstool.git build/browser-tools/ndstool
-      - name: Empacotar e testar o launcher com dados sintéticos
+      - name: Empacotar o launcher
+        run: python3 tools/build_launcher.py --target ${{ matrix.target }} "$RUNNER_TEMP/megaman-x4-ds-launcher-${{ matrix.target }}.zip"
+      - name: Testar o launcher Linux com dados sintéticos
+        if: matrix.target == 'linux-wsl-x64'
+        run: python3 tools/test_launcher_bundle.py "$RUNNER_TEMP/megaman-x4-ds-launcher-linux-wsl-x64.zip"
+      - name: Validar os binários Android ARM64
+        if: matrix.target == 'android-arm64'
         run: |
-          python3 tools/build_launcher.py "$RUNNER_TEMP/megaman-x4-ds-launcher-linux-wsl-x64.zip"
-          python3 tools/test_launcher_bundle.py "$RUNNER_TEMP/megaman-x4-ds-launcher-linux-wsl-x64.zip"
+          unzip -q "$RUNNER_TEMP/megaman-x4-ds-launcher-android-arm64.zip" -d "$RUNNER_TEMP/launcher"
+          cd "$RUNNER_TEMP/launcher/megaman-x4-ds-launcher-android-arm64"
+          bash -n abrir-no-android.sh
+          for file in runtime/host/atlas runtime/host/xa_to_pcm runtime/ambiente/sdk/tools/bin/ndstool; do
+            readelf -h "$file" | grep AArch64
+            readelf -l "$file" | grep /system/bin/linker64
+          done
+          readelf -h runtime/host/sfx_bake.so | grep AArch64
       - uses: actions/upload-artifact@v4
         with:
-          name: mmx4-linux-wsl-launcher
-          path: ${{ runner.temp }}/megaman-x4-ds-launcher-linux-wsl-x64.zip
+          name: mmx4-launcher-${{ matrix.target }}
+          path: ${{ runner.temp }}/megaman-x4-ds-launcher-${{ matrix.target }}.zip
           if-no-files-found: error
-  site:
+  windows-smoke:
     needs: launcher
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: mmx4-launcher-windows-x64
+      - name: Testar o launcher Windows com dados sintéticos
+        run: python -X utf8 tools/test_launcher_bundle.py megaman-x4-ds-launcher-windows-x64.zip
+  site:
+    needs: [launcher, windows-smoke]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -50,6 +93,7 @@ jobs:
         run: |
           python3 tools/check_source_tree.py
           python3 -m unittest discover -s tools -p test_serve_builder.py
+          python3 native/tests/check_sfx_replacement.py
           node --check tools/web/builder.js
           node --check pages/verify.js
           node --check pages/verify-worker.js
@@ -58,7 +102,8 @@ jobs:
       - name: Incluir o ZIP do launcher
         uses: actions/download-artifact@v4
         with:
-          name: mmx4-linux-wsl-launcher
+          pattern: mmx4-launcher-*
+          merge-multiple: true
           path: _site
       - uses: actions/configure-pages@v5
         if: github.event_name != 'pull_request'

@@ -11,13 +11,13 @@ import sys
 import tempfile
 from zipfile import ZipFile
 
-from build_launcher import NAME
+from build_launcher import PREFIX
 from nds_header import validate_native_package
 from prepare_disc import EXPECTED_SIZE
 
 
-def run(workspace, *command):
-    return subprocess.run([sys.executable, *command], cwd=workspace,
+def run(python, workspace, *command):
+    return subprocess.run([python, "-X", "utf8", *command], cwd=workspace,
                           text=True, capture_output=True, check=False)
 
 
@@ -30,16 +30,22 @@ def smoke(archive):
                            {".bin", ".cue", ".iso", ".nds", ".arc", ".pcm"}
                            for name in bundle.namelist())
             bundle.extractall(root)
-        launcher = root / NAME
+        windows = os.name == "nt"
+        exe = ".exe" if windows else ""
+        shared = ".dll" if windows else ".so"
+        target = "windows-x64" if windows else "linux-wsl-x64"
+        launcher = root / (PREFIX + target)
+        python = str(launcher / "python/python.exe") if windows else sys.executable
         runtime = launcher / "runtime"
+        assert json.loads((runtime / "platform.json").read_text()) == target
         synthetic = root / "arquivo de teste.bin"
         synthetic.touch()
         command = ("launcher.py", "--dump", str(synthetic), "--output-dir", str(root))
-        bad_size = run(launcher, *command)
+        bad_size = run(python, launcher, *command)
         assert bad_size.returncode == 1 and "BIN incompatível" in bad_size.stderr, bad_size
         with synthetic.open("r+b") as stream:
             stream.truncate(EXPECTED_SIZE)
-        bad_hash = run(launcher, *command)
+        bad_hash = run(python, launcher, *command)
         assert bad_hash.returncode == 1 and "SHA-256 não corresponde" in bad_hash.stderr, bad_hash
         assert not (root / "mmx4_ds_beta.nds").exists()
 
@@ -63,16 +69,17 @@ def smoke(archive):
         }
         for path, manifest in manifests.items():
             path.write_text(json.dumps(manifest))
-        for tool in ("ambiente/sdk/tools/bin/ndstool", "host/xa_to_pcm", "host/atlas",
-                     "host/sfx_bake.so"):
-            binary = runtime / tool
-            binary.chmod(0o700)
-            versions = subprocess.check_output(["readelf", "--version-info", str(binary)], text=True)
-            glibc = [tuple(map(int, version.split(".")))
-                     for version in re.findall(r"\bGLIBC_([0-9.]+)", versions)]
-            assert glibc and max(glibc) <= (2, 35), (tool, glibc)
-        dependencies = subprocess.check_output(["ldd", str(runtime / "host/atlas")], text=True)
-        assert "not found" not in dependencies, dependencies
+        if not windows:
+            for tool in ("ambiente/sdk/tools/bin/ndstool", "host/xa_to_pcm", "host/atlas",
+                         "host/sfx_bake.so"):
+                binary = runtime / tool
+                binary.chmod(0o700)
+                versions = subprocess.check_output(["readelf", "--version-info", str(binary)], text=True)
+                glibc = [tuple(map(int, version.split(".")))
+                         for version in re.findall(r"\bGLIBC_([0-9.]+)", versions)]
+                assert glibc and max(glibc) <= (2, 35), (tool, glibc)
+            dependencies = subprocess.check_output(["ldd", str(runtime / "host/atlas")], text=True)
+            assert "not found" not in dependencies, dependencies
         sector = bytearray(2352)
         sector[16:20] = bytes((1, 0, 0x44, 4))
         for group in range(18):
@@ -81,7 +88,7 @@ def smoke(archive):
         xa = root / "fixture.xa"
         xa.write_bytes(sector)
         pcm = root / "fixture.pcm"
-        subprocess.run([str(runtime / "host/xa_to_pcm"), str(xa), "0", "0", "0", "1",
+        subprocess.run([str(runtime / ("host/xa_to_pcm" + exe)), str(xa), "0", "0", "0", "1",
                         str(pcm)], check=True)
         samples = pcm.read_bytes()
         assert len(samples) == 8064 and any(samples)
@@ -99,8 +106,9 @@ def smoke(archive):
         silence = array("h", [123]) * 882
         dsp.bake_pull(silence, 441)
         assert not any(silence)
+        assert (runtime / ("host/sfx_bake" + shared)).is_file()
 
-        package = run(runtime, "native/build_n05_flow.py", "--package-engine", "engine.elf")
+        package = run(python, runtime, "native/build_n05_flow.py", "--package-engine", "engine.elf")
         assert package.returncode == 0, package
         output = runtime / "mmx4_ds_beta.nds"
         nitro = runtime / "nitrofiles"
