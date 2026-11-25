@@ -1,4 +1,4 @@
-"""Bundle the precompiled DS engine and native preparation tools for Linux/WSL."""
+"""Bundle the precompiled DS engine with native tools for each launcher target."""
 import argparse
 import hashlib
 import json
@@ -15,7 +15,6 @@ from browser_kit import ROOT, SOURCES
 PREFIX = "megaman-x4-ds-launcher-"
 DEFAULT_TARGET = "linux-wsl-x64"
 TARGETS = (DEFAULT_TARGET, "windows-x64", "android-arm64")
-NAME = PREFIX + DEFAULT_TARGET
 PYTHON_VERSION = "3.13.12"
 PYTHON_EMBED_SHA256 = "76f238f606250c87c6beac75dccd35ee99070a13490555936abb6cb64ecce3d0"
 SDK = ROOT / "ambiente/sdk"
@@ -41,26 +40,34 @@ def compile_tools(folder, target):
     exe = ".exe" if windows else ""
     shared = ".dll" if windows else ".so"
     static = ["-static"] if windows else []
+    # MinGW unwind metadata can retain unused compatibility functions in PE.
+    coff = ["-fno-asynchronous-unwind-tables", "-fno-unwind-tables",
+            "-Wl,--exclude-all-symbols"] if windows else []
+    psyz_headers = PSYZ / "psyz/include"
+    # Bionic's stdlib.h includes malloc.h. Prefer the NDK's declarations
+    # over the similarly named PSYQ compatibility header on the host.
+    psyz_include = ["-idirafter", str(psyz_headers)] if android else ["-I" + str(psyz_headers)]
+    clang = ["-Wno-incompatible-function-pointer-types"] if android else []
     subprocess.run([
         cc, "-std=gnu11", "-O3", *static, str(NATIVE / "xa_to_pcm.c"),
         "-o", str(folder / ("xa_to_pcm" + exe)),
     ], check=True)
     subprocess.run([
         cc, "-std=gnu11", "-O3", "-shared", "-fPIC", *static, "-D__psyz=1", "-DNDEBUG=1",
-        "-I" + str(PSYZ / "psyz/include"), str(NATIVE / "sfx_bake.c"),
+        *psyz_include, str(NATIVE / "sfx_bake.c"),
         str(PSYZ / "psyz/src/psyz/psyz_spu.c"), "-o", str(folder / ("sfx_bake" + shared)),
     ], check=True)
     manifest = ROOT / "build/native/n05-flow/host/preparer_sources.json"
     sources = [ROOT / path for path in json.loads(manifest.read_text())]
     sources.extend((NATIVE / "dsi/n05_tasks.c", SHIM / "shim.c", NATIVE / "lower_icons_bake.c"))
-    headers = (CORE, UPSTREAM / "src/pc", PSYZ / "psyz/include", NATIVE / "src",
+    headers = (CORE, UPSTREAM / "src/pc", NATIVE / "src",
                NATIVE / "dsi", SHIM)
     subprocess.run([
         cc, "-std=gnu11", "-O2", "-pthread", *static, "-fno-strict-aliasing", "-fwrapv",
-        "-ffunction-sections", "-fdata-sections", "-Wl,--gc-sections",
+        "-ffunction-sections", "-fdata-sections", "-Wl,--gc-sections", *coff, *clang,
         "-Wno-incompatible-pointer-types", "-Wno-int-conversion", "-DMMX4_PC=1",
         "-D__psyz=1", "-DSKIP_MDEC=1", "-DVERSION_US=1", "-DX4_FULL_FLOW=1",
-        "-DX4_N06_INDEXED=1", *("-I" + str(path) for path in headers),
+        "-DX4_N06_INDEXED=1", *("-I" + str(path) for path in headers), *psyz_include,
         *map(str, sources), "-o", str(folder / ("atlas" + exe)),
     ], check=True)
     tools = {f"runtime/host/{name}": folder / name for name in
@@ -76,7 +83,7 @@ def compile_tools(folder, target):
         subprocess.run([cc, "-O2", "-c", str(unit), "-o", str(obj)], check=True)
         objects.append(obj)
     subprocess.run([
-        cxx, "-std=c++11", "-O2", '-DPACKAGE_VERSION="2.3.1"',
+        cxx, "-std=gnu++11", "-O2", '-DPACKAGE_VERSION="2.3.1"',
         *(["-D__WIN32__", "-static"] if windows else ["-static-libstdc++"]),
         *map(str, sorted(source.glob("*.cpp"))), *map(str, objects),
         "-o", str(ndstool),

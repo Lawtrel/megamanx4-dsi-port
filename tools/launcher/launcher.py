@@ -28,6 +28,20 @@ STAGES = (
 )
 
 
+def script_command(python, script, arguments):
+    if os.name != "nt":
+        return [python, script, *arguments]
+    # The embeddable Python on Windows uses an isolated search path.
+    # The stages still need to import siblings from the temporary workspace.
+    bootstrap = (
+        "import os, runpy, sys; "
+        "sys.argv = sys.argv[1:]; "
+        "sys.path.insert(0, os.path.dirname(os.path.abspath(sys.argv[0]))); "
+        "runpy.run_path(sys.argv[0], run_name='__main__')"
+    )
+    return [python, "-X", "utf8", "-c", bootstrap, script, *arguments]
+
+
 def build(disc, output_dir, icon=None, replace=False, progress=print):
     if not disc.is_file():
         raise ValueError("Selecione o arquivo BIN original USA SLUS-00561.")
@@ -79,7 +93,7 @@ def build(disc, output_dir, icon=None, replace=False, progress=print):
             for message, script in STAGES:
                 progress(message)
                 completed = subprocess.run(
-                    [sys.executable, script, *arguments.get(script, ())], cwd=workspace,
+                    script_command(sys.executable, script, arguments.get(script, ())), cwd=workspace,
                     env=env, stdout=log, stderr=subprocess.STDOUT,
                 )
                 if completed.returncode:
