@@ -33,7 +33,7 @@ if args.python_path:sys.path.insert(0,str(args.python_path.resolve()))
 from unicorn import Uc,UC_ARCH_ARM,UC_MODE_ARM,UC_HOOK_CODE
 from unicorn.arm_const import UC_ARM_REG_SP,UC_ARM_REG_LR,UC_ARM_REG_R0,UC_ARM_REG_R1,UC_ARM_REG_PC,UC_CPU_ARM_946
 probes=json.loads((OUT/'probes.json').read_text());results={}
-for mode in range(6):
+for mode in range(7):
  case={};fifo_bytes={}
  for name,row in probes.items():
   code=(OUT/(name+'.bin')).read_bytes();assert hashlib.sha256(code).hexdigest()==row['binary_sha256']
@@ -53,7 +53,7 @@ for mode in range(6):
               'fifo_words':words,'fifo_sha256':hashlib.sha256(fifo_bytes[name]).hexdigest()}
  assert fifo_bytes['before']==fifo_bytes['after'], 'GPU command bytes differ'
  assert case['before']['fifo_hash']==case['after']['fifo_hash'],case
- label=('world','mixed_hud','fade','gouraud','layers_and_hud','fade_gouraud')[mode];results[label]=case;print(label,case,flush=True)
+ label=('world','mixed_hud','fade','gouraud','layers_and_hud','fade_gouraud','fade_tiles_and_gradients')[mode];results[label]=case;print(label,case,flush=True)
 report={'cpu':'ARM946','metric':'Executed preparation instructions; excludes cycles, cache and DMA; not FPS',
         'quads':args.quads,'probes':probes,'results':results,'fixture_sha256':hashlib.sha256(fixture.read_bytes()).hexdigest(),
         'video_sha256':hashlib.sha256((ROOT/'native/src/x4_video.c').read_bytes()).hexdigest(),'physical_dsi_tested':False}

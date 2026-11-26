@@ -43,6 +43,12 @@ static inline __attribute__((always_inline)) void emit(FifoWriter* out,unsigned 
  if(parameters)*out->next++=a;
  if(parameters==2)*out->next++=b;
 }
+static inline __attribute__((always_inline)) void emit_vertex(
+ FifoWriter* out,unsigned uv,int x,int y,unsigned depth,int first){
+ emit(out,FIFO_TEX_COORD,uv,0,1);
+ emit(out,first?FIFO_VERTEX16:FIFO_VERTEX_XY,
+      (uint16_t)x|((uint32_t)(uint16_t)y<<16),depth,first?2:1);
+}
 unsigned x4_gpu_words(void){return last_words;}
 /* Stable descending ordering-table order, using a bounded radix sort. */
 static void sort_commands(const X4VideoCommand* commands,unsigned count){
@@ -77,6 +83,8 @@ void x4_gpu_prepare(void){
  uint8_t fade[32];
  if(gain!=255)for(unsigned i=0;i<32;++i)fade[i]=i*gain/255;
  prepared_clear=gain==255?(clear&0x7fff):RGB15(fade[clear&31],fade[(clear>>5)&31],fade[(clear>>10)&31]);
+ /* All four vertex colors of a textured command are white. */
+ unsigned tile_color=gain==255?32767:RGB15(fade[31],fade[31],fade[31]);
  unsigned count;const X4VideoCommand* commands=x4_video_commands(&count);
  sort_commands(commands,count);
  FifoWriter out={.next=list+1,.lane=4};
@@ -94,6 +102,22 @@ void x4_gpu_prepare(void){
    * avoiding coordinate arrays and four-element flip loops per quad. */
   unsigned u=c->w<<4,v=c->h<<20;
   unsigned uv=((c->flip&1)?u:0)|((c->flip&2)?v:0);
+  if(c->textured){
+   /* x4_video_tile emits a white rectangle. Reuse each edge for its
+    * two corners, including the coordinate transform for HUD tiles. */
+   if(tile_color!=last_color){emit(&out,FIFO_COLOR,tile_color,0,1);last_color=tile_color;}
+   last_raw_color=32767;
+   int left=c->x[0],right=c->x[1],top=c->y[0],bottom=c->y[2];
+   if(c->screen_space){
+    left=32+left*4/5;right=32+right*4/5;
+    top=24+top*4/5;bottom=24+bottom*4/5;
+   }
+   emit_vertex(&out,uv,left,top,i,1);
+   emit_vertex(&out,uv^u,right,top,i,0);
+   emit_vertex(&out,uv^u^v,right,bottom,i,0);
+   emit_vertex(&out,uv^v,left,bottom,i,0);
+   continue;
+  }
   for(unsigned j=0;j<4;++j){unsigned color=c->color[j];
    if(gain!=255){
     if(color==last_raw_color)color=last_color;
@@ -104,8 +128,7 @@ void x4_gpu_prepare(void){
    }
    int x=c->x[j],y=c->y[j];if(c->screen_space){x=32+x*4/5;y=24+y*4/5;}
    if(color!=last_color){emit(&out,FIFO_COLOR,color,0,1);last_color=color;}
-   emit(&out,FIFO_TEX_COORD,uv^((j==1||j==2)?u:0)^((j>=2)?v:0),0,1);
-   emit(&out,j?FIFO_VERTEX_XY:FIFO_VERTEX16,(uint16_t)x|((uint32_t)(uint16_t)y<<16),i,j?1:2);
+   emit_vertex(&out,uv^((j==1||j==2)?u:0)^((j>=2)?v:0),x,y,i,j==0);
   }
  }
  /* Commit the final group even when it has fewer than four opcodes. */

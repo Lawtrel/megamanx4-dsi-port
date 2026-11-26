@@ -108,6 +108,12 @@ do projeto. A beta 9 é a referência para avaliar as mudanças no DSi.
   (20,6%). O caso de camadas com HUD caiu de 143.814 para 142.597.
   Os seis cenários produziram os mesmos bytes de FIFO. O teste mede
   instruções da preparação. A medição de quadros no DSi permanece aberta.
+- A preparação de retângulos com textura reaproveita a cor e as
+  coordenadas das bordas. No teste ARM946 com Clang, os 14 casos com
+  600 ou 1.500 comandos produziram os mesmos bytes de FIFO. Com
+  1.500 comandos, o cenário usou 22,32% menos instruções, o fade
+  25,26% menos e a mistura de tiles e gradientes 20,07% menos.
+  O tempo total dos quadros segue pendente no console.
 - O desenho de cenários reaproveita as colunas visíveis em todas as
   linhas de cada camada. No teste ARM946 com texturas indexadas, o caso
   de três camadas caiu de 894.636 para 882.036 instruções (1,4%) e o
