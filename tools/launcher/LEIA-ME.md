@@ -28,21 +28,21 @@ de um BMP de 32×32 pixels, indexado em 4 bits.
 
 ## Android ARM64 com Termux
 
-Instale [Termux](https://github.com/termux/termux-app). No Termux, rode
-`pkg install python unzip` e `termux-setup-storage`. Autorize o acesso a Downloads.
-Coloque o ZIP e seu BIN original em Downloads e execute:
+1. Instale [Termux](https://github.com/termux/termux-app). Rode `pkg install
+   python` e depois `termux-setup-storage`. Autorize o acesso a Downloads.
+2. Coloque o ZIP e o seu BIN original em Downloads. Cole este comando no Termux.
 
-```sh
-cd ~
-unzip ~/storage/downloads/megaman-x4-ds-launcher-android-arm64.zip
-cd megaman-x4-ds-launcher-android-arm64
-bash abrir-no-android.sh
-```
+   ```sh
+   python3 -m zipfile -e "$HOME/storage/downloads/megaman-x4-ds-launcher-android-arm64.zip" "$HOME" && \
+     bash "$HOME/megaman-x4-ds-launcher-android-arm64/abrir-no-android.sh"
+   ```
 
-Selecione o BIN pelo número na lista. A saída fica em Downloads.
-Você também pode passar o caminho do BIN como argumento. Se tiver o
-[Termux:API](https://github.com/termux/termux-api) e o pacote `termux-api`,
-o launcher abre o seletor de arquivos do Android.
+3. Escolha o BIN pelo número na lista. O `mmx4_ds_beta.nds` fica em Downloads.
+
+Para montar outra vez, execute apenas o comando `bash` acima. Você pode passar
+o caminho do BIN como argumento. A opção **Escolher em outra pasta** fica
+disponível com o [Termux:API](https://github.com/termux/termux-api) e o pacote
+`termux-api` instalados.
 
 ## Espaço e saída
 
