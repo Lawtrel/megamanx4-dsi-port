@@ -129,12 +129,14 @@ static void crash_handler(ExcptContext* ctx,unsigned flags){
 static const char* save_root;
 static void on_vblank(void){++vblanks;}
 static mm_word audio_callback(mm_word frames,mm_addr dest,mm_stream_formats format){
- (void)format;x4_audio_read(dest,frames);if(muted)memset(dest,0,frames*2);return frames;
+ (void)format;x4_audio_read_stereo(dest,frames);
+ if(muted)memset(dest,0,(size_t)frames*2*sizeof(int16_t));
+ return frames;
 }
 static void audio_stop(void){if(audio_open){mmStreamClose();audio_open=0;}x4_audio_close();}
 static void audio_start(void){
  mm_stream stream={0};stream.sampling_rate=18900;stream.buffer_length=4096;
- stream.callback=audio_callback;stream.format=MM_STREAM_16BIT_MONO;
+ stream.callback=audio_callback;stream.format=MM_STREAM_16BIT_STEREO;
  stream.timer=MM_TIMER0;stream.manual=true;mmStreamOpen(&stream);audio_open=1;
 }
 static void initialize_logs(void){

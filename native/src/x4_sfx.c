@@ -8,7 +8,7 @@ typedef struct {uint32_t command,offset,samples,loop;} Entry;
 typedef struct {char path[1100];unsigned count;long data;Entry entries[256];} Bank;
 enum {CACHE_SLOTS=64,CACHE_LIMIT=4*1024*1024};
 typedef struct {void* allocation;int16_t* pcm;size_t bytes,samples;unsigned bank,index,loop,age,pins;} Cached;
-typedef struct {FILE* file;unsigned bank,index,mask,priority,loop;long start;uint32_t position,samples;Cached* cached;unsigned gain;} Voice;
+typedef struct {FILE* file;unsigned bank,index,mask,priority,loop;long start;uint32_t position,samples;Cached* cached;unsigned gain,pan;} Voice;
 static Bank banks[6];static Voice voices[8];static char root[1024];static unsigned errors,character;
 static Cached cache[CACHE_SLOTS];static unsigned cache_bytes,cache_age;static X4SfxStats stats;
 static X4SfxBackend backend;
@@ -35,13 +35,15 @@ static Cached* find_cached(unsigned bank,unsigned index){
 }
 static Cached* load_cached(FILE* f,unsigned bank,unsigned index,size_t samples,unsigned loop){
  if(!samples||samples>cache_limit/2)return NULL;
- /* ARM7 PCM16 lengths are measured in two-sample words. Repeat an odd
-  * loop twice so hardware wraps on a word boundary without a silent sample. */
+ /* PCM playback needs at least four words. Pad a one-shot with silence
+  * and repeat whole periods for short or odd loops. */
  size_t playback_samples=samples;
- if(loop&&(samples&1)){
-  if(samples>cache_limit/4)return NULL;
-  playback_samples=samples*2;
- }
+ if(loop){
+  size_t copies=samples<8?(8+samples-1)/samples:1;
+  if((samples&1)&&(copies&1))++copies;
+  if(samples>cache_limit/(2*copies))return NULL;
+  playback_samples=samples*copies;
+ }else if(samples<8)playback_samples=8;
  size_t bytes=(playback_samples*2+31)&~(size_t)31;Cached* slot=NULL;
  if(bytes>cache_limit)return NULL;
  for(unsigned i=0;i<8;++i)active(&voices[i]);
@@ -56,8 +58,9 @@ static Cached* load_cached(FILE* f,unsigned bank,unsigned index,size_t samples,u
  void* memory=malloc(bytes+31);if(!memory)return NULL;
  int16_t* pcm=(int16_t*)(((uintptr_t)memory+31)&~(uintptr_t)31);
  if(fread(pcm,2,samples,f)!=samples){free(memory);return NULL;}
- if(playback_samples!=samples)memcpy(pcm+samples,pcm,samples*2);
- memset((uint8_t*)pcm+playback_samples*2,0,bytes-playback_samples*2);
+ size_t filled=samples;
+ if(loop)for(;filled<playback_samples;filled+=samples)memcpy(pcm+filled,pcm,samples*2);
+ memset((uint8_t*)pcm+filled*2,0,bytes-filled*2);
  if(backend.prepare)backend.prepare(pcm,bytes);
  *slot=(Cached){memory,pcm,bytes,playback_samples,bank,index,loop,++cache_age,0};cache_bytes+=bytes;return slot;
 }
@@ -143,7 +146,7 @@ int x4_sfx_play_at(unsigned bank,unsigned index,int position,int stereo){
  }
  setvbuf(f,NULL,_IOFBF,2048);
  *slot=(Voice){.file=f,.bank=bank,.index=index,.mask=mask,.priority=priority,
-               .loop=loop,.start=start,.samples=samples,.gain=gain};
+               .loop=loop,.start=start,.samples=samples,.gain=gain,.pan=pan};
  return 0;
 }
 void x4_sfx_stop(unsigned bank,unsigned index){
@@ -154,16 +157,25 @@ int x4_sfx_finished(unsigned bank,unsigned index){
  if(bank>=6||index>=banks[bank].count)return 1;
  unsigned mask=mask_of(&banks[bank].entries[index]);for(unsigned i=0;i<8;++i)if(active(&voices[i])&&(voices[i].mask&mask))return 0;return 1;
 }
-void x4_sfx_mix(int16_t* out,size_t frames){
+static void mix(int16_t* out,size_t frames,unsigned channels){
  int streaming=0;for(unsigned i=0;i<8;++i)streaming|=voices[i].file!=NULL;
  if(!streaming)return;
  int16_t temporary[256];int32_t accum[256];
- for(size_t base=0;base<frames;base+=256){size_t count=frames-base;if(count>256)count=256;
-  for(size_t j=0;j<count;++j)accum[j]=out[base+j];
+ size_t block=256/channels;
+ for(size_t base=0;base<frames;base+=block){
+  size_t count=frames-base;if(count>block)count=block;
+  int16_t* output=out+base*channels;
+  for(size_t j=0;j<count*channels;++j)accum[j]=output[j];
   for(unsigned i=0;i<8;++i){Voice* v=&voices[i];size_t done=0;
    while(v->file&&done<count){size_t n=count-done;if(n>v->samples-v->position)n=v->samples-v->position;
     size_t got=fread(temporary,2,n,v->file);
-    if(v->gain==128){
+    if(channels==2){
+     int32_t left=(int32_t)((128-v->pan)*v->gain),right=(int32_t)(v->pan*v->gain);
+     for(size_t j=0;j<got;++j){
+      accum[2*(done+j)]+=(temporary[j]*left)/16384;
+      accum[2*(done+j)+1]+=(temporary[j]*right)/16384;
+     }
+    }else if(v->gain==128){
      for(size_t j=0;j<got;++j)accum[done+j]+=temporary[j];
     }else{
      for(size_t j=0;j<got;++j)accum[done+j]+=((int32_t)temporary[j]*(int32_t)v->gain)/128;
@@ -173,6 +185,9 @@ void x4_sfx_mix(int16_t* out,size_t frames){
     if(v->position==v->samples){if(v->loop){if(fseek(v->file,v->start,SEEK_SET)){++errors;stop(v);}else v->position=0;}else stop(v);}
    }
   }
-  for(size_t j=0;j<count;++j){int32_t s=accum[j];out[base+j]=s>32767?32767:s< -32768?-32768:s;}
+  for(size_t j=0;j<count*channels;++j){int32_t s=accum[j];output[j]=s>32767?32767:s< -32768?-32768:s;}
  }
 }
+
+void x4_sfx_mix(int16_t* out,size_t frames){mix(out,frames,1);}
+void x4_sfx_mix_stereo(int16_t* interleaved,size_t frames){mix(interleaved,frames,2);}

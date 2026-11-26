@@ -2,6 +2,8 @@
 #include <calico/nds/arm9/sound.h>
 #include "x4_arm7_audio.h"
 #include "x4_sfx.h"
+#include "x4_audio.h"
+#include "x4_n05_platform.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -18,10 +20,16 @@ void soundPreparePcm(unsigned channel,unsigned vol,unsigned pan,unsigned timer,S
  assert(fmt==SoundFmt_Pcm16&&!point);
  assert(!((uintptr_t)data&31)&&!pending_stop);playing[channel]=data;assert(playing[channel][0]>=1000);
  if(mode==SoundMode_Repeat){
-  assert(words==5);
-  for(unsigned i=0;i<10;++i)assert(playing[channel][i]==1100+(int)(i%5));
+  if(playing[channel][0]==1800){
+   assert(words==4);
+   for(unsigned i=0;i<8;++i)assert(playing[channel][i]==1800);
+  }else{
+   assert(words==5);
+   for(unsigned i=0;i<10;++i)assert(playing[channel][i]==1100+(int)(i%5));
+  }
  }else{
-  assert(mode==SoundMode_OneShot&&words==3&&playing[channel][5]==0);
+  assert(mode==SoundMode_OneShot&&words==4);
+  for(unsigned i=5;i<8;++i)assert(playing[channel][i]==0);
  }
  panning[channel]=pan;volume[channel]=vol;active_mask|=1u<<channel;++starts;
 }
@@ -34,10 +42,31 @@ void soundSynchronize(void){
 unsigned soundGetActiveChannels(void){assert(automatic);return active_mask;}
 void soundChSetVolume(unsigned ch,unsigned vol){assert(ch>=8&&ch<16);volume[ch]=vol;}
 static void word(FILE* f,unsigned v){for(unsigned i=0;i<4;++i)assert(fputc((v>>(i*8))&255,f)!=EOF);}
+static int music_request=-1,music_playing;
+int x4_n05_music_request(int* selection,unsigned* gain){
+ if(music_request<0)return 0;
+ *selection=music_request;*gain=128;music_request=-1;return 1;
+}
+unsigned x4_n05_music_gain(void){return 128;}
+void x4_n05_music_status(int playing){music_playing=playing;}
+
+static void check_centered_music(const char* folder){
+ char path[1024];snprintf(path,sizeof path,"%s/00.pcm",folder);
+ FILE* f=fopen(path,"wb");assert(f);
+ const int16_t pcm[]={1000,-2050,3400};
+ assert(fwrite(pcm,sizeof pcm[0],3,f)==3&&!fclose(f));
+ x4_audio_init(folder,folder);music_request=0;x4_audio_update();
+ assert(music_playing&&x4_audio_track()==0);
+ int16_t frames[9]={0};frames[8]=4321;x4_audio_read_stereo(frames,4);
+ const int16_t expected[]={500,500,-1025,-1025,1700,1700,0,0,4321};
+ assert(!memcmp(expected,frames,sizeof frames)&&!music_playing&&x4_audio_track()==-1&&!x4_audio_errors());
+ x4_audio_close();
+}
+
 int main(int argc,char** argv){
  assert(argc==2);char path[1024],hidden[1024];snprintf(path,sizeof path,"%s/07_2.sfx",argv[1]);snprintf(hidden,sizeof hidden,"%s/hidden.sfx",argv[1]);
  FILE* f=fopen(path,"wb");assert(f);assert(fwrite("X4SFX01\0",1,8,f)==8);word(f,10);word(f,18900);
- for(unsigned i=0;i<10;++i){word(f,(i<<24)|0x80|(i==9?0x8000:0));word(f,i*16);word(f,5);word(f,i==1);}
+ for(unsigned i=0;i<10;++i){word(f,(i<<24)|0x80|(i==9?0x8000:0));word(f,i*16);word(f,i==8?1:5);word(f,i==1||i==8);}
  for(unsigned i=0;i<10;++i)for(unsigned j=0;j<8;++j){unsigned v=1000+i*100+j;fputc(v&255,f);fputc(v>>8,f);}assert(!fclose(f));
  x4_arm7_audio_init();x4_sfx_config(argv[1]);assert(!x4_sfx_bank(7,2));
  assert(!x4_sfx_play(2,0));assert(!rename(path,hidden));
@@ -45,6 +74,7 @@ int main(int argc,char** argv){
  assert(!rename(hidden,path));assert(!x4_sfx_play(2,1));
  int16_t output[32];for(unsigned i=0;i<32;++i)output[i]=i-16;int16_t before[32];memcpy(before,output,sizeof output);
  x4_sfx_mix(output,32);assert(!memcmp(before,output,sizeof output));
+ x4_sfx_mix_stereo(output,16);assert(!memcmp(before,output,sizeof output));
  X4SfxStats s=x4_sfx_stats();assert(s.hits==1&&s.misses==2&&s.active==2&&s.starts==3&&s.bytes==64);
  assert(pcm_publications==2); /* Replaying cached PCM needs no new flush. */
  x4_arm7_audio_mute(1);for(unsigned i=8;i<16;++i)assert(!volume[i]);
@@ -82,6 +112,21 @@ int main(int argc,char** argv){
  assert(!x4_sfx_play_at(2,0,5,0));
  memset(output,0,sizeof output);x4_sfx_mix(output,5);
  for(unsigned i=0;i<5;++i)assert(output[i]==1000+(int)i);
+ int16_t stereo[2*131+1]={0};stereo[2*131]=2731;
+ assert(!x4_sfx_play_at(2,1,27,1));x4_sfx_mix_stereo(stereo,131);
+ for(unsigned i=0;i<131;++i){
+  int sample=1100+(int)(i%5);
+  assert(stereo[2*i]==(sample*31*84)/16384);
+  assert(stereo[2*i+1]==(sample*97*84)/16384);
+ }
+ assert(stereo[2*131]==2731);x4_sfx_stop(2,1);
+ assert(!x4_sfx_play_at(2,0,5,1));
+ memset(stereo,0,sizeof stereo);x4_sfx_mix_stereo(stereo,5);
+ assert(stereo[0]==1000*98*84/16384&&stereo[1]==1000*30*84/16384);
+ assert(!x4_sfx_play_at(2,0,5,0));
+ memset(stereo,0,sizeof stereo);x4_sfx_mix_stereo(stereo,5);
+ assert(stereo[0]==500&&stereo[1]==500);
  x4_sfx_close();x4_sfx_set_backend(NULL);
- puts("PASS ARM7 PCM backend: reserved channels, alignment, padded length, stop acknowledgement, cache without file I/O, eight voices, mute, replacement lifetime and per-play spatial pan/gain");
+ check_centered_music(argv[1]);
+ puts("PASS ARM7 PCM backend: reserved channels, alignment, padded length, stop acknowledgement, cache without file I/O, eight voices, mute, replacement lifetime, spatial pan/gain, short PCM, streamed stereo and centered music");
 }

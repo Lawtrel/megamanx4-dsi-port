@@ -1,5 +1,5 @@
 /* ARM9 control of Calico's existing ARM7 sound driver. PCM stays in shared
- * main RAM. Channels 8..15 are reserved; Maxmod's mono music stream uses 0.
+ * main RAM. Channels 8..15 are reserved; Maxmod streams on 0 and 2.
  * A synchronous stop acknowledgement always precedes cache reuse/free. */
 #include <nds.h>
 #include <maxmod9.h>

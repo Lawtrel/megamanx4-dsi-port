@@ -105,8 +105,12 @@ do projeto. A beta 9 é a referência para avaliar as mudanças no DSi.
   instruções da preparação. A medição de quadros no DSi permanece aberta.
 - O cache de áudio repete duas vezes o PCM de loops com número ímpar de
   amostras para que a unidade de palavras do ARM7 não acrescente silêncio.
-  Quando o efeito é lido do arquivo, a saída mono conserva o ganho do
-  efeito posicional. O teste do mixer cobre os dois caminhos.
+  Efeitos em streaming conservam posição e ganho na saída estéreo.
+  A música do pacote é centralizada. O teste do mixer cobre cache,
+  streaming e PCM curto. Uma prova no melonDS DS em modo NTR, com onda
+  sintética posicionada à esquerda, capturou 197.487 quadros estéreo.
+  A soma da amplitude absoluta à esquerda foi 3,27 vezes a da direita.
+  A conferência no console continua pendente.
 
 - O painel e o radar reaproveitam a imagem quando os dados exibidos
   continuam iguais. A conferência segue a cada seis VBlanks, e o log

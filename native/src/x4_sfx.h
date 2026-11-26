@@ -26,5 +26,6 @@ int x4_sfx_play_at(unsigned bank,unsigned index,int position,int stereo);
 void x4_sfx_stop(unsigned bank,unsigned index);
 int x4_sfx_finished(unsigned bank,unsigned index);
 void x4_sfx_mix(int16_t* out,size_t frames);
+void x4_sfx_mix_stereo(int16_t* interleaved,size_t frames);
 unsigned x4_sfx_errors(void);
 #endif
