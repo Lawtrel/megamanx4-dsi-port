@@ -157,7 +157,7 @@ static void initialize_logs(void){
   fprintf(log_file,VERSION "; native ARM9; DSi=%d; id=%s; build=%s %s\n",isDSiMode(),X4_BUILD_ID,__DATE__,__TIME__);
   fprintf(log_file,"PROFILE_HW mode=%s arm9_mhz=%u\n",isDSiMode()?"TWL":"NTR",
    isDSiMode()&&(REG_SCFG_CLK&SCFG_CLK_CPU_134MHz)?134u:67u);
-  fprintf(log_file,"Development, incomplete qualification. All stage resources; 80 PCM tracks; native PCM effects. Cutscenes disabled; four SEP commands and effect fidelity pending.\n");commit_log();
+  fprintf(log_file,"Development, incomplete qualification. All stage resources; 80 PCM tracks; native PCM effects. Cutscenes disabled; audio fidelity and hardware qualification pending.\n");commit_log();
  }
 }
 static void fail(const char* text,int code){
@@ -246,7 +246,7 @@ int main(int argc,char** argv){
   uint64_t previous_present=0,frame_sum=0;
   unsigned previous_field=0,frame_samples=0,frame_max_us=0,work_max_us=0,late_frames=0;
   unsigned frame_histogram[101]={0},diagnostic_us=0;
-  unsigned log_samples=0,log_sync_us=0;
+  unsigned log_samples=0,log_sync_us=0,logged_invalid_sequences=0;
   int previous_log_stage=-1,previous_log_area=-1;
   lower_updates=lower_skips=lower_tiles=lower_total_us=lower_max_us=0;
   unsigned panel_field=vblanks;x4_lower_reset();lower_screen_begin();
@@ -341,6 +341,11 @@ int main(int argc,char** argv){
      vblanks,s.frames,s.character,s.stage,s.area,fps,s.x,s.y,s.hp,s.checkpoint,s.state,s.substate,s.player_state,s.locked,gfx_errors,x4_audio_errors(),x4_n05_missing_sfx(),x4_audio_track());
      fprintf(log_file,"PROFILE logic_us=%u draw_us=%u audio_us=%u present_us=%u wait_us=%u commands=%u hits=%u misses=%u palettes=%u upload=%u overflow=%u sim_hz=%u dropped_ticks=%u\n",logic_us,draw_us,audio_us,present_us,wait_us,v.commands,v.hits,v.misses,v.palette_uploads,v.uploaded_bytes,v.overflow,simulation_hz,dropped_ticks);
      fprintf(log_file,"ARM7 voices=%u pcm_bytes=%u cache_hits=%u cache_misses=%u starts=%u\n",fx.active,fx.bytes,fx.hits,fx.misses,fx.starts);
+     if(fx.invalid_sequences!=logged_invalid_sequences){
+      fprintf(log_file,"SEP_INVALID count=%u resource=%02x bank=%u index=%u command=%08lx\n",
+       fx.invalid_sequences,fx.invalid_resource,fx.invalid_bank,fx.invalid_index,(unsigned long)fx.invalid_command);
+      logged_invalid_sequences=fx.invalid_sequences;
+     }
      fprintf(log_file,"PIPELINE prepare_us=%u\n",prepare_us);
      fprintf(log_file,"FRAME_TIME samples=%u mean_us=%u max_us=%u p95_upper_us=%u over_two_fields=%u work_max_us=%u diagnostic_previous_us=%u\n",frame_samples,frame_samples?(unsigned)(frame_sum*1000000/TICK_FREQ/frame_samples):0,frame_max_us,percentile,late_frames,work_max_us,diagnostic_us);
      X4GpuTransferStats transfer=x4_gpu_transfer_stats();

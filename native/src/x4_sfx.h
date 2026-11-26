@@ -11,7 +11,12 @@ typedef struct {
  /* Publish immutable PCM to the other CPU once, before its first play. */
  void (*prepare)(const int16_t* pcm,size_t bytes);
 } X4SfxBackend;
-typedef struct {unsigned hits,misses,bytes,starts,active;} X4SfxStats;
+enum {X4_SFX_MISSING_PAYLOAD=-6,X4_SFX_INVALID_SEQUENCE=-8};
+typedef struct {
+ unsigned hits,misses,bytes,starts,active;
+ unsigned invalid_sequences,invalid_resource,invalid_bank,invalid_index;
+ uint32_t invalid_command;
+} X4SfxStats;
 void x4_sfx_set_cache_limit(size_t bytes);
 void x4_sfx_set_backend(const X4SfxBackend* backend);
 X4SfxStats x4_sfx_stats(void);

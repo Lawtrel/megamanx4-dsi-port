@@ -52,7 +52,7 @@ def volume(t):
  # Native mono: strongest of the two instrument pan channels, matching SsSetMono.
  return min(16383,v*v//16383)
 def main():
- records=[];missing=[];cache={};total=0
+ records=[];missing=[];invalid_sequences=[];cache={};total=0
  # Reuse existing, hash-verified bakes when the descriptor layout is adjusted.
  old={};previous=OUT/'sfx_manifest.json';diskcache=OUT/'sfx-cache';diskcache.mkdir(exist_ok=True)
  if previous.is_file():
@@ -85,8 +85,11 @@ def main():
      if which<2:
       access=c>>8&127;sequence=(c>>24&31) if which==1 else 0
       descriptor['status']='sequence_external'
-      if access>1 or sequence>=(2 if access else 8):
-       descriptor['status']='sequence_pending';missing.append({'resource':r['id'],'bank':bank,'index':index,'command':c})
+      reference={'resource':r['id'],'bank':bank,'index':index,'command':c}
+      if access>1:
+       descriptor['status']='sequence_pending';missing.append(reference)
+      elif sequence>=(2 if access else 8):
+       descriptor['status']='sequence_out_of_range';invalid_sequences.append(reference)
       descriptors.append(descriptor);continue
      target=bankmap.get(packed[0]&63)
      if target is None:
@@ -140,10 +143,10 @@ def main():
     (DEST/filename).write_bytes(payload);total+=len(payload)
     records.append({'resource':r['id'],'name':r['name'],'bank':bank,'file':filename,'sha256':hashlib.sha256(payload).hexdigest(),'bytes':len(payload),'entries':descriptors})
   print('Prepared SFX',r['name'],flush=True)
- report={'bank_count':len(records),'bytes':total,'banks':records,'pending':missing,
-  'limitations':['SEP commands with no matching sequence remain unsupported','Looped direct effects use an approximate three-second PCM cycle','PCM conversion is mono; instrument stereo and reverb remain pending'],
+ report={'bank_count':len(records),'bytes':total,'banks':records,'pending':missing,'invalid_sequences':invalid_sequences,
+  'limitations':['Out-of-range SEP references are rejected without interrupting another effect','Looped direct effects use an approximate three-second PCM cycle','PCM conversion is mono; instrument stereo and reverb remain pending'],
   'runtime':'Native PCM mixing; host synthesizer excluded from NDS'}
  (OUT/'sfx_manifest.json').write_text(json.dumps(report,indent=2)+'\n')
- print('SFX banks',len(records),'bytes',total,'pending',len(missing),flush=True)
+ print('SFX banks',len(records),'bytes',total,'pending',len(missing),'invalid SEP',len(invalid_sequences),flush=True)
 
 if __name__=='__main__':main()

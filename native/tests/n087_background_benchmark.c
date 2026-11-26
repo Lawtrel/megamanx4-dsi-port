@@ -41,10 +41,12 @@ unsigned unit_entry(unsigned mode){
   background_objects[i].unk4D=0;background_objects[i].unk4E=3;
   background_objects[i].x_pos.i.hi=270+i*7;background_objects[i].y_pos.i.hi=80+i*11;
   if(mode==1){background_objects[i].x_pos.i.hi=-48;background_objects[i].y_pos.i.hi=-40;background_objects[i].unk4D=3;background_objects[i].unk4E=0;}
-  if(mode==2){background_objects[i].unk4D=1;background_objects[i].unk4E=2;background_objects[i].x_pos.i.hi=736;}
-  if(mode==4)background_objects[i].unk3=0;
+  if(mode==2||mode==8){background_objects[i].unk4D=1;background_objects[i].unk4E=2;background_objects[i].x_pos.i.hi=736;}
+  if(mode==4||(mode==6&&i!=0))background_objects[i].unk3=0;
  }
- x4_video_enabled=1;x4_video_viewport(32,24,256,192);
+ const int indexed=mode==7||mode==8;
+ x4_video_set_indexed(indexed);
+ x4_video_enabled=1;x4_video_viewport(32,24,mode==6?640:256,192);
  x4_background_probe(NULL,&archive,0,0); /* Warm cache outside measurement. */
  if(mode==5)archive.members[1].size=2; /* Bounds failure must be preserved. */
  for(unsigned frame=0;frame<3;++frame){
@@ -56,7 +58,13 @@ unsigned unit_entry(unsigned mode){
   append(&error,sizeof error);
   unsigned count;const X4VideoCommand* commands=x4_video_commands(&count);append(&count,sizeof count);
   append(commands,count*sizeof *commands);
-  for(unsigned i=0;i<count;++i){int dirty;const u16* rgba=x4_video_rgba_texture(commands[i].tile,&dirty);append(rgba,512);}
+  for(unsigned i=0;i<count;++i){
+   int dirty;
+   if(indexed){
+    append(x4_video_texture(commands[i].tile,&dirty),256);
+    append(x4_video_palette(commands[i].palette,&dirty),512);
+   }else append(x4_video_rgba_texture(commands[i].tile,&dirty),512);
+  }
  }
  return result_size;
 }

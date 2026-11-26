@@ -5,7 +5,7 @@
 #include <limits.h>
 #include <stdlib.h>
 typedef struct {uint32_t command,offset,samples,loop;} Entry;
-typedef struct {char path[1100];unsigned count;long data;Entry entries[256];} Bank;
+typedef struct {char path[1100];unsigned count,resource;long data;Entry entries[256];} Bank;
 enum {CACHE_SLOTS=64,CACHE_LIMIT=4*1024*1024};
 typedef struct {void* allocation;int16_t* pcm;size_t bytes,samples;unsigned bank,index,loop,age,pins;} Cached;
 typedef struct {FILE* file;unsigned bank,index,mask,priority,loop;long start;uint32_t position,samples;Cached* cached;unsigned gain,pan;} Voice;
@@ -71,7 +71,7 @@ static int start_cached(Voice* v,Cached* c,unsigned mask,unsigned priority,unsig
 unsigned x4_sfx_errors(void){return errors;}
 int x4_sfx_bank(unsigned resource,unsigned bank){
  if(bank>=6||!root[0])return -1;
- Bank next={0};unsigned char header[16],raw[16];
+ Bank next={.resource=resource};unsigned char header[16],raw[16];
  int n=snprintf(next.path,sizeof next.path,"%s/%02x_%u.sfx",root,resource,bank);if(n<0||(size_t)n>=sizeof next.path)return -1;
  FILE* f=fopen(next.path,"rb");if(!f)return -2;
  if(fread(header,1,16,f)!=16||memcmp(header,"X4SFX01\0",8)||le32(header+12)!=18900){fclose(f);return -3;}
@@ -87,8 +87,22 @@ int x4_sfx_bank(unsigned resource,unsigned bank){
  for(unsigned i=0;i<CACHE_SLOTS;++i)if(cache[i].pcm&&cache[i].bank==bank)evict(&cache[i]);
  banks[bank]=next;return 0;
 }
+static int sequence_location(uint32_t command,unsigned* access,unsigned* number){
+ *access=command>>8&127;
+ /* SsSeqPlay uses sequence zero. The two character SEP banks contain
+  * eight and two initialized sequences respectively. */
+ *number=(command&0xc0)==0x40?(command>>24&31):0;
+ if(*access>1)return X4_SFX_MISSING_PAYLOAD;
+ if(*number>=(*access?2u:8u))return X4_SFX_INVALID_SEQUENCE;
+ return 0;
+}
+
 static unsigned mask_of(const Entry* e){
- if((e->command&0xc0)<0x80){unsigned slot=e->command>>20&15;return slot<4?1u<<(24+slot):0;}
+ if((e->command&0xc0)<0x80){
+  unsigned access,number,slot=e->command>>20&15;
+  if(sequence_location(e->command,&access,&number))return 0;
+  return slot<4?1u<<(24+slot):0;
+ }
  unsigned voice=e->command>>24&31,count=1+((e->command>>29)&3);
  return voice<24?(((1u<<count)-1)<<voice)&0xffffff:0;
 }
@@ -97,15 +111,17 @@ int x4_sfx_play_at(unsigned bank,unsigned index,int position,int stereo){
  if(bank>=6||index>=banks[bank].count)return -1;
  Bank* b=&banks[bank];Entry* e=&b->entries[index];if(!e->command)return -5;
  if(!e->samples&&(e->loop&2))return 0; /* Original zero-volume/empty tone. */
- unsigned type=e->command&0xc0,sequence=type<0x80;
+ unsigned sequence=(e->command&0xc0)<0x80;
  unsigned access=0,number=0;
  if(sequence){
-  access=e->command>>8&127;
-  /* Libsnd's SsSeqPlay selects sequence 0. SsSepPlay uses the index
-   * stored in the command. Reject unknown entries before stopping a voice. */
-  if(type==0x40)number=e->command>>24&31;
-  if(access>1||number>=(access?2u:8u))return -6;
- }else if(!e->samples)return -6;
+  int result=sequence_location(e->command,&access,&number);
+  if(result==X4_SFX_INVALID_SEQUENCE){
+   ++stats.invalid_sequences;
+   stats.invalid_resource=b->resource;stats.invalid_bank=bank;
+   stats.invalid_index=index;stats.invalid_command=e->command;
+  }
+  if(result)return result;
+ }else if(!e->samples)return X4_SFX_MISSING_PAYLOAD;
  unsigned pan=64,gain=128;
  if(stereo&&position>=0&&(e->command&0xc0)>=0x80&&!(e->command&0x8000)){
   if(position<5)position=5;if(position>27)position=27;

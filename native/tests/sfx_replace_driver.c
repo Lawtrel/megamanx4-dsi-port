@@ -28,6 +28,18 @@ int main(void) {
         assert(x4_sfx_bank(0, 0) == 0);
         assert(x4_sfx_play(0, 0) == 0);
         assert(!x4_sfx_finished(0, 0));
+        assert(x4_sfx_play(0, 2) == X4_SFX_INVALID_SEQUENCE);
+        assert(x4_sfx_finished(0, 2));
+        x4_sfx_stop(0, 2);
+        assert(!x4_sfx_finished(0, 0));
+        X4SfxStats stats = x4_sfx_stats();
+        assert(stats.invalid_sequences == 1 && stats.invalid_resource == 0 && stats.invalid_bank == 0);
+        assert(stats.invalid_index == 2 && stats.invalid_command == 0x02000140);
+        assert(x4_sfx_play(0, 3) == X4_SFX_MISSING_PAYLOAD);
+        assert(x4_sfx_finished(0, 3));
+        x4_sfx_stop(0, 3);
+        assert(!x4_sfx_finished(0, 0) && !x4_sfx_errors());
+        assert(x4_sfx_stats().invalid_sequences == 1);
         assert(x4_sfx_play(0, 1) == -2);
         assert(!x4_sfx_finished(0, 0));
         assert(x4_sfx_errors() == 1);
@@ -40,5 +52,5 @@ int main(void) {
         }
         x4_sfx_close();
     }
-    puts("PASS invalid replacement preserves active streamed and cached PCM");
+    puts("PASS missing and invalid sequence requests preserve active streamed and cached PCM");
 }

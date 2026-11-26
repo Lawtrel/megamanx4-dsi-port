@@ -19,15 +19,20 @@ do projeto. A beta 9 é a referência para avaliar as mudanças no DSi.
    positivo do usuário. Preservar essa base e investigar os picos pontuais
    entre quadros; repetir a medição nas outras fases pesadas. As amostras
    de FPS não encerram a meta de regularidade para todos os quadros.
-2. **Completar o áudio.** Resolver quatro comandos SEP e refinar loops,
-   estéreo e reverberação. A reprodução nativa pelo ARM7 permanece como base.
+2. **Completar o áudio.** Refinar os pontos de loop, o estéreo da
+   preparação e a reverberação. A reprodução nativa pelo ARM7 permanece como base.
    Dois comandos passam a tocar a sequência zero já preparada do dump,
    seguindo o comportamento de `SsSeqPlay` do jogo original.
    A [8.12 em teste](STATUS_N0812.md) acrescenta posição e ganho dos efeitos
    diretos, respeitando mono/estéreo. Os descritores restantes apontam para
-   as sequências 2 e 3 do acesso 1. O pacote de personagem abre somente
-   as sequências 0 e 1 nesse acesso. Falta confirmar a origem dos comandos
-   antes de associar algum PCM. O áudio precisa de conferência no DSi.
+   as sequências 2 e 3 do acesso 1. Os arquivos `PL00SEP.ARC` e
+   `PL01SEP.ARC` contêm oito registros no acesso 0 e dois no acesso 1,
+   que usa os índices 0 e 1. A leitura dos cabeçalhos dos 138 recursos
+   USA não encontrou entradas de substituição SEP de fase. Os quatro
+   descritores foram identificados em `PL00_U.ARC` e `PL02_U.ARC`,
+   no banco 1, índices 24 e 25. O port os registra como `SEP_INVALID`
+   quando acionados, sem interferir em efeitos ativos. A validação do
+   comportamento no DSi permanece pendente.
    Em paralelo, um painel de vida, armas, energia e upgrades passa a ocupar
    a tela inferior, com diagnóstico acessível por toque no topo.
 3. **Polir a experiência de jogo.** A [beta 8.13 em teste](STATUS_N0813.md)
@@ -103,6 +108,12 @@ do projeto. A beta 9 é a referência para avaliar as mudanças no DSi.
   (20,6%). O caso de camadas com HUD caiu de 143.814 para 142.597.
   Os seis cenários produziram os mesmos bytes de FIFO. O teste mede
   instruções da preparação. A medição de quadros no DSi permanece aberta.
+- O desenho de cenários reaproveita as colunas visíveis em todas as
+  linhas de cada camada. No teste ARM946 com texturas indexadas, o caso
+  de três camadas caiu de 894.636 para 882.036 instruções (1,4%) e o
+  caso da emenda do trem caiu de 851.328 para 832.527 (2,2%). Os nove
+  cenários produziram as mesmas saídas byte a byte. O teste no DSi
+  ainda precisa medir o tempo total por quadro.
 - O cache de áudio repete duas vezes o PCM de loops com número ímpar de
   amostras para que a unidade de palavras do ARM7 não acrescente silêncio.
   Efeitos em streaming conservam posição e ganho na saída estéreo.
@@ -117,6 +128,6 @@ do projeto. A beta 9 é a referência para avaliar as mudanças no DSi.
   `LOWER_SCREEN` conta as atualizações dispensadas em `skips`. Medir o
   efeito na regularidade dos quadros na introdução, na fase 11 e em Sigma.
 - Os comandos single-SEQ de `ST0B_0X.ARC` e `ST0B_0Z.ARC` passam a selecionar
-  o PCM da sequência zero. Comandos SEP sem sequência conhecida são
-  rejeitados antes de interromper um som ativo.
+  o PCM da sequência zero. O diagnóstico diferencia referências fora
+  da faixa do banco e PCM pendente.
 - A [pesquisa de X5](X5_POS_CREDITOS.md) fica arquivada fora do roteiro de X4.
