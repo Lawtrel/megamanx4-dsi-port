@@ -22,13 +22,13 @@ if [[ -f "$downloads/mmx4_ds_beta.nds" ]]; then
 else
     replace=()
 fi
-if [[ $# -eq 1 ]]; then
+generate() {
     python3 launcher.py --dump "$1" --output-dir "$downloads" "${replace[@]}"
-else
-    if ! command -v termux-storage-get >/dev/null; then
-        echo "Para abrir o seletor, instale o app Termux:API e rode: pkg install termux-api"
-        exit 1
-    fi
+}
+
+if [[ $# -eq 1 ]]; then
+    generate "$1"
+elif command -v termux-storage-get >/dev/null; then
     selection=$(mktemp -d)
     trap 'rm -f -- "$selection/disc.bin"; rmdir -- "$selection"' EXIT
     echo "Selecione seu BIN original. Aguarde a leitura após fechar o seletor."
@@ -37,5 +37,28 @@ else
         echo "Nenhum arquivo foi selecionado."
         exit 1
     fi
-    python3 launcher.py --dump "$selection/disc.bin" --output-dir "$downloads" "${replace[@]}"
+    generate "$selection/disc.bin"
+else
+    shopt -s nullglob
+    dumps=()
+    for file in "$downloads"/*.[bB][iI][nN]; do
+        if [[ -f "$file" ]]; then
+            dumps+=("${file##*/}")
+        fi
+    done
+    if [[ ${#dumps[@]} -eq 0 ]]; then
+        echo "Coloque seu BIN original em Downloads ou passe o caminho como argumento."
+        exit 1
+    fi
+    PS3="Selecione seu BIN pelo número: "
+    select dump in "${dumps[@]}" "Cancelar"; do
+        if [[ -z "$dump" ]]; then
+            echo "Escolha um dos números da lista."
+        elif [[ "$dump" == "Cancelar" ]]; then
+            exit 0
+        else
+            generate "$downloads/$dump"
+            break
+        fi
+    done
 fi

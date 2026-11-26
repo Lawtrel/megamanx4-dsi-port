@@ -8,7 +8,7 @@ typedef struct {uint32_t command,offset,samples,loop;} Entry;
 typedef struct {char path[1100];unsigned count;long data;Entry entries[256];} Bank;
 enum {CACHE_SLOTS=64,CACHE_LIMIT=4*1024*1024};
 typedef struct {void* allocation;int16_t* pcm;size_t bytes,samples;unsigned bank,index,loop,age,pins;} Cached;
-typedef struct {FILE* file;unsigned bank,index,mask,priority,loop;long start;uint32_t position,samples;Cached* cached;} Voice;
+typedef struct {FILE* file;unsigned bank,index,mask,priority,loop;long start;uint32_t position,samples;Cached* cached;unsigned gain;} Voice;
 static Bank banks[6];static Voice voices[8];static char root[1024];static unsigned errors,character;
 static Cached cache[CACHE_SLOTS];static unsigned cache_bytes,cache_age;static X4SfxStats stats;
 static X4SfxBackend backend;
@@ -35,7 +35,15 @@ static Cached* find_cached(unsigned bank,unsigned index){
 }
 static Cached* load_cached(FILE* f,unsigned bank,unsigned index,size_t samples,unsigned loop){
  if(!samples||samples>cache_limit/2)return NULL;
- size_t bytes=(samples*2+31)&~(size_t)31;Cached* slot=NULL;
+ /* ARM7 PCM16 lengths are measured in two-sample words. Repeat an odd
+  * loop twice so hardware wraps on a word boundary without a silent sample. */
+ size_t playback_samples=samples;
+ if(loop&&(samples&1)){
+  if(samples>cache_limit/4)return NULL;
+  playback_samples=samples*2;
+ }
+ size_t bytes=(playback_samples*2+31)&~(size_t)31;Cached* slot=NULL;
+ if(bytes>cache_limit)return NULL;
  for(unsigned i=0;i<8;++i)active(&voices[i]);
  for(;;){
   Cached* oldest=NULL;slot=NULL;
@@ -48,9 +56,10 @@ static Cached* load_cached(FILE* f,unsigned bank,unsigned index,size_t samples,u
  void* memory=malloc(bytes+31);if(!memory)return NULL;
  int16_t* pcm=(int16_t*)(((uintptr_t)memory+31)&~(uintptr_t)31);
  if(fread(pcm,2,samples,f)!=samples){free(memory);return NULL;}
- memset((uint8_t*)pcm+samples*2,0,bytes-samples*2);
+ if(playback_samples!=samples)memcpy(pcm+samples,pcm,samples*2);
+ memset((uint8_t*)pcm+playback_samples*2,0,bytes-playback_samples*2);
  if(backend.prepare)backend.prepare(pcm,bytes);
- *slot=(Cached){memory,pcm,bytes,samples,bank,index,loop,++cache_age,0};cache_bytes+=bytes;return slot;
+ *slot=(Cached){memory,pcm,bytes,playback_samples,bank,index,loop,++cache_age,0};cache_bytes+=bytes;return slot;
 }
 static int start_cached(Voice* v,Cached* c,unsigned mask,unsigned priority,unsigned pan,unsigned gain){
  if(backend.play((unsigned)(v-voices),c->pcm,c->samples,c->loop,pan,gain)){++errors;return -2;}
@@ -132,7 +141,10 @@ int x4_sfx_play_at(unsigned bank,unsigned index,int position,int stereo){
   /* Long effects and cache pressure use the existing streamed mixer. */
   if(fseek(f,start,SEEK_SET)){fclose(f);++errors;return -2;}
  }
- setvbuf(f,NULL,_IOFBF,2048);*slot=(Voice){f,bank,index,mask,priority,loop,start,0,samples};return 0;
+ setvbuf(f,NULL,_IOFBF,2048);
+ *slot=(Voice){.file=f,.bank=bank,.index=index,.mask=mask,.priority=priority,
+               .loop=loop,.start=start,.samples=samples,.gain=gain};
+ return 0;
 }
 void x4_sfx_stop(unsigned bank,unsigned index){
  unsigned mask=bank<6&&index<banks[bank].count?mask_of(&banks[bank].entries[index]):0;
@@ -151,7 +163,12 @@ void x4_sfx_mix(int16_t* out,size_t frames){
   for(unsigned i=0;i<8;++i){Voice* v=&voices[i];size_t done=0;
    while(v->file&&done<count){size_t n=count-done;if(n>v->samples-v->position)n=v->samples-v->position;
     size_t got=fread(temporary,2,n,v->file);
-    for(size_t j=0;j<got;++j)accum[done+j]+=temporary[j];done+=got;v->position+=got;
+    if(v->gain==128){
+     for(size_t j=0;j<got;++j)accum[done+j]+=temporary[j];
+    }else{
+     for(size_t j=0;j<got;++j)accum[done+j]+=((int32_t)temporary[j]*(int32_t)v->gain)/128;
+    }
+    done+=got;v->position+=got;
     if(got!=n){++errors;stop(v);break;}
     if(v->position==v->samples){if(v->loop){if(fseek(v->file,v->start,SEEK_SET)){++errors;stop(v);}else v->position=0;}else stop(v);}
    }

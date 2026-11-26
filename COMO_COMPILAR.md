@@ -7,7 +7,7 @@ e siga o `LEIA-ME.md` do ZIP.
 
 - Windows x64 inclui Python. Abra `ABRIR_NO_WINDOWS.cmd` após extrair o ZIP.
 - Linux x64 ou WSL usa Python 3.11 ou superior. O seletor gráfico no Linux usa Tkinter.
-- Android ARM64 usa Termux com Python. O seletor de arquivos usa o complemento Termux:API.
+- Android ARM64 usa Termux com Python e lista os BINs de Downloads. Termux:API é opcional.
 
 Selecione seu BIN original USA SLUS-00561 e uma pasta de destino.
 O launcher verifica o SHA-256, converte os dados no aparelho e monta

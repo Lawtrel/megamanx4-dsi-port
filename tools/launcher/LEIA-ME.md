@@ -28,11 +28,9 @@ de um BMP de 32×32 pixels, indexado em 4 bits.
 
 ## Android ARM64 com Termux
 
-Instale [Termux e Termux:API](https://github.com/termux/termux-api) pela mesma
-fonte. No Termux, rode `pkg install python unzip termux-api` e
-`termux-setup-storage`. Autorize o acesso a Downloads.
-
-Baixe o ZIP para Downloads e execute no Termux:
+Instale [Termux](https://github.com/termux/termux-app). No Termux, rode
+`pkg install python unzip` e `termux-setup-storage`. Autorize o acesso a Downloads.
+Coloque o ZIP e seu BIN original em Downloads e execute:
 
 ```sh
 cd ~
@@ -41,8 +39,10 @@ cd megaman-x4-ds-launcher-android-arm64
 bash abrir-no-android.sh
 ```
 
-O seletor pede o BIN e a saída fica em Downloads. Você também pode passar o
-caminho do BIN como argumento para usar o launcher sem o seletor.
+Selecione o BIN pelo número na lista. A saída fica em Downloads.
+Você também pode passar o caminho do BIN como argumento. Se tiver o
+[Termux:API](https://github.com/termux/termux-api) e o pacote `termux-api`,
+o launcher abre o seletor de arquivos do Android.
 
 ## Espaço e saída
 

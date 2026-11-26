@@ -15,9 +15,15 @@ void DC_FlushRange(const void* data,size_t bytes){assert(!((uintptr_t)data&31)&&
 void soundPreparePcm(unsigned channel,unsigned vol,unsigned pan,unsigned timer,SoundMode mode,SoundFmt fmt,const void* data,unsigned point,unsigned words){
  assert(channel&SOUND_START);channel&=15;
  assert(channel>=8&&(locked&(1u<<channel))&&pan<=127&&timer==soundTimerFromHz(18900));
- assert(fmt==SoundFmt_Pcm16&&(mode==SoundMode_Repeat||mode==SoundMode_OneShot)&&!point&&words==3);
+ assert(fmt==SoundFmt_Pcm16&&!point);
  assert(!((uintptr_t)data&31)&&!pending_stop);playing[channel]=data;assert(playing[channel][0]>=1000);
- assert(playing[channel][5]==0);panning[channel]=pan;volume[channel]=vol;active_mask|=1u<<channel;++starts;
+ if(mode==SoundMode_Repeat){
+  assert(words==5);
+  for(unsigned i=0;i<10;++i)assert(playing[channel][i]==1100+(int)(i%5));
+ }else{
+  assert(mode==SoundMode_OneShot&&words==3&&playing[channel][5]==0);
+ }
+ panning[channel]=pan;volume[channel]=vol;active_mask|=1u<<channel;++starts;
 }
 void soundStop(unsigned mask){assert(!(mask&~0xff00));pending_stop|=mask;}
 void soundSynchronize(void){
@@ -68,6 +74,14 @@ int main(int argc,char** argv){
  memset(output,0,sizeof output);x4_sfx_mix(output,12);
  for(unsigned i=0;i<12;++i)assert(output[i]==1100+(int)(i%5));
  x4_sfx_stop(2,1);assert(x4_sfx_finished(2,1)&&!x4_sfx_finished(2,0));
+ x4_sfx_close();
+ x4_sfx_set_cache_limit(0);assert(!x4_sfx_bank(7,2));
+ assert(!x4_sfx_play_at(2,0,5,1));
+ memset(output,0,sizeof output);x4_sfx_mix(output,5);
+ for(unsigned i=0;i<5;++i)assert(output[i]==(int)((1000+i)*84/128));
+ assert(!x4_sfx_play_at(2,0,5,0));
+ memset(output,0,sizeof output);x4_sfx_mix(output,5);
+ for(unsigned i=0;i<5;++i)assert(output[i]==1000+(int)i);
  x4_sfx_close();x4_sfx_set_backend(NULL);
  puts("PASS ARM7 PCM backend: reserved channels, alignment, padded length, stop acknowledgement, cache without file I/O, eight voices, mute, replacement lifetime and per-play spatial pan/gain");
 }

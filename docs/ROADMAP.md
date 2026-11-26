@@ -97,6 +97,17 @@ do projeto. A beta 9 é a referência para avaliar as mudanças no DSi.
 
 ## Trabalho após a beta 9
 
+- A preparação da GPU reaproveita a última cor calculada durante fades e
+  carrega o dígito alto da ordem no buffer de ordenação. No teste ARM946
+  com 600 quads, o fade uniforme caiu de 185.747 para 147.436 instruções
+  (20,6%). O caso de camadas com HUD caiu de 143.814 para 142.597.
+  Os seis cenários produziram os mesmos bytes de FIFO. O teste mede
+  instruções da preparação. A medição de quadros no DSi permanece aberta.
+- O cache de áudio repete duas vezes o PCM de loops com número ímpar de
+  amostras para que a unidade de palavras do ARM7 não acrescente silêncio.
+  Quando o efeito é lido do arquivo, a saída mono conserva o ganho do
+  efeito posicional. O teste do mixer cobre os dois caminhos.
+
 - O painel e o radar reaproveitam a imagem quando os dados exibidos
   continuam iguais. A conferência segue a cada seis VBlanks, e o log
   `LOWER_SCREEN` conta as atualizações dispensadas em `skips`. Medir o
