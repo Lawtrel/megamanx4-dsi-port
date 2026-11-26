@@ -2,10 +2,12 @@
 
 ## Launcher para jogadores
 
-Baixe o launcher na [página do projeto](https://lawtrel.github.io/megamanx4-dsi-port/)
-e extraia o ZIP inteiro. No Windows com WSL x64, abra `ABRIR_NO_WINDOWS.cmd`.
-No Linux x86-64 com Tkinter, rode `python3 launcher.py` na pasta extraída.
-Ambos exigem Python 3.11 ou superior.
+Baixe o pacote para seu sistema na [página do projeto](https://lawtrel.github.io/megamanx4-dsi-port/)
+e siga o `LEIA-ME.md` do ZIP.
+
+- Windows x64 inclui Python. Abra `ABRIR_NO_WINDOWS.cmd` após extrair o ZIP.
+- Linux x64 ou WSL usa Python 3.11 ou superior. O seletor gráfico no Linux usa Tkinter.
+- Android ARM64 usa Termux com Python. O seletor de arquivos usa o complemento Termux:API.
 
 Selecione seu BIN original USA SLUS-00561 e uma pasta de destino.
 O launcher verifica o SHA-256, converte os dados no aparelho e monta

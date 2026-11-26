@@ -10,8 +10,9 @@ if sys.platform=='emscripten':
  run_atlas(str(ROOT/'build/native/full-content'),str(OUT/'sprites.rgb555'))
  key='wasm'
 elif kit:
- binary=Path(kit)/'atlas'
- subprocess.run([str(binary),str(ROOT/'build/native/full-content'),str(OUT/'sprites.rgb555')],check=True)
+ binary=Path(kit)/('atlas.exe' if os.name=='nt' else 'atlas')
+ subprocess.run([str(binary),'build/native/full-content','build/native/lower-assets/sprites.rgb555'],
+                check=True,cwd=ROOT)
  key=hashlib.sha256(binary.read_bytes()).hexdigest()
 else:
  inputs=json.loads((ROOT/'build/native/n05-flow/host/systems_test_inputs.json').read_text())['sources']

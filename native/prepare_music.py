@@ -12,11 +12,14 @@ if sys.platform=='emscripten':
 else:
  kit=os.environ.get('X4_HOST_TOOLS')
  if kit:
-  decoder=Path(kit)/'xa_to_pcm'
+  decoder=Path(kit)/('xa_to_pcm.exe' if os.name=='nt' else 'xa_to_pcm')
  else:
   subprocess.run(['gcc','-std=gnu11','-O3',str(ROOT/'native/xa_to_pcm.c'),'-o',str(decoder)],check=True)
  def run_xa(*arguments):
-  subprocess.run([str(decoder),*arguments],check=True)
+  if os.name=='nt' and kit:
+   source, lba, channel, start, end, target=arguments
+   arguments=(os.path.relpath(source,ROOT),lba,channel,start,end,os.path.relpath(target,ROOT))
+  subprocess.run([str(decoder),*arguments],check=True,cwd=ROOT)
 archive_ids=[0x95,0x96,0x97,0x98,0x99,0x9b,0x9c,0x9d,0x9e,0x9f,0x9a]
 enum=(ROOT/'referencias/mmx4-decomp/include/main/xa_sequence_data.h').read_text()
 tracks=sorted((int(value,16),name) for name,value in re.findall(r'\b((?:MUSIC|VOICE)_\w+)\s*=\s*(0x[0-9A-Fa-f]+)',enum))

@@ -17,7 +17,7 @@ def load_baker(output):
 
     kit = os.environ.get("X4_HOST_TOOLS")
     if kit:
-        library = Path(kit) / "sfx_bake.so"
+        library = Path(kit) / ("sfx_bake.dll" if os.name == "nt" else "sfx_bake.so")
     else:
         library = output / "sfx_bake.so"
         subprocess.run([

@@ -1,6 +1,5 @@
 """Smoke test the launcher archive without using any game data."""
 import argparse
-from array import array
 import hashlib
 import json
 import os
@@ -11,13 +10,13 @@ import sys
 import tempfile
 from zipfile import ZipFile
 
-from build_launcher import NAME
+from build_launcher import PREFIX
 from nds_header import validate_native_package
 from prepare_disc import EXPECTED_SIZE
 
 
-def run(workspace, *command):
-    return subprocess.run([sys.executable, *command], cwd=workspace,
+def run(python, workspace, *command):
+    return subprocess.run([python, "-X", "utf8", *command], cwd=workspace,
                           text=True, capture_output=True, check=False)
 
 
@@ -30,16 +29,33 @@ def smoke(archive):
                            {".bin", ".cue", ".iso", ".nds", ".arc", ".pcm"}
                            for name in bundle.namelist())
             bundle.extractall(root)
-        launcher = root / NAME
+        windows = os.name == "nt"
+        exe = ".exe" if windows else ""
+        shared = ".dll" if windows else ".so"
+        target = "windows-x64" if windows else "linux-wsl-x64"
+        launcher = root / (PREFIX + target)
+        python = str(launcher / "python/python.exe") if windows else sys.executable
         runtime = launcher / "runtime"
+        assert json.loads((runtime / "platform.json").read_text()) == target
+        sys.path.insert(0, str(launcher))
+        try:
+            from launcher import script_command
+        finally:
+            sys.path.pop(0)
+        sibling = runtime / "tools/smoke_sibling.py"
+        sibling.write_text("value = 42\n")
+        probe = runtime / "tools/smoke_probe.py"
+        probe.write_text("from smoke_sibling import value\nassert value == 42\n")
+        subprocess.run(script_command(python, str(probe), ()), cwd=runtime, check=True)
+
         synthetic = root / "arquivo de teste.bin"
         synthetic.touch()
         command = ("launcher.py", "--dump", str(synthetic), "--output-dir", str(root))
-        bad_size = run(launcher, *command)
+        bad_size = run(python, launcher, *command)
         assert bad_size.returncode == 1 and "BIN incompatível" in bad_size.stderr, bad_size
         with synthetic.open("r+b") as stream:
             stream.truncate(EXPECTED_SIZE)
-        bad_hash = run(launcher, *command)
+        bad_hash = run(python, launcher, *command)
         assert bad_hash.returncode == 1 and "SHA-256 não corresponde" in bad_hash.stderr, bad_hash
         assert not (root / "mmx4_ds_beta.nds").exists()
 
@@ -63,16 +79,17 @@ def smoke(archive):
         }
         for path, manifest in manifests.items():
             path.write_text(json.dumps(manifest))
-        for tool in ("ambiente/sdk/tools/bin/ndstool", "host/xa_to_pcm", "host/atlas",
-                     "host/sfx_bake.so"):
-            binary = runtime / tool
-            binary.chmod(0o700)
-            versions = subprocess.check_output(["readelf", "--version-info", str(binary)], text=True)
-            glibc = [tuple(map(int, version.split(".")))
-                     for version in re.findall(r"\bGLIBC_([0-9.]+)", versions)]
-            assert glibc and max(glibc) <= (2, 35), (tool, glibc)
-        dependencies = subprocess.check_output(["ldd", str(runtime / "host/atlas")], text=True)
-        assert "not found" not in dependencies, dependencies
+        if not windows:
+            for tool in ("ambiente/sdk/tools/bin/ndstool", "host/xa_to_pcm", "host/atlas",
+                         "host/sfx_bake.so"):
+                binary = runtime / tool
+                binary.chmod(0o700)
+                versions = subprocess.check_output(["readelf", "--version-info", str(binary)], text=True)
+                glibc = [tuple(map(int, version.split(".")))
+                         for version in re.findall(r"\bGLIBC_([0-9.]+)", versions)]
+                assert glibc and max(glibc) <= (2, 35), (tool, glibc)
+            dependencies = subprocess.check_output(["ldd", str(runtime / "host/atlas")], text=True)
+            assert "not found" not in dependencies, dependencies
         sector = bytearray(2352)
         sector[16:20] = bytes((1, 0, 0x44, 4))
         for group in range(18):
@@ -81,26 +98,25 @@ def smoke(archive):
         xa = root / "fixture.xa"
         xa.write_bytes(sector)
         pcm = root / "fixture.pcm"
-        subprocess.run([str(runtime / "host/xa_to_pcm"), str(xa), "0", "0", "0", "1",
+        subprocess.run([str(runtime / ("host/xa_to_pcm" + exe)), str(xa), "0", "0", "0", "1",
                         str(pcm)], check=True)
         samples = pcm.read_bytes()
         assert len(samples) == 8064 and any(samples)
-        sys.path.insert(0, str(runtime / "native"))
-        try:
-            from sample_baker import load_baker
-        finally:
-            sys.path.pop(0)
-        os.environ["X4_HOST_TOOLS"] = str(runtime / "host")
-        try:
-            dsp = load_baker(runtime)
-        finally:
-            del os.environ["X4_HOST_TOOLS"]
-        dsp.bake_reset(bytes(16), 16)
-        silence = array("h", [123]) * 882
-        dsp.bake_pull(silence, 441)
-        assert not any(silence)
+        sample_probe = runtime / "native/smoke_samples.py"
+        sample_probe.write_text(
+            "from array import array\n"
+            "from sample_baker import load_baker\n"
+            "dsp = load_baker(None)\n"
+            "dsp.bake_reset(bytes(16), 16)\n"
+            "silence = array('h', [123]) * 882\n"
+            "dsp.bake_pull(silence, 441)\n"
+            "assert not any(silence)\n"
+        )
+        assert (runtime / ("host/sfx_bake" + shared)).is_file()
+        subprocess.run(script_command(python, str(sample_probe), ()), cwd=runtime, check=True,
+                       env=dict(os.environ, X4_HOST_TOOLS=str(runtime / "host")))
 
-        package = run(runtime, "native/build_n05_flow.py", "--package-engine", "engine.elf")
+        package = run(python, runtime, "native/build_n05_flow.py", "--package-engine", "engine.elf")
         assert package.returncode == 0, package
         output = runtime / "mmx4_ds_beta.nds"
         nitro = runtime / "nitrofiles"

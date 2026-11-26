@@ -104,12 +104,18 @@ static void lower_screen_begin(void){
 }
 static FILE* log_file;
 static char log_path[128];
+/* Ordinary samples fit in RAM until the next FAT directory update. */
+static char log_buffer[8192];
+enum {PROFILE_LOG_SYNC_INTERVAL=5};
 static volatile unsigned diagnostic_phase;
 static X4FlowState diagnostic_state;
 static void commit_log(void){
- /* fclose also commits the FAT file size; fflush alone left logs empty
-  * after a hardware reset. Reopen only once per profile interval. */
- if(log_file){fclose(log_file);log_file=fopen(log_path,"a");}
+ /* fclose commits the directory entry and survives a hardware reset. */
+ if(log_file){
+  fclose(log_file);
+  log_file=fopen(log_path,"a");
+  if(log_file)setvbuf(log_file,log_buffer,_IOFBF,sizeof log_buffer);
+ }
 }
 static void crash_handler(ExcptContext* ctx,unsigned flags){
  /* Never access FAT/audio from the exception context. Photograph this. */
@@ -145,6 +151,7 @@ static void initialize_logs(void){
  }
  if(save_root)x4_save_set_root(save_root);
  if(log_file){
+  setvbuf(log_file,log_buffer,_IOFBF,sizeof log_buffer);
   fprintf(log_file,VERSION "; native ARM9; DSi=%d; id=%s; build=%s %s\n",isDSiMode(),X4_BUILD_ID,__DATE__,__TIME__);
   fprintf(log_file,"PROFILE_HW mode=%s arm9_mhz=%u\n",isDSiMode()?"TWL":"NTR",
    isDSiMode()&&(REG_SCFG_CLK&SCFG_CLK_CPU_134MHz)?134u:67u);
@@ -153,7 +160,7 @@ static void initialize_logs(void){
 }
 static void fail(const char* text,int code){
  audio_stop();lower_console();iprintf("\nFalha: %s\nCodigo: %d\n",text,code);
- if(log_file){fprintf(log_file,"FAIL %s code=%d\n",text,code);fflush(log_file);}
+ if(log_file){fprintf(log_file,"FAIL %s code=%d\n",text,code);commit_log();}
  while(pmMainLoop())swiWaitForVBlank();
 }
 static int select_stage(void){
@@ -237,6 +244,8 @@ int main(int argc,char** argv){
   uint64_t previous_present=0,frame_sum=0;
   unsigned previous_field=0,frame_samples=0,frame_max_us=0,work_max_us=0,late_frames=0;
   unsigned frame_histogram[101]={0},diagnostic_us=0;
+  unsigned log_samples=0,log_sync_us=0;
+  int previous_log_stage=-1,previous_log_area=-1;
   lower_updates=lower_skips=lower_tiles=lower_total_us=lower_max_us=0;
   unsigned panel_field=vblanks;x4_lower_reset();lower_screen_begin();
   while(pmMainLoop()){
@@ -353,15 +362,23 @@ int main(int argc,char** argv){
      fprintf(log_file,"FIFO words=%u old_words=%u\n",x4_gpu_words(),21*v.commands);
      fprintf(log_file,"UPLOAD tiles=%u batches=%u\n",x4_gpu_upload_tiles(),x4_gpu_upload_batches());
 #endif
-     commit_log();}
+     fprintf(log_file,"LOG_IO previous_sync_us=%u\n",log_sync_us);
+     log_sync_us=0;
+     if(++log_samples>=PROFILE_LOG_SYNC_INTERVAL||s.stage!=previous_log_stage||s.area!=previous_log_area){
+      uint64_t sync_start=tickGetCount();
+      commit_log();
+      log_sync_us=(tickGetCount()-sync_start)*1000000/TICK_FREQ;
+      log_samples=0;previous_log_stage=s.stage;previous_log_area=s.area;
+     }
+    }
     lower_updates=lower_skips=lower_tiles=lower_total_us=lower_max_us=0;
     diagnostic_us=(tickGetCount()-diagnostic_start)*1000000/TICK_FREQ;
     frame_sum=0;frame_samples=frame_max_us=work_max_us=late_frames=0;
     memset(frame_histogram,0,sizeof frame_histogram);
    }
   }
-  if(log_file)fflush(log_file);
   if(error||!pmMainLoop())break;
+  commit_log();
  }
  audio_stop();x4_flow_close();if(log_file)fclose(log_file);return 0;
 }

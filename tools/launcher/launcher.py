@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Prepare a local .nds using the launcher kit and a user-selected dump."""
 import argparse
+import json
 from contextlib import suppress
 import os
 from pathlib import Path
@@ -27,6 +28,20 @@ STAGES = (
 )
 
 
+def script_command(python, script, arguments):
+    if os.name != "nt":
+        return [python, script, *arguments]
+    # The embeddable Python on Windows uses an isolated search path.
+    # The stages still need to import siblings from the temporary workspace.
+    bootstrap = (
+        "import os, runpy, sys; "
+        "sys.argv = sys.argv[1:]; "
+        "sys.path.insert(0, os.path.dirname(os.path.abspath(sys.argv[0]))); "
+        "runpy.run_path(sys.argv[0], run_name='__main__')"
+    )
+    return [python, "-X", "utf8", "-c", bootstrap, script, *arguments]
+
+
 def build(disc, output_dir, icon=None, replace=False, progress=print):
     if not disc.is_file():
         raise ValueError("Selecione o arquivo BIN original USA SLUS-00561.")
@@ -39,8 +54,9 @@ def build(disc, output_dir, icon=None, replace=False, progress=print):
     with tempfile.TemporaryDirectory(prefix="mmx4-launcher-") as temporary:
         workspace = Path(temporary) / "build"
         shutil.copytree(KIT, workspace)
+        suffix = ".exe" if os.name == "nt" else ""
         for executable in ("host/xa_to_pcm", "host/atlas", "ambiente/sdk/tools/bin/ndstool"):
-            (workspace / executable).chmod(0o700)
+            (workspace / (executable + suffix)).chmod(0o700)
         sys.path.insert(0, str(workspace / "tools"))
         try:
             from prepare_disc import EXPECTED_SIZE
@@ -52,7 +68,15 @@ def build(disc, output_dir, icon=None, replace=False, progress=print):
 
         # Use a fixed name for the CUE to support arbitrary names in the file picker.
         local_disc = workspace / "disc.bin"
-        local_disc.symlink_to(disc)
+        if os.name == "nt":
+            # MinGW tools accept relative UTF-8-independent paths in this workspace.
+            try:
+                os.link(disc, local_disc)
+            except OSError:
+                progress("Preparando uma cópia temporária do BIN…")
+                shutil.copyfile(disc, local_disc)
+        else:
+            local_disc.symlink_to(disc)
         (workspace / "disc.cue").write_text(
             'FILE "disc.bin" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n',
             encoding="ascii",
@@ -69,7 +93,7 @@ def build(disc, output_dir, icon=None, replace=False, progress=print):
             for message, script in STAGES:
                 progress(message)
                 completed = subprocess.run(
-                    [sys.executable, script, *arguments.get(script, ())], cwd=workspace,
+                    script_command(sys.executable, script, arguments.get(script, ())), cwd=workspace,
                     env=env, stdout=log, stderr=subprocess.STDOUT,
                 )
                 if completed.returncode:
@@ -179,12 +203,20 @@ def main():
     parser.add_argument("--replace", action="store_true")
     parser.add_argument("--windows-paths", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
-    if not sys.platform.startswith("linux") or platform.machine() != "x86_64":
-        parser.exit(1, "Este pacote é para Linux x64 ou Windows com WSL x64.\n")
     if sys.version_info < (3, 11):
         parser.exit(1, "Use Python 3.11 ou superior.\n")
     if not KIT.is_dir():
         parser.exit(1, "Extraia o pacote inteiro antes de abrir o launcher.\n")
+    machine = platform.machine().lower()
+    target = json.loads((KIT / "platform.json").read_text(encoding="utf-8"))
+    supported = (
+        (target == "linux-wsl-x64" and sys.platform == "linux" and machine == "x86_64")
+        or (target == "windows-x64" and os.name == "nt" and machine in {"amd64", "x86_64"})
+        or (target == "android-arm64" and machine == "aarch64"
+            and (sys.platform == "android" or "com.termux" in os.environ.get("PREFIX", "")))
+    )
+    if not supported:
+        parser.exit(1, f"Use o pacote para seu sistema. Este pacote é {target}.\n")
 
     def path(value):
         if args.windows_paths:

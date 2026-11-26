@@ -105,9 +105,16 @@ int x4_sfx_play_at(unsigned bank,unsigned index,int position,int stereo){
  unsigned mask=mask_of(e),priority=e->command>>16&15;
  for(unsigned i=0;i<8;++i)if(active(&voices[i])&&(voices[i].mask&mask)&&voices[i].priority>priority)return -4;
  Voice* slot=NULL;
- for(unsigned i=0;i<8;++i){if(active(&voices[i])&&(voices[i].mask&mask))stop(&voices[i]);if(!active(&voices[i])&&!slot)slot=&voices[i];}
+ for(unsigned i=0;i<8;++i){
+  if((!active(&voices[i])||(voices[i].mask&mask))&&!slot)slot=&voices[i];
+ }
  if(!slot)return -7;
- if(backend.play){Cached* c=find_cached(bank,index);if(c){++stats.hits;return start_cached(slot,c,mask,priority,pan,gain);}++stats.misses;}
+ Cached* retained=backend.play?find_cached(bank,index):NULL;
+ if(retained){
+  for(unsigned i=0;i<8;++i)if(active(&voices[i])&&(voices[i].mask&mask))stop(&voices[i]);
+  ++stats.hits;return start_cached(slot,retained,mask,priority,pan,gain);
+ }
+ if(backend.play)++stats.misses;
  char filename[1100];const char* path=b->path;long start=b->data+e->offset;unsigned samples=e->samples,loop=e->loop&1;
  if(sequence){
   int n=snprintf(filename,sizeof filename,"%s/seq_%u_%u_%u.pcm",root,character,access,number);if(n<0||(size_t)n>=sizeof filename)return -2;path=filename;
@@ -118,6 +125,8 @@ int x4_sfx_play_at(unsigned bank,unsigned index,int position,int stereo){
   if(!samples){fclose(f);return 0;}
  }
  if(fseek(f,start,SEEK_SET)){fclose(f);++errors;return -2;}
+ /* A bad or absent resource must not interrupt the effect already playing. */
+ for(unsigned i=0;i<8;++i)if(active(&voices[i])&&(voices[i].mask&mask))stop(&voices[i]);
  if(backend.play){Cached* c=load_cached(f,bank,index,samples,loop);
   if(c){fclose(f);return start_cached(slot,c,mask,priority,pan,gain);}
   /* Long effects and cache pressure use the existing streamed mixer. */

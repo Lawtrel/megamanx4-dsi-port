@@ -106,12 +106,22 @@ def package(engine, icon=None):
 
     binary = output / (TARGET + ".nds")
     pending = binary.with_suffix(".tmp")
+    ndstool = SDK / "tools/bin" / ("ndstool.exe" if os.name == "nt" else "ndstool")
+    banner = icon or SDK / "calico/share/nds-icon.bmp"
+    if os.name == "nt" and icon:
+        # The Windows packager uses narrow C paths. The custom icon can live
+        # on a different drive or have a name outside the active code page.
+        banner = output / "banner.bmp"
+        shutil.copyfile(icon, banner)
     try:
+        def arg(path):
+            return os.path.relpath(path, ROOT) if os.name == "nt" else str(path)
+
         subprocess.run([
-            str(SDK / "tools/bin/ndstool"), "-c", str(pending), "-9", str(engine),
-            "-7", str(SDK / "calico/bin/ds7_maine.elf"),
-            "-b", str(icon or SDK / "calico/share/nds-icon.bmp"), TITLE, "-d", str(nitro),
-        ], check=True)
+            str(ndstool), "-c", arg(pending), "-9", arg(engine),
+            "-7", arg(SDK / "calico/bin/ds7_maine.elf"),
+            "-b", arg(banner), TITLE, "-d", arg(nitro),
+        ], check=True, cwd=ROOT)
         pending.replace(binary)
     finally:
         pending.unlink(missing_ok=True)
