@@ -114,8 +114,14 @@ do projeto. A beta 9 é a referência para avaliar as mudanças no DSi.
   caso da emenda do trem caiu de 851.328 para 832.527 (2,2%). Os nove
   cenários produziram as mesmas saídas byte a byte. O teste no DSi
   ainda precisa medir o tempo total por quadro.
-- O cache de áudio repete duas vezes o PCM de loops com número ímpar de
-  amostras para que a unidade de palavras do ARM7 não acrescente silêncio.
+- O cache de áudio repete períodos inteiros para alinhar o PCM às palavras
+  do ARM7. Quando a cauda do PCM repete três ciclos idênticos, o banco
+  conserva a introdução e grava o ponto de repetição. O mixer em streaming
+  usa o mesmo ponto. A análise de 115 descritores de loop já preparados
+  encontrou cinco caudas exatas, com redução potencial de 518.970 bytes.
+  Os demais preservam a aproximação de três segundos. No melonDS DS em
+  modo NTR, uma amostra sintética com ponto e período ímpares manteve 186
+  ciclos consecutivos de 445–446 amostras na captura.
   Efeitos em streaming conservam posição e ganho na saída estéreo.
   A música do pacote é centralizada. O teste do mixer cobre cache,
   streaming e PCM curto. Uma prova no melonDS DS em modo NTR, com onda

@@ -12,6 +12,7 @@ SOURCES = (
     "native/prepare_resource_index.py",
     "native/prepare_music.py",
     "native/prepare_sfx.py",
+    "native/pcm_loop.py",
     "native/prepare_sequences.py",
     "native/prepare_lower_assets.py",
     "native/build_n05_flow.py",

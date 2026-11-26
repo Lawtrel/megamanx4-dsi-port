@@ -5,6 +5,7 @@ are listed explicitly until their event player has been converted too.
 """
 from pathlib import Path
 import struct,json,re,hashlib,array
+from pcm_loop import find_pcm_loop
 from sample_baker import load_baker
 ROOT=Path(__file__).resolve().parents[1];REF=ROOT/'referencias/mmx4-decomp';PSYZ=REF/'tools/psyz'
 OUT=ROOT/'build/native/full-audio';DEST=OUT/'sfx';DEST.mkdir(parents=True,exist_ok=True)
@@ -52,7 +53,7 @@ def volume(t):
  # Native mono: strongest of the two instrument pan channels, matching SsSetMono.
  return min(16383,v*v//16383)
 def main():
- records=[];missing=[];invalid_sequences=[];cache={};total=0
+ records=[];missing=[];invalid_sequences=[];cache={};loop_points={};total=0
  # Reuse existing, hash-verified bakes when the descriptor layout is adjusted.
  old={};previous=OUT/'sfx_manifest.json';diskcache=OUT/'sfx-cache';diskcache.mkdir(exist_ok=True)
  if previous.is_file():
@@ -63,7 +64,8 @@ def main():
    if hashlib.sha256(raw).hexdigest()!=record['sha256']:continue
    start=16+len(record['entries'])*16
    for d in record['entries']:
-    if d['samples']:old[(record['resource'],record['bank'],d['index'],d['command'])]=(raw[start+d['offset']:start+d['offset']+d['samples']*2],bool(d['loop']))
+    if d['samples'] and d['status']!='loop_exact':
+     old[(record['resource'],record['bank'],d['index'],d['command'])]=(raw[start+d['offset']:start+d['offset']+d['samples']*2],bool(d['loop']))
  for r in resources:
   if r['format']!='container':continue
   entries=members(r);header=None
@@ -107,7 +109,7 @@ def main():
      signature=hashlib.sha256(h+body+packed).hexdigest()
      cp=diskcache/(signature+'.pcm');meta=diskcache/(signature+'.json')
      if signature not in cache and cp.is_file() and meta.is_file():cache[signature]=(cp.read_bytes(),json.loads(meta.read_text())['loop'])
-     if signature not in cache and (r['id'],kind&255,index,c) in old:cache[signature]=old[(r['id'],kind&255,index,c)]
+     if signature not in cache and (r['id'],bank,index,c) in old:cache[signature]=old[(r['id'],bank,index,c)]
      if signature in cache:rendered,loop=cache[signature]
      else:
       dsp.bake_reset(body,len(body));loop=False;valid=0
@@ -135,16 +137,28 @@ def main():
        while mono and abs(mono[-1])<=1:mono.pop()
       rendered=mono.tobytes();cache[signature]=(rendered,loop)
      if not cp.is_file():cp.write_bytes(rendered);meta.write_text(json.dumps({'loop':loop}))
-     descriptor.update(samples=len(rendered)//2,loop=int(loop),status='silent' if not rendered else 'loop_approximation' if loop else 'rendered')
+     status='rendered' if rendered else 'silent'
+     if loop and rendered:
+      if signature not in loop_points:loop_points[signature]=find_pcm_loop(rendered)
+      point=loop_points[signature]
+      if point:
+       lead,period=point
+       rendered=rendered[:(lead+period)*2]
+       descriptor['loop_start']=lead
+       status='loop_exact'
+      else:status='loop_approximation'
+     descriptor.update(samples=len(rendered)//2,loop=int(loop),status=status)
      pcm.extend(rendered);descriptors.append(descriptor)
-    # Fixed little-endian descriptors, stable ABI read by native mixer.
-    filename=f'{r["id"]:02x}_{bank}.sfx';table_bytes=b''.join(struct.pack('<IIII',d['command'],d['offset'],d['samples'],d['loop']|(2 if d['status']=='silent' else 0)) for d in descriptors)
-    payload=b'X4SFX01\0'+struct.pack('<II',len(descriptors),18900)+table_bytes+pcm
+    # V2 stores the PCM16 loop start above the repeat and silent flags.
+    filename=f'{r["id"]:02x}_{bank}.sfx'
+    table_bytes=b''.join(struct.pack('<IIII',d['command'],d['offset'],d['samples'],
+                        d.get('loop_start',0)<<2|d['loop']|(2 if d['status']=='silent' else 0)) for d in descriptors)
+    payload=b'X4SFX02\0'+struct.pack('<II',len(descriptors),18900)+table_bytes+pcm
     (DEST/filename).write_bytes(payload);total+=len(payload)
     records.append({'resource':r['id'],'name':r['name'],'bank':bank,'file':filename,'sha256':hashlib.sha256(payload).hexdigest(),'bytes':len(payload),'entries':descriptors})
   print('Prepared SFX',r['name'],flush=True)
  report={'bank_count':len(records),'bytes':total,'banks':records,'pending':missing,'invalid_sequences':invalid_sequences,
-  'limitations':['Out-of-range SEP references are rejected without interrupting another effect','Looped direct effects use an approximate three-second PCM cycle','PCM conversion is mono; instrument stereo and reverb remain pending'],
+  'limitations':['Out-of-range SEP references are rejected without interrupting another effect','With no verified periodic tail, looped direct effects use an approximate three-second PCM cycle','PCM conversion is mono; instrument stereo and reverb remain pending'],
   'runtime':'Native PCM mixing; host synthesizer excluded from NDS'}
  (OUT/'sfx_manifest.json').write_text(json.dumps(report,indent=2)+'\n')
  print('SFX banks',len(records),'bytes',total,'pending',len(missing),'invalid SEP',len(invalid_sequences),flush=True)

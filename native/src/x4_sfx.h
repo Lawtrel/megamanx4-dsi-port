@@ -5,7 +5,8 @@
 /* PCM memory belongs to ARM9 and remains immutable until stop() acknowledges
  * the ARM7/hardware reader has stopped. No FILE or game pointer crosses CPUs. */
 typedef struct {
- int (*play)(unsigned voice,const int16_t* pcm,size_t samples,int loop,unsigned pan,unsigned gain);
+ /* loop_start is the first repeated PCM sample. samples includes the prefix. */
+ int (*play)(unsigned voice,const int16_t* pcm,size_t samples,int loop,size_t loop_start,unsigned pan,unsigned gain);
  void (*stop)(unsigned voice);
  int (*active)(unsigned voice);
  /* Publish immutable PCM to the other CPU once, before its first play. */

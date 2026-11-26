@@ -17,9 +17,17 @@ void DC_FlushRange(const void* data,size_t bytes){assert(!((uintptr_t)data&31)&&
 void soundPreparePcm(unsigned channel,unsigned vol,unsigned pan,unsigned timer,SoundMode mode,SoundFmt fmt,const void* data,unsigned point,unsigned words){
  assert(channel&SOUND_START);channel&=15;
  assert(channel>=8&&(locked&(1u<<channel))&&pan<=127&&timer==soundTimerFromHz(18900));
- assert(fmt==SoundFmt_Pcm16&&!point);
+ assert(fmt==SoundFmt_Pcm16);
  assert(!((uintptr_t)data&31)&&!pending_stop);playing[channel]=data;assert(playing[channel][0]>=1000);
- if(mode==SoundMode_Repeat){
+ if(mode==SoundMode_Repeat&&point){
+  const int16_t even_prefix[]={2100,2101,2102,2103,2104,2102,2103,2104};
+  const int16_t odd_prefix[]={2200,2201,2202,2203,2204,2205,2206,2203};
+  if(playing[channel][0]==2100){
+   assert(point==1&&words==3&&!memcmp(playing[channel],even_prefix,sizeof even_prefix));
+  }else{
+   assert(point==2&&words==2&&!memcmp(playing[channel],odd_prefix,sizeof odd_prefix));
+  }
+ }else if(mode==SoundMode_Repeat){
   if(playing[channel][0]==1800){
    assert(words==4);
    for(unsigned i=0;i<8;++i)assert(playing[channel][i]==1800);
@@ -28,7 +36,7 @@ void soundPreparePcm(unsigned channel,unsigned vol,unsigned pan,unsigned timer,S
    for(unsigned i=0;i<10;++i)assert(playing[channel][i]==1100+(int)(i%5));
   }
  }else{
-  assert(mode==SoundMode_OneShot&&words==4);
+  assert(mode==SoundMode_OneShot&&!point&&words==4);
   for(unsigned i=5;i<8;++i)assert(playing[channel][i]==0);
  }
  panning[channel]=pan;volume[channel]=vol;active_mask|=1u<<channel;++starts;
@@ -61,6 +69,53 @@ static void check_centered_music(const char* folder){
  const int16_t expected[]={500,500,-1025,-1025,1700,1700,0,0,4321};
  assert(!memcmp(expected,frames,sizeof frames)&&!music_playing&&x4_audio_track()==-1&&!x4_audio_errors());
  x4_audio_close();
+}
+
+static void check_loop_points(const char* folder){
+ char path[1024];snprintf(path,sizeof path,"%s/08_2.sfx",folder);
+ FILE* f=fopen(path,"wb");assert(f);
+ assert(fwrite("X4SFX02\0",1,8,f)==8);word(f,2);word(f,18900);
+ word(f,0x80);word(f,0);word(f,5);word(f,(2<<2)|1);
+ word(f,0x01000080);word(f,10);word(f,7);word(f,(3<<2)|1);
+ for(int i=0;i<2;++i)for(int j=0;j<5+i*2;++j){
+  unsigned value=2100+i*100+j;
+  assert(fputc(value&255,f)!=EOF&&fputc(value>>8,f)!=EOF);
+ }
+ assert(!fclose(f));
+ x4_sfx_set_cache_limit(32);x4_sfx_config(folder);assert(!x4_sfx_bank(8,2));
+ for(unsigned index=0;index<2;++index){
+  assert(!x4_sfx_play(2,index));
+  assert(x4_sfx_stats().starts==index+1&&x4_sfx_stats().bytes==32);
+  x4_sfx_stop(2,index);
+ }
+
+ x4_sfx_close();x4_sfx_set_cache_limit(0);assert(!x4_sfx_bank(8,2));
+ for(unsigned index=0;index<2;++index){
+  const int prefix=2+index,period=3+index;
+  const int value=2100+index*100;
+  int16_t output[259]={0};
+  assert(!x4_sfx_play(2,index));
+  x4_sfx_mix(output,4);x4_sfx_mix(output+4,255);
+  for(int i=0;i<259;++i){
+   int position=i<prefix?i:prefix+(i-prefix)%period;
+   assert(output[i]==value+position);
+  }
+  x4_sfx_stop(2,index);
+ }
+
+ /* Malformed replacements must retain the old bank and playing stream. */
+ assert(!x4_sfx_play(2,0));
+ snprintf(path,sizeof path,"%s/09_2.sfx",folder);
+ const unsigned bad[]={2<<2,(5<<2)|1,(2<<2)|3,(1<<2)|1};
+ for(unsigned i=0;i<sizeof bad/sizeof *bad;++i){
+  f=fopen(path,"wb");assert(f);
+  assert(fwrite(i==3?"X4SFX01\0":"X4SFX02\0",1,8,f)==8);word(f,1);word(f,18900);
+  word(f,0x80);word(f,0);word(f,5);word(f,bad[i]);
+  for(unsigned j=0;j<10;++j)assert(fputc(0,f)!=EOF);
+  assert(!fclose(f));
+  assert(x4_sfx_bank(9,2)==-3&&!x4_sfx_finished(2,0));
+ }
+ x4_sfx_close();assert(!x4_sfx_errors());
 }
 
 int main(int argc,char** argv){
@@ -126,7 +181,9 @@ int main(int argc,char** argv){
  assert(!x4_sfx_play_at(2,0,5,0));
  memset(stereo,0,sizeof stereo);x4_sfx_mix_stereo(stereo,5);
  assert(stereo[0]==500&&stereo[1]==500);
- x4_sfx_close();x4_sfx_set_backend(NULL);
+ x4_sfx_close();
+ check_loop_points(argv[1]);
+ x4_sfx_set_backend(NULL);
  check_centered_music(argv[1]);
- puts("PASS ARM7 PCM backend: reserved channels, alignment, padded length, stop acknowledgement, cache without file I/O, eight voices, mute, replacement lifetime, spatial pan/gain, short PCM, streamed stereo and centered music");
+ puts("PASS ARM7 PCM backend: reserved channels, alignment, padded length, stop acknowledgement, cache without file I/O, eight voices, mute, replacement lifetime, spatial pan/gain, short PCM, loop points, streamed stereo and centered music");
 }

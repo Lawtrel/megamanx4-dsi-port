@@ -5,8 +5,8 @@
 static unsigned playing;
 
 static int play(unsigned voice, const int16_t* pcm, size_t samples, int loop,
-                unsigned pan, unsigned gain) {
-    (void)loop;
+                size_t loop_start, unsigned pan, unsigned gain) {
+    assert(!loop && !loop_start);
     assert(samples == 16 && pcm[0] == 123 && pan == 64 && gain == 128);
     playing |= 1u << voice;
     return 0;
