@@ -51,7 +51,9 @@ jobs:
         run: python3 tools/build_launcher.py --target ${{ matrix.target }} "$RUNNER_TEMP/megaman-x4-ds-launcher-${{ matrix.target }}.zip"
       - name: Testar o launcher Linux com dados sintéticos
         if: matrix.target == 'linux-wsl-x64'
-        run: python3 tools/test_launcher_bundle.py "$RUNNER_TEMP/megaman-x4-ds-launcher-linux-wsl-x64.zip"
+        run: |
+          python3 native/tests/check_n063_arm7_audio.py
+          python3 tools/test_launcher_bundle.py "$RUNNER_TEMP/megaman-x4-ds-launcher-linux-wsl-x64.zip"
       - name: Validar os binários Android ARM64
         if: matrix.target == 'android-arm64'
         run: |

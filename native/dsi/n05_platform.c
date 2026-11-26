@@ -45,7 +45,7 @@ s32 func_8001540C(s32 group,arg_u8 index,void* source){
      }
     }
     int result=x4_sfx_play_at(group&127,index,position,D_80171EA9);
-    if(result==-6)++missing_sfx;return result;
+    if(result==X4_SFX_MISSING_PAYLOAD)++missing_sfx;return result;
 #else
     (void)group;(void)index;(void)source;++missing_sfx;return -1;
 #endif

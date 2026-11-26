@@ -19,15 +19,20 @@ do projeto. A beta 9 é a referência para avaliar as mudanças no DSi.
    positivo do usuário. Preservar essa base e investigar os picos pontuais
    entre quadros; repetir a medição nas outras fases pesadas. As amostras
    de FPS não encerram a meta de regularidade para todos os quadros.
-2. **Completar o áudio.** Resolver quatro comandos SEP e refinar loops,
-   estéreo e reverberação. A reprodução nativa pelo ARM7 permanece como base.
+2. **Completar o áudio.** Refinar os pontos de loop, o estéreo da
+   preparação e a reverberação. A reprodução nativa pelo ARM7 permanece como base.
    Dois comandos passam a tocar a sequência zero já preparada do dump,
    seguindo o comportamento de `SsSeqPlay` do jogo original.
    A [8.12 em teste](STATUS_N0812.md) acrescenta posição e ganho dos efeitos
    diretos, respeitando mono/estéreo. Os descritores restantes apontam para
-   as sequências 2 e 3 do acesso 1. O pacote de personagem abre somente
-   as sequências 0 e 1 nesse acesso. Falta confirmar a origem dos comandos
-   antes de associar algum PCM. O áudio precisa de conferência no DSi.
+   as sequências 2 e 3 do acesso 1. Os arquivos `PL00SEP.ARC` e
+   `PL01SEP.ARC` contêm oito registros no acesso 0 e dois no acesso 1,
+   que usa os índices 0 e 1. A leitura dos cabeçalhos dos 138 recursos
+   USA não encontrou entradas de substituição SEP de fase. Os quatro
+   descritores foram identificados em `PL00_U.ARC` e `PL02_U.ARC`,
+   no banco 1, índices 24 e 25. O port os registra como `SEP_INVALID`
+   quando acionados, sem interferir em efeitos ativos. A validação do
+   comportamento no DSi permanece pendente.
    Em paralelo, um painel de vida, armas, energia e upgrades passa a ocupar
    a tela inferior, com diagnóstico acessível por toque no topo.
 3. **Polir a experiência de jogo.** A [beta 8.13 em teste](STATUS_N0813.md)
@@ -97,11 +102,44 @@ do projeto. A beta 9 é a referência para avaliar as mudanças no DSi.
 
 ## Trabalho após a beta 9
 
+- A preparação da GPU reaproveita a última cor calculada durante fades e
+  carrega o dígito alto da ordem no buffer de ordenação. No teste ARM946
+  com 600 quads, o fade uniforme caiu de 185.747 para 147.436 instruções
+  (20,6%). O caso de camadas com HUD caiu de 143.814 para 142.597.
+  Os seis cenários produziram os mesmos bytes de FIFO. O teste mede
+  instruções da preparação. A medição de quadros no DSi permanece aberta.
+- A preparação de retângulos com textura reaproveita a cor e as
+  coordenadas das bordas. No teste ARM946 com Clang, os 14 casos com
+  600 ou 1.500 comandos produziram os mesmos bytes de FIFO. Com
+  1.500 comandos, o cenário usou 22,32% menos instruções, o fade
+  25,26% menos e a mistura de tiles e gradientes 20,07% menos.
+  O tempo total dos quadros segue pendente no console.
+- O desenho de cenários reaproveita as colunas visíveis em todas as
+  linhas de cada camada. No teste ARM946 com texturas indexadas, o caso
+  de três camadas caiu de 894.636 para 882.036 instruções (1,4%) e o
+  caso da emenda do trem caiu de 851.328 para 832.527 (2,2%). Os nove
+  cenários produziram as mesmas saídas byte a byte. O teste no DSi
+  ainda precisa medir o tempo total por quadro.
+- O cache de áudio repete períodos inteiros para alinhar o PCM às palavras
+  do ARM7. Quando a cauda do PCM repete três ciclos idênticos, o banco
+  conserva a introdução e grava o ponto de repetição. O mixer em streaming
+  usa o mesmo ponto. A análise de 115 descritores de loop já preparados
+  encontrou cinco caudas exatas, com redução potencial de 518.970 bytes.
+  Os demais preservam a aproximação de três segundos. No melonDS DS em
+  modo NTR, uma amostra sintética com ponto e período ímpares manteve 186
+  ciclos consecutivos de 445–446 amostras na captura.
+  Efeitos em streaming conservam posição e ganho na saída estéreo.
+  A música do pacote é centralizada. O teste do mixer cobre cache,
+  streaming e PCM curto. Uma prova no melonDS DS em modo NTR, com onda
+  sintética posicionada à esquerda, capturou 197.487 quadros estéreo.
+  A soma da amplitude absoluta à esquerda foi 3,27 vezes a da direita.
+  A conferência no console continua pendente.
+
 - O painel e o radar reaproveitam a imagem quando os dados exibidos
   continuam iguais. A conferência segue a cada seis VBlanks, e o log
   `LOWER_SCREEN` conta as atualizações dispensadas em `skips`. Medir o
   efeito na regularidade dos quadros na introdução, na fase 11 e em Sigma.
 - Os comandos single-SEQ de `ST0B_0X.ARC` e `ST0B_0Z.ARC` passam a selecionar
-  o PCM da sequência zero. Comandos SEP sem sequência conhecida são
-  rejeitados antes de interromper um som ativo.
+  o PCM da sequência zero. O diagnóstico diferencia referências fora
+  da faixa do banco e PCM pendente.
 - A [pesquisa de X5](X5_POS_CREDITOS.md) fica arquivada fora do roteiro de X4.

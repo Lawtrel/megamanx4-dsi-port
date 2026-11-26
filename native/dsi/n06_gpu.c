@@ -2,7 +2,8 @@
 #include <nds.h>
 #include <string.h>
 #include "x4_video.h"
-static uint16_t sorted[X4_VIDEO_COMMANDS],scratch[X4_VIDEO_COMMANDS];
+static uint16_t sorted[X4_VIDEO_COMMANDS];
+static uint32_t scratch[X4_VIDEO_COMMANDS];
 /* Worst case remains bounded by the old 21 words/quad. Pack four opcodes
  * together across vertices and retain unchanged color/texture/polygon state.
  * DMA owns this buffer until glCallList returns; no END (libnds restriction). */
@@ -42,17 +43,26 @@ static inline __attribute__((always_inline)) void emit(FifoWriter* out,unsigned 
  if(parameters)*out->next++=a;
  if(parameters==2)*out->next++=b;
 }
+static inline __attribute__((always_inline)) void emit_vertex(
+ FifoWriter* out,unsigned uv,int x,int y,unsigned depth,int first){
+ emit(out,FIFO_TEX_COORD,uv,0,1);
+ emit(out,first?FIFO_VERTEX16:FIFO_VERTEX_XY,
+      (uint16_t)x|((uint32_t)(uint16_t)y<<16),depth,first?2:1);
+}
 unsigned x4_gpu_words(void){return last_words;}
 /* Stable descending ordering-table order, using a bounded radix sort. */
 static void sort_commands(const X4VideoCommand* commands,unsigned count){
  unsigned low[256]={0},high[256]={0};
- /* Signed descending key = order XOR 0x7fff. The first pass reads command
-  * indices directly; the second writes the final array. This removes the
-  * identity array and both full-array copies without changing stable ties. */
+ /* Signed descending key = order XOR 0x7fff. Carry the high radix
+  * digit with the index so the second pass walks the scratch buffer
+  * without fetching orders through the scattered command indices. */
  for(unsigned i=0;i<count;++i){unsigned key=(uint16_t)commands[i].order^0x7fff;++low[key&255];++high[key>>8];}
  unsigned l=0,h=0;for(unsigned i=0;i<256;++i){unsigned a=low[i],b=high[i];low[i]=l;high[i]=h;l+=a;h+=b;}
- for(unsigned i=0;i<count;++i)scratch[low[(commands[i].order^255)&255]++]=i;
- for(unsigned i=0;i<count;++i){unsigned index=scratch[i];sorted[high[((uint16_t)commands[index].order>>8)^127]++]=index;}
+ for(unsigned i=0;i<count;++i){
+  unsigned key=(uint16_t)commands[i].order^0x7fff;
+  scratch[low[key&255]++]=((key&0xff00)<<8)|i;
+ }
+ for(unsigned i=0;i<count;++i){unsigned entry=scratch[i];sorted[high[entry>>16]++]=(uint16_t)entry;}
 }
 void x4_gpu_init(void){
  videoSetMode(MODE_0_3D);vramSetBankA(VRAM_A_TEXTURE_SLOT0);vramSetBankB(VRAM_B_TEXTURE_SLOT1);
@@ -70,11 +80,16 @@ void x4_gpu_prepare(void){
  /* CPU-only work runs before waiting for VBlank. No hardware or texture
   * ownership changes here; the preceding GPU frame may still be rendering. */
  unsigned gain=255-x4_video_alpha(),clear=x4_video_clear();
- prepared_clear=RGB15((clear&31)*gain/255,((clear>>5)&31)*gain/255,((clear>>10)&31)*gain/255);
+ uint8_t fade[32];
+ if(gain!=255)for(unsigned i=0;i<32;++i)fade[i]=i*gain/255;
+ prepared_clear=gain==255?(clear&0x7fff):RGB15(fade[clear&31],fade[(clear>>5)&31],fade[(clear>>10)&31]);
+ /* All four vertex colors of a textured command are white. */
+ unsigned tile_color=gain==255?32767:RGB15(fade[31],fade[31],fade[31]);
  unsigned count;const X4VideoCommand* commands=x4_video_commands(&count);
  sort_commands(commands,count);
  FifoWriter out={.next=list+1,.lane=4};
  unsigned last_texture=~0u,last_palette=~0u,last_poly=~0u,last_color=~0u;
+ unsigned last_raw_color=~0u;
  for(unsigned i=0;i<count;++i){
   const X4VideoCommand* c=&commands[sorted[i]];unsigned slot=c->tile;
   unsigned texture=c->textured?(slot*32)|(1<<20)|(1<<23)|(GL_RGB256<<26)|((c->textured==2)?1u<<29:0):0;
@@ -87,12 +102,33 @@ void x4_gpu_prepare(void){
    * avoiding coordinate arrays and four-element flip loops per quad. */
   unsigned u=c->w<<4,v=c->h<<20;
   unsigned uv=((c->flip&1)?u:0)|((c->flip&2)?v:0);
+  if(c->textured){
+   /* x4_video_tile emits a white rectangle. Reuse each edge for its
+    * two corners, including the coordinate transform for HUD tiles. */
+   if(tile_color!=last_color){emit(&out,FIFO_COLOR,tile_color,0,1);last_color=tile_color;}
+   last_raw_color=32767;
+   int left=c->x[0],right=c->x[1],top=c->y[0],bottom=c->y[2];
+   if(c->screen_space){
+    left=32+left*4/5;right=32+right*4/5;
+    top=24+top*4/5;bottom=24+bottom*4/5;
+   }
+   emit_vertex(&out,uv,left,top,i,1);
+   emit_vertex(&out,uv^u,right,top,i,0);
+   emit_vertex(&out,uv^u^v,right,bottom,i,0);
+   emit_vertex(&out,uv^v,left,bottom,i,0);
+   continue;
+  }
   for(unsigned j=0;j<4;++j){unsigned color=c->color[j];
-   if(gain!=255)color=RGB15((color&31)*gain/255,((color>>5)&31)*gain/255,((color>>10)&31)*gain/255);
+   if(gain!=255){
+    if(color==last_raw_color)color=last_color;
+    else{
+     last_raw_color=color;
+     color=RGB15(fade[color&31],fade[(color>>5)&31],fade[(color>>10)&31]);
+    }
+   }
    int x=c->x[j],y=c->y[j];if(c->screen_space){x=32+x*4/5;y=24+y*4/5;}
    if(color!=last_color){emit(&out,FIFO_COLOR,color,0,1);last_color=color;}
-   emit(&out,FIFO_TEX_COORD,uv^((j==1||j==2)?u:0)^((j>=2)?v:0),0,1);
-   emit(&out,j?FIFO_VERTEX_XY:FIFO_VERTEX16,(uint16_t)x|((uint32_t)(uint16_t)y<<16),i,j?1:2);
+   emit_vertex(&out,uv^((j==1||j==2)?u:0)^((j>=2)?v:0),x,y,i,j==0);
   }
  }
  /* Commit the final group even when it has fewer than four opcodes. */

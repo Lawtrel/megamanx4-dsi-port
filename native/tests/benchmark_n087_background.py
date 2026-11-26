@@ -7,7 +7,7 @@ p.add_argument('--build-only',action='store_true');p.add_argument('--run-only',a
 p.add_argument('--python-path',type=Path);p.add_argument('--baseline',default='5557bce')
 p.add_argument('--output',type=Path,default=Path('build/native/n087-background-benchmark'))
 args=p.parse_args();out=ROOT/args.output;fixture=ROOT/'native/tests/n087_background_benchmark.c'
-labels=('three_layers','negative_edges','train_seam','live_mutations','disabled_layers','invalid_bounds')
+labels=('three_layers','negative_edges','train_seam','live_mutations','disabled_layers','invalid_bounds','wide_viewport','indexed_layers','indexed_train_seam')
 sha=lambda b:hashlib.sha256(b).hexdigest()
 if not args.run_only:
  out.mkdir(parents=True,exist_ok=True);sdk=ROOT/'ambiente/sdk/devkitARM/bin';ref=ROOT/'referencias/mmx4-decomp'

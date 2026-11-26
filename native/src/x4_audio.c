@@ -19,9 +19,22 @@ void x4_audio_update(void){
  }
  music.gain=x4_n05_music_gain();
 }
-void x4_audio_read(int16_t* output,size_t frames){
- x4_music_read(&music,output,frames);x4_sfx_mix(output,frames);
+static void music_finish_read(void){
  if(music.file&&(music.finished||music.error)){
   errors+=!!music.error;x4_music_close(&music);track=-1;x4_n05_music_status(0);
  }
+}
+
+void x4_audio_read(int16_t* output,size_t frames){
+ x4_music_read(&music,output,frames);x4_sfx_mix(output,frames);music_finish_read();
+}
+void x4_audio_read_stereo(int16_t* output,size_t frames){
+ x4_music_read(&music,output,frames);
+ /* The old mono channel used pan 64. The stereo channels are hard-panned,
+  * so split centered music at half gain and expand backwards in place. */
+ for(size_t i=frames;i>0;--i){
+  int16_t sample=(int16_t)(output[i-1]/2);
+  output[2*i-2]=output[2*i-1]=sample;
+ }
+ x4_sfx_mix_stereo(output,frames);music_finish_read();
 }

@@ -5,13 +5,19 @@
 /* PCM memory belongs to ARM9 and remains immutable until stop() acknowledges
  * the ARM7/hardware reader has stopped. No FILE or game pointer crosses CPUs. */
 typedef struct {
- int (*play)(unsigned voice,const int16_t* pcm,size_t samples,int loop,unsigned pan,unsigned gain);
+ /* loop_start is the first repeated PCM sample. samples includes the prefix. */
+ int (*play)(unsigned voice,const int16_t* pcm,size_t samples,int loop,size_t loop_start,unsigned pan,unsigned gain);
  void (*stop)(unsigned voice);
  int (*active)(unsigned voice);
  /* Publish immutable PCM to the other CPU once, before its first play. */
  void (*prepare)(const int16_t* pcm,size_t bytes);
 } X4SfxBackend;
-typedef struct {unsigned hits,misses,bytes,starts,active;} X4SfxStats;
+enum {X4_SFX_MISSING_PAYLOAD=-6,X4_SFX_INVALID_SEQUENCE=-8};
+typedef struct {
+ unsigned hits,misses,bytes,starts,active;
+ unsigned invalid_sequences,invalid_resource,invalid_bank,invalid_index;
+ uint32_t invalid_command;
+} X4SfxStats;
 void x4_sfx_set_cache_limit(size_t bytes);
 void x4_sfx_set_backend(const X4SfxBackend* backend);
 X4SfxStats x4_sfx_stats(void);
@@ -26,5 +32,6 @@ int x4_sfx_play_at(unsigned bank,unsigned index,int position,int stereo);
 void x4_sfx_stop(unsigned bank,unsigned index);
 int x4_sfx_finished(unsigned bank,unsigned index);
 void x4_sfx_mix(int16_t* out,size_t frames);
+void x4_sfx_mix_stereo(int16_t* interleaved,size_t frames);
 unsigned x4_sfx_errors(void);
 #endif

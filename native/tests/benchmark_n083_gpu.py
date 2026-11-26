@@ -4,10 +4,13 @@ import argparse,subprocess,json,hashlib,sys,struct
 ROOT=Path(__file__).resolve().parents[2];OUT=ROOT/'build/native/n083-gpu-benchmark'
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--build-only',action='store_true');parser.add_argument('--run-only',action='store_true')
+parser.add_argument('--quads',type=int,default=600,metavar='1..1500')
 parser.add_argument('--python-path',type=Path);parser.add_argument('--baseline',default='cf348d9')
 parser.add_argument('--candidate',type=Path,default=Path('native/dsi/n06_gpu.c'))
 parser.add_argument('--output',type=Path,default=Path('build/native/n083-gpu-benchmark'))
-args=parser.parse_args();OUT=ROOT/args.output;fixture=ROOT/'native/tests/n083_gpu_benchmark.c'
+args=parser.parse_args()
+if not 1<=args.quads<=1500:parser.error('--quads must be between 1 and 1500')
+OUT=ROOT/args.output;fixture=ROOT/'native/tests/n083_gpu_benchmark.c'
 if not args.run_only:
  OUT.mkdir(parents=True,exist_ok=True);sdk=ROOT/'ambiente/sdk/devkitARM/bin'
  before=OUT/'before.c';before.write_bytes(subprocess.check_output(['git','show',args.baseline+':native/dsi/n06_gpu.c'],cwd=ROOT))
@@ -30,14 +33,14 @@ if args.python_path:sys.path.insert(0,str(args.python_path.resolve()))
 from unicorn import Uc,UC_ARCH_ARM,UC_MODE_ARM,UC_HOOK_CODE
 from unicorn.arm_const import UC_ARM_REG_SP,UC_ARM_REG_LR,UC_ARM_REG_R0,UC_ARM_REG_R1,UC_ARM_REG_PC,UC_CPU_ARM_946
 probes=json.loads((OUT/'probes.json').read_text());results={}
-for mode in range(4):
+for mode in range(7):
  case={};fifo_bytes={}
  for name,row in probes.items():
   code=(OUT/(name+'.bin')).read_bytes();assert hashlib.sha256(code).hexdigest()==row['binary_sha256']
   machine=Uc(UC_ARCH_ARM,UC_MODE_ARM);machine.ctl_set_cpu_model(UC_CPU_ARM_946)
   machine.mem_map(0x10000,0x800000);machine.mem_write(0x10000,code)
   machine.reg_write(UC_ARM_REG_SP,0x7f0000);machine.reg_write(UC_ARM_REG_LR,0x7e0000)
-  machine.reg_write(UC_ARM_REG_R0,600);machine.reg_write(UC_ARM_REG_R1,mode);counter=[False,0]
+  machine.reg_write(UC_ARM_REG_R0,args.quads);machine.reg_write(UC_ARM_REG_R1,mode);counter=[False,0]
   def hook(machine,address,size,data):
    if address==row['benchmark_start']:counter[0]=True
    if address==row['benchmark_end']:counter[0]=False
@@ -50,8 +53,8 @@ for mode in range(4):
               'fifo_words':words,'fifo_sha256':hashlib.sha256(fifo_bytes[name]).hexdigest()}
  assert fifo_bytes['before']==fifo_bytes['after'], 'GPU command bytes differ'
  assert case['before']['fifo_hash']==case['after']['fifo_hash'],case
- label=('world','mixed_hud','fade','gouraud')[mode];results[label]=case;print(label,case,flush=True)
+ label=('world','mixed_hud','fade','gouraud','layers_and_hud','fade_gouraud','fade_tiles_and_gradients')[mode];results[label]=case;print(label,case,flush=True)
 report={'cpu':'ARM946','metric':'Executed preparation instructions; excludes cycles, cache and DMA; not FPS',
-        'probes':probes,'results':results,'fixture_sha256':hashlib.sha256(fixture.read_bytes()).hexdigest(),
+        'quads':args.quads,'probes':probes,'results':results,'fixture_sha256':hashlib.sha256(fixture.read_bytes()).hexdigest(),
         'video_sha256':hashlib.sha256((ROOT/'native/src/x4_video.c').read_bytes()).hexdigest(),'physical_dsi_tested':False}
 (OUT/'execution.json').write_text(json.dumps(report,indent=2)+'\n')

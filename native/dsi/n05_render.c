@@ -348,6 +348,11 @@ static int draw_flat_quads(uint16_t* screen){
     }
     return errors;
 }
+static inline int background_column(int source_x,int repeat,int end){
+ if(repeat&&source_x>=end){source_x-=repeat;if(source_x>=end)source_x-=repeat;}
+ return source_x;
+}
+
 /* Read live map/palette banks. Palette animators and stage geometry writes
  * must affect the same data used for both graphics and terrain collision. */
 static int background(uint16_t* screen,const X4Archive* stage,int cx,int cy){
@@ -390,14 +395,18 @@ static int background(uint16_t* screen,const X4Archive* stage,int cx,int cy){
     const int top=(cy+vy)/16,bottom=(cy+vy+vh-1)/16;
     const int left=(cx+vx)/16,right=(cx+vx+vw-1)/16;
     const int order_low=background_objects[layer].unk4A*16,order_high=background_objects[layer].unk4B*16;
+    /* The horizontal camera mapping is constant across the visible rows.
+     * Cache coordinates only so live map and tile attributes remain authoritative. */
+    int visible_columns[32];
+    const int cached=right-left<(int)(sizeof visible_columns/sizeof *visible_columns);
+    if(cached)for(int tx=left;tx<=right;++tx)visible_columns[tx-left]=background_column(tx,repeat,end);
     for(int ty=top;ty<=bottom;++ty){
      if(ty<0||ty>=rows*16)continue;
      const u8* map_row=tilemap+layer*layer_size+(ty/16)*columns;
      const unsigned inner_row=(ty&15)*16;
      const int dy=ty*16-cy;
      for(int tx=left;tx<=right;++tx){
-        int source_x=tx;
-        if(repeat&&source_x>=end){source_x-=repeat;if(source_x>=end)source_x-=repeat;}
+        int source_x=cached?visible_columns[tx-left]:background_column(tx,repeat,end);
         if(source_x<0||source_x>=columns*16)continue;
         unsigned block=map_row[source_x/16];
         if(!block)continue;

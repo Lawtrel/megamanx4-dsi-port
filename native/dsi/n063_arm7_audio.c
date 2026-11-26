@@ -1,5 +1,5 @@
 /* ARM9 control of Calico's existing ARM7 sound driver. PCM stays in shared
- * main RAM. Channels 8..15 are reserved; Maxmod's mono music stream uses 0.
+ * main RAM. Channels 8..15 are reserved; Maxmod streams on 0 and 2.
  * A synchronous stop acknowledgement always precedes cache reuse/free. */
 #include <nds.h>
 #include <maxmod9.h>
@@ -9,11 +9,12 @@
 static int muted;
 static unsigned channel_gain[8];
 static void prepare(const int16_t* pcm,size_t bytes){DC_FlushRange(pcm,bytes);}
-static int play(unsigned voice,const int16_t* pcm,size_t samples,int loop,unsigned pan,unsigned gain){
- if(voice>=8||!pcm||!samples||pan>127||gain>128||((uintptr_t)pcm&31))return -1;
+static int play(unsigned voice,const int16_t* pcm,size_t samples,int loop,size_t loop_start,unsigned pan,unsigned gain){
+ if(voice>=8||!pcm||samples<8||pan>127||gain>128||((uintptr_t)pcm&31)||
+    ((samples|loop_start)&1)||(!loop&&loop_start)||loop_start>=samples||loop_start/2>UINT16_MAX)return -1;
  channel_gain[voice]=gain;
  soundPreparePcm((8+voice)|SOUND_START,muted?0:0x7f0*gain/128,pan,soundTimerFromHz(18900),
-  loop?SoundMode_Repeat:SoundMode_OneShot,SoundFmt_Pcm16,pcm,0,(samples+1)/2);
+  loop?SoundMode_Repeat:SoundMode_OneShot,SoundFmt_Pcm16,pcm,loop_start/2,(samples-loop_start)/2);
  soundSynchronize();return 0;
 }
 static void stop(unsigned voice){if(voice<8){soundStop(1u<<(8+voice));soundSynchronize();}}

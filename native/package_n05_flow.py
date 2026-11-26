@@ -87,7 +87,7 @@ for path,digest in panel['sources'].items():assert sha(ROOT/path)==digest,path
 for name in ('x4_flow_radar','x4_flow_request_weapon','x4_lower_touch','x4_lower_render','x4_flow_debug_sigma_hitkill','x4_flow_debug_sigma_hitkill_enabled','x4_flow_debug_credits'):assert name in symbols,name
 for banned in ('Psyz','psyz','CPUState','psx_dispatch','cpu_run','dyn_run','CdControl','SpuGet','SsUt','SsSep','DrawSync','MoveImage','unused_flow_','UNIMPLEMENTED','x4_movie_'):
  assert banned not in symbols,banned
-for required in ('player_update_normal','update_main_objects','engine_update_funcs','x4_flow_begin','x4_flow_begin_debug','x4_n05_render_fault','x4_n05_render_cache_stats','x4_flow_title','layout_gate_apply_layout','func_8001C210','x4_audio_read','func_80018000','x4_sfx_mix','mmx4_pc_card_write','mmStreamOpen','threadPrepare'):
+for required in ('player_update_normal','update_main_objects','engine_update_funcs','x4_flow_begin','x4_flow_begin_debug','x4_n05_render_fault','x4_n05_render_cache_stats','x4_flow_title','layout_gate_apply_layout','func_8001C210','x4_audio_read_stereo','func_80018000','x4_sfx_mix_stereo','mmx4_pc_card_write','mmStreamOpen','threadPrepare'):
  assert required in symbols,required
 DIST.mkdir(parents=True,exist_ok=True)
 temporary=DIST/(binary.name+'.building');shutil.copyfile(binary,temporary);assert sha(temporary)==sha(binary)
@@ -117,16 +117,16 @@ manifest={'version':'Beta 9' if N06 else 'N05 FLOW integration 2','not_complete_
  'controls':'SELECT sends original GIGA/R2 action; full SELECT+X and L+R+SELECT chords consumed by frontend',
  'debug_loadout':'Stage selection only: all weapons/techniques, 48 HP, tanks, X full armor and Plasma; original resource consumption; no defeated-boss flag override',
  'assets':{'arc':138,'music_voice_tracks':80,'sfx_banks':79,'short_sequences':20,'native_movies':0},
- 'pending':['Four unresolved SEP commands and precise looping/reverb','Complete graphics priority/filter fidelity','Original title/load menu qualification','30/60 FPS optimization'],
+ 'pending':['Precise PCM looping and reverb','Complete graphics priority/filter fidelity','Original title/load menu qualification','30/60 FPS optimization'],
  'flow_object_sha256':sha(BUILD/'flow.o'),'frontend_sha256':sha(BUILD/'source/main.c'),'nitrofs_files':files,'segments':segments}
 if N06:manifest.update(movies='disabled: original calls return immediately; no movie files or playback code packaged',renderer='DS 3D lossless RGB256 indexed tiles and retained RGB555 CLUTs',logical_viewport=[320,240],world_crop=[32,24,256,192],physical_viewport=[256,192],texture_cache_bytes=524288,texture_cache_slots=2048,texture_tile_bytes=256,gpu_palette_slots=192,palette_cache_bytes=98304,melonDS_tested=False,
  gpu_submission='packed four-opcode FIFO via DMA0; retained state; VTX16 then VTX_XY',fifo_builder='local cursor and pending opcode word; commit once per four commands and at end',gpu_compilation='ARM -O3',graphics_sort='stable two-byte radix; joint histograms; no identity/copy passes',frame_timing='present-to-present includes diagnostics; mean/max/p95 upper bound; fields beyond two; no FPS cap',rng_startup_seed='0x0D37',log_commit='fclose/reopen per profile interval',
- audio_effects='Calico ARM7 driver and native hardware channels 8..15; acknowledged ownership',sfx_pcm_cache_limit=4194304,sfx_pcm_cache_limit_ntr=98304,
+ audio_effects='Calico ARM7 channels 8..15 with acknowledged ownership; stereo on the Maxmod streaming fallback',sfx_pcm_cache_limit=4194304,sfx_pcm_cache_limit_ntr=98304,
  sfx_publication='cache insertion only; acknowledged stop before reuse',boss_trace=True,
  graphics_pipeline='CPU list/cache preparation before VBlank; per-bank 8KiB DMA chunks start only at VCOUNT 192..204; wait with all textures mapped; retain prior image until uploads complete',tile_conversion='4/8bpp to 8-bit indices; palette colors versioned separately from transparency/index remapping',texture_sharing='2048 native indexed slots; original source/pose/remap key; pixels reused across color-only palette animation; host tests retain RGBA for reference',palette_reuse='raw color snapshot checked on first use in each new frame',
  campaign_menu='original animated title, new-game/load menus and native two-bank save journal',continue_palette='restore borrowed live palette when leaving engine state 8; nested state 12 retains menu ownership',background_iteration='frame-local pointer/size snapshots and row bounds; live map/palette contents read each draw',mutable_layout='shared original D_80141BE8 for stage events, drawing and collision',train_background='original camera-wrap rule and repeated-map seam sampling',player_armor='original part assemblies and palettes composed over shared player pose',
  post_credits='return to the X4 title',
- pending=['Sustained 30 FPS qualification on physical DSi','DS blending fidelity','Four unresolved SEP commands and audio effect fidelity'])
+ pending=['Sustained 30 FPS qualification on physical DSi','DS blending fidelity','Audio effect fidelity, loop points and reverb'])
 if N06:manifest.update(console_cache_layout=cache_layout,physical_ds_tested=False,dspico_tested=False,campaign_user_validated=['X','Zero'],radar_user_feedback='No perceived slowdown; no new timing log supplied',startup='original title directly; stage selector through Debug or L+R+SELECT')
 # Emulator observations qualify one exact ROM. Rebuilding must not inherit
 # an earlier run if the linked binary or its embedded assets changed.
