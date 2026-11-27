@@ -120,6 +120,27 @@ do projeto. A beta 9 é a referência para avaliar as mudanças no DSi.
   caso da emenda do trem caiu de 851.328 para 832.527 (2,2%). Os nove
   cenários produziram as mesmas saídas byte a byte. O teste no DSi
   ainda precisa medir o tempo total por quadro.
+- O preparo local aplica a reverberação Studio A aos instrumentos
+  marcados para esse envio. A cauda fica no PCM e o DS usa o mixer
+  existente. A biblioteca de preparo verifica a versão da interface
+  antes de usar um cache. A prova C no Windows verificou o envio por
+  voz, a cauda, o reset e a recuperação de um cache antigo com dados
+  sintéticos. A medição da duração dos efeitos e da pressão no cache
+  em jogo permanece pendente, especialmente no perfil NTR.
+- Se o PCM seco tem período exato, o preparo também pode compactar
+  a cauda reverberada que estabilizou. O trecho observado precisa
+  conter três ciclos com erro máximo de uma unidade PCM16 em relação
+  ao ciclo armazenado. Dois casos sintéticos caíram de 113.400 bytes
+  para 46.362 e 54.104 bytes, abaixo do cache NTR de 96 KiB. No melonDS
+  em modo NTR, o primeiro passou da mistura por software para o
+  cache PCM do ARM7, usando 46.368 bytes após alinhamento. O impacto
+  em jogo ainda precisa de medição no console.
+- No streaming de efeitos, o mixer reaproveita o período curto que já
+  leu no bloco atual. Em um segundo de PCM estéreo sintético com
+  período de sete amostras e cache NTR cheio, `fread` caiu de 2.876
+  para 381 chamadas e `fseek` de 2.700 para 365. O teste preservou as
+  amostras, a fase dos loops e o tratamento de falhas de leitura.
+  O custo da leitura no cartão físico segue pendente.
 - O cache de áudio repete períodos inteiros para alinhar o PCM às palavras
   do ARM7. Quando a cauda do PCM repete três ciclos idênticos, o banco
   conserva a introdução e grava o ponto de repetição. O mixer em streaming

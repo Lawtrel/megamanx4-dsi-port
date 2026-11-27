@@ -5,10 +5,17 @@ are listed explicitly until their event player has been converted too.
 """
 from pathlib import Path
 import struct,json,re,hashlib,array
-from pcm_loop import find_pcm_loop
+from tempfile import NamedTemporaryFile
+from pcm_loop import find_pcm_loop,find_reverb_loop
 from sample_baker import load_baker
 ROOT=Path(__file__).resolve().parents[1];REF=ROOT/'referencias/mmx4-decomp';PSYZ=REF/'tools/psyz'
 OUT=ROOT/'build/native/full-audio';DEST=OUT/'sfx';DEST.mkdir(parents=True,exist_ok=True)
+TONE_MODE_REVERB=4
+REVERB_DEPTH=8
+REVERB_CACHE_VERSION=b'studio-a-depth-8-v1'
+# One small-studio work-area rotation takes about 179 ms. Keep rendering
+# until a full 200 ms is quiet so delayed reflections can still emerge.
+REVERB_QUIET_FRAMES=8820
 dsp=load_baker(OUT)
 table=re.search(r'pitch_table\[\] = \{(.*?)\};',(PSYZ/'decomp/src/libsnd/vm_n2p.c').read_text(),re.S)[1]
 pitches=[int(n,16) for n in re.findall(r'0x[0-9A-Fa-f]+',table)]
@@ -52,6 +59,50 @@ def volume(t):
  v=v*t['program_volume']*raw[2]//16129
  # Native mono: strongest of the two instrument pan channels, matching SsSetMono.
  return min(16383,v*v//16383)
+def command_tones(progs,packed):
+ first=16*(packed[1]&127)+(packed[2]>>4)
+ for voice in range(1+((packed[3]>>5)&3)):
+  program,tone=divmod(first+voice,16)
+  if program not in progs:break
+  instrument=progs[program][tone]
+  if instrument['offset'] is not None:
+   yield voice,instrument
+
+def render_sfx(body,tones,wet):
+ dsp.bake_reset(body,len(body),REVERB_DEPTH if wet else 0);loop=False
+ for voice,t in tones:
+  raw=t['raw']
+  assert t['offset']%8==0
+  for p in range(t['offset'],t['offset']+t['length'],16):
+   flags=body[p+1]
+   if flags&1:loop|=bool(flags&2);break
+  dsp.bake_voice(voice,t['offset'],pitch(raw,raw[6],raw[5]),u16(raw,16),u16(raw,18),volume(t),raw[1]==TONE_MODE_REVERB)
+ buf=array.array('h',[0])*(441*2);mono=array.array('h');clock=0;last_nonzero=0;limit=44100*(3 if loop else 20)
+ quiet_frames=REVERB_QUIET_FRAMES if wet and not loop else 441
+ while tones and clock<limit:
+  dsp.bake_pull(buf,441)
+  chunk_start=len(mono)
+  for j in range(441):
+   # Exact rational rate reduction 44100 -> 18900 (3/7).
+   if ((clock+j)*3)//7!=((clock+j+1)*3)//7:mono.append((int(buf[2*j])+int(buf[2*j+1]))//2)
+  clock+=441
+  if dsp.bake_active() or (wet and not loop and any(abs(sample)>1 for sample in mono[chunk_start:])):
+   last_nonzero=clock
+  elif clock>441 and clock-last_nonzero>quiet_frames:break
+ if not loop:
+  while mono and abs(mono[-1])<=1:mono.pop()
+ return mono.tobytes(),loop
+
+def write_cache(path,data):
+ stream=NamedTemporaryFile(dir=path.parent,delete=False)
+ temporary=Path(stream.name)
+ try:
+  with stream:
+   stream.write(data)
+  temporary.replace(path)
+ finally:
+  temporary.unlink(missing_ok=True)
+
 def main():
  records=[];missing=[];invalid_sequences=[];cache={};loop_points={};total=0
  # Reuse existing, hash-verified bakes when the descriptor layout is adjusted.
@@ -105,48 +156,51 @@ def main():
          target=(base_header,base_data,instruments(base_header,base_data));descriptor['retained_resource']=retained;break
      if target is None:
       descriptor['status']='cross_bank_pending';missing.append({'resource':r['id'],'bank':bank,'index':index,'command':c});descriptors.append(descriptor);continue
-     h,body,progs=target;program=packed[1]&127;tone=packed[2]>>4;voices=1+((packed[3]>>5)&3)
-     signature=hashlib.sha256(h+body+packed).hexdigest()
+     h,body,progs=target;tones=list(command_tones(progs,packed))
+     wet=any(t['raw'][1]==TONE_MODE_REVERB for _,t in tones)
+     descriptor['reverb']=wet
+     signature=hashlib.sha256(h+body+packed+(REVERB_CACHE_VERSION if wet else b'')).hexdigest()
      cp=diskcache/(signature+'.pcm');meta=diskcache/(signature+'.json')
-     if signature not in cache and cp.is_file() and meta.is_file():cache[signature]=(cp.read_bytes(),json.loads(meta.read_text())['loop'])
-     if signature not in cache and (r['id'],bank,index,c) in old:cache[signature]=old[(r['id'],bank,index,c)]
-     if signature in cache:rendered,loop=cache[signature]
-     else:
-      dsp.bake_reset(body,len(body));loop=False;valid=0
-      for voice in range(voices):
-       if program not in progs or tone>=16:break
-       t=progs[program][tone];raw=t['raw']
-       if t['offset'] is not None:
-        assert t['offset']%8==0 and len(body)+0x1000<=512*1024
-        for p in range(t['offset'],t['offset']+t['length'],16):
-         flags=body[p+1]
-         if flags&1:loop|=bool(flags&2);break
-        dsp.bake_voice(voice,t['offset'],pitch(raw,raw[6],raw[5]),u16(raw,16),u16(raw,18),volume(t));valid+=1
-       tone+=1
-       if tone==16:program+=1;tone=0
-      buf=array.array('h',[0])*(441*2);mono=array.array('h');clock=0;last_nonzero=0;limit=44100*(3 if loop else 20)
-      while valid and clock<limit:
-       dsp.bake_pull(buf,441)
-       for j in range(441):
-        # Exact rational rate reduction 44100 -> 18900 (3/7).
-        if ((clock+j)*3)//7!=((clock+j+1)*3)//7:mono.append((int(buf[2*j])+int(buf[2*j+1]))//2)
-       clock+=441
-       if dsp.bake_active():last_nonzero=clock
-       elif clock>441 and clock-last_nonzero>441:break
-      if not loop:
-       while mono and abs(mono[-1])<=1:mono.pop()
-      rendered=mono.tobytes();cache[signature]=(rendered,loop)
-     if not cp.is_file():cp.write_bytes(rendered);meta.write_text(json.dumps({'loop':loop}))
+     saved=cp.is_file() and meta.is_file()
+     if signature not in cache:
+      if saved:
+       cache[signature]=(cp.read_bytes(),json.loads(meta.read_text()))
+      else:
+       legacy=(r['id'],bank,index,c)
+       rendered,loop=old[legacy] if not wet and legacy in old else render_sfx(body,tones,wet)
+       cache[signature]=(rendered,{'loop':loop})
+     rendered,metadata=cache[signature];loop=metadata['loop']
+     if not saved:write_cache(cp,rendered)
+     save_metadata=not saved
      status='rendered' if rendered else 'silent'
      if loop and rendered:
-      if signature not in loop_points:loop_points[signature]=find_pcm_loop(rendered)
-      point=loop_points[signature]
+      if signature not in loop_points:
+       point=find_pcm_loop(rendered)
+       approximate=False
+       if point is None and wet:
+        if 'dry_loop_period' not in metadata:
+         dry,_=render_sfx(body,tones,False)
+         dry_point=find_pcm_loop(dry)
+         metadata['dry_loop_period']=dry_point[1] if dry_point else None
+         save_metadata=True
+        point=find_reverb_loop(rendered,metadata['dry_loop_period'])
+        approximate=point is not None
+       loop_points[signature]=(point,approximate)
+      point,approximate=loop_points[signature]
+      status='loop_approximation'
       if point:
        lead,period=point
-       rendered=rendered[:(lead+period)*2]
        descriptor['loop_start']=lead
-       status='loop_exact'
-      else:status='loop_approximation'
+       if approximate:
+        # Use the observed final cycle, rotated to the phase at the loop start.
+        cycle=rendered[-period*2:]
+        phase=((lead-len(rendered)//2)%period)*2
+        rendered=rendered[:lead*2]+cycle[phase:]+cycle[:phase]
+        descriptor['loop_error_bound']=1
+       else:
+        rendered=rendered[:(lead+period)*2]
+        status='loop_exact'
+     if save_metadata:write_cache(meta,json.dumps(metadata).encode())
      descriptor.update(samples=len(rendered)//2,loop=int(loop),status=status)
      pcm.extend(rendered);descriptors.append(descriptor)
     # V2 stores the PCM16 loop start above the repeat and silent flags.
@@ -158,7 +212,7 @@ def main():
     records.append({'resource':r['id'],'name':r['name'],'bank':bank,'file':filename,'sha256':hashlib.sha256(payload).hexdigest(),'bytes':len(payload),'entries':descriptors})
   print('Prepared SFX',r['name'],flush=True)
  report={'bank_count':len(records),'bytes':total,'banks':records,'pending':missing,'invalid_sequences':invalid_sequences,
-  'limitations':['Out-of-range SEP references are rejected without interrupting another effect','With no verified periodic tail, looped direct effects use an approximate three-second PCM cycle','PCM conversion is mono; instrument stereo and reverb remain pending'],
+  'limitations':['Out-of-range SEP references are rejected without interrupting another effect','With no verified periodic tail, looped direct effects use an approximate three-second PCM cycle','Mono PCM with per-tone reverb rendered offline; overlapping effects do not share a live room'],
   'runtime':'Native PCM mixing; host synthesizer excluded from NDS'}
  (OUT/'sfx_manifest.json').write_text(json.dumps(report,indent=2)+'\n')
  print('SFX banks',len(records),'bytes',total,'pending',len(missing),'invalid SEP',len(invalid_sequences),flush=True)

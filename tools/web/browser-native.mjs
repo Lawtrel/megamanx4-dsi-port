@@ -14,18 +14,23 @@ function checkedRun(tool, args, name) {
 }
 
 export function bridge(project, xa, samples, atlas) {
+  if (samples._bake_api_version?.() !== 2) {
+    throw new Error("Módulo de áudio incompatível. Recarregue a página.");
+  }
   mountProject(xa, project);
   mountProject(atlas, project);
   return {
     run_xa: (...args) => checkedRun(xa, args, "Conversão de áudio"),
     run_atlas: (...args) => checkedRun(atlas, args, "Preparação do painel"),
-    bake_reset(body, size) {
+    bake_reset(body, size, reverbDepth = 0) {
       const input = body.getBuffer("u8");
       const pointer = samples._malloc(size || 1);
       try {
         if (!pointer || input.data.byteLength !== size) throw new Error("Banco de áudio inválido.");
         samples.HEAPU8.set(input.data, pointer);
-        samples._bake_reset(pointer, size);
+        if (!samples._bake_reset(pointer, size, reverbDepth)) {
+          throw new Error("Tamanho do banco ou profundidade da reverberação inválidos.");
+        }
       } finally {
         if (pointer) samples._free(pointer);
         input.release();

@@ -17,7 +17,7 @@ from prepare_disc import EXPECTED_SIZE
 
 def run(python, workspace, *command):
     return subprocess.run([python, "-X", "utf8", *command], cwd=workspace,
-                          text=True, capture_output=True, check=False)
+                          encoding="utf-8", capture_output=True, check=False)
 
 
 def smoke(archive):
@@ -103,14 +103,11 @@ def smoke(archive):
         samples = pcm.read_bytes()
         assert len(samples) == 8064 and any(samples)
         sample_probe = runtime / "native/smoke_samples.py"
+        fixture_path = Path(__file__).resolve().parents[1] / "native/tests/sfx_reverb_probe.py"
         sample_probe.write_text(
-            "from array import array\n"
-            "from sample_baker import load_baker\n"
-            "dsp = load_baker(None)\n"
-            "dsp.bake_reset(bytes(16), 16)\n"
-            "silence = array('h', [123]) * 882\n"
-            "dsp.bake_pull(silence, 441)\n"
-            "assert not any(silence)\n"
+            fixture_path.read_text(encoding="utf-8")
+            + "\nfrom sample_baker import load_baker\ncheck_reverb(load_baker(None))\n",
+            encoding="utf-8",
         )
         assert (runtime / ("host/sfx_bake" + shared)).is_file()
         subprocess.run(script_command(python, str(sample_probe), ()), cwd=runtime, check=True,

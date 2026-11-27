@@ -189,6 +189,31 @@ int x4_sfx_finished(unsigned bank,unsigned index){
  if(bank>=6||index>=banks[bank].count)return 1;
  unsigned mask=mask_of(&banks[bank].entries[index]);for(unsigned i=0;i<8;++i)if(active(&voices[i])&&(voices[i].mask&mask))return 0;return 1;
 }
+static size_t read_stream(Voice* v,int16_t* pcm,size_t count){
+ const uint32_t position=v->position;
+ const size_t remaining=v->samples-position;
+ const size_t wanted=count<remaining?count:remaining;
+ const size_t got=fread(pcm,2,wanted,v->file);
+ if(got!=wanted){++errors;stop(v);return got;}
+ if(got<remaining){v->position+=got;return got;}
+ if(!v->loop){stop(v);return got;}
+
+ /* A complete period is already in this mixer block. Reuse it until
+  * the block is full and leave the file at the resulting loop phase. */
+ const int repeat=got&&position==v->loop_start&&got<count;
+ uint32_t next=v->loop_start;
+ if(repeat)next+=count%got;
+ if(fseek(v->file,v->start+(long)next*2,SEEK_SET)){++errors;stop(v);return got;}
+ v->position=next;
+ if(!repeat)return got;
+ for(size_t filled=got;filled<count;){
+  size_t copy=count-filled;
+  if(copy>filled)copy=filled;
+  memcpy(pcm+filled,pcm,copy*sizeof *pcm);
+  filled+=copy;
+ }
+ return count;
+}
 static void mix(int16_t* out,size_t frames,unsigned channels){
  int streaming=0;for(unsigned i=0;i<8;++i)streaming|=voices[i].file!=NULL;
  if(!streaming)return;
@@ -199,26 +224,21 @@ static void mix(int16_t* out,size_t frames,unsigned channels){
   int16_t* output=out+base*channels;
   for(size_t j=0;j<count*channels;++j)accum[j]=output[j];
   for(unsigned i=0;i<8;++i){Voice* v=&voices[i];size_t done=0;
-   while(v->file&&done<count){size_t n=count-done;if(n>v->samples-v->position)n=v->samples-v->position;
-    size_t got=fread(temporary,2,n,v->file);
+   const unsigned gain=v->gain,pan=v->pan;
+   while(v->file&&done<count){
+    size_t got=read_stream(v,temporary,count-done);
     if(channels==2){
-     int32_t left=(int32_t)((128-v->pan)*v->gain),right=(int32_t)(v->pan*v->gain);
+     int32_t left=(int32_t)((128-pan)*gain),right=(int32_t)(pan*gain);
      for(size_t j=0;j<got;++j){
       accum[2*(done+j)]+=(temporary[j]*left)/16384;
       accum[2*(done+j)+1]+=(temporary[j]*right)/16384;
      }
-    }else if(v->gain==128){
+    }else if(gain==128){
      for(size_t j=0;j<got;++j)accum[done+j]+=temporary[j];
     }else{
-     for(size_t j=0;j<got;++j)accum[done+j]+=((int32_t)temporary[j]*(int32_t)v->gain)/128;
+     for(size_t j=0;j<got;++j)accum[done+j]+=((int32_t)temporary[j]*(int32_t)gain)/128;
     }
-    done+=got;v->position+=got;
-    if(got!=n){++errors;stop(v);break;}
-    if(v->position==v->samples){
-     if(!v->loop)stop(v);
-     else if(fseek(v->file,v->start+(long)v->loop_start*2,SEEK_SET)){++errors;stop(v);}
-     else v->position=v->loop_start;
-    }
+    done+=got;
    }
   }
   for(size_t j=0;j<count*channels;++j){int32_t s=accum[j];output[j]=s>32767?32767:s< -32768?-32768:s;}

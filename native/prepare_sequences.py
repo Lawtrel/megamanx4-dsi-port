@@ -1,7 +1,7 @@
 """Host-only conversion of original short SEP instruments into native PCM.
 No SEP/MIDI player or sound-chip implementation is linked into the NDS.
 """
-from prepare_sfx import ROOT,OUT,DEST,resources,members,u16,u32,instruments,pitch,dsp
+from prepare_sfx import ROOT,OUT,DEST,resources,members,u16,u32,instruments,pitch,dsp,REVERB_DEPTH,TONE_MODE_REVERB
 import struct,array,json,hashlib
 def sequences(raw,offset,count):
  result=[];position=offset
@@ -50,7 +50,7 @@ for character,resource in enumerate((0x4b,0x4d)):
  for access,count in enumerate((8,2)):
   h,body,progs=banks[access]
   for index,seq in enumerate(sequences(raw,offsets[access],count)):
-   ev,end=events(seq);dsp.bake_reset(body,len(body));program=list(range(16));vol=[127]*16;pan=[64]*16
+   ev,end=events(seq);dsp.bake_reset(body,len(body),REVERB_DEPTH);program=list(range(16));vol=[127]*16;pan=[64]*16
    voices={};allocator=0;clock=0;mono=array.array('h');buf=array.array('h',[0])*(441*2);controls=set()
    def pull(until):
     global clock
@@ -80,7 +80,7 @@ for character,resource in enumerate((0x4b,0x4d)):
       seed=seed*tone['program_volume']*t[2]//16129
       volume=min(16383,seed*seed//16383)
       p=pitch(t,a,0)
-      dsp.bake_voice(voice,tone['offset'],p,u16(t,16),u16(t,18),volume);started.append(voice)
+      dsp.bake_voice(voice,tone['offset'],p,u16(t,16),u16(t,18),volume,t[1]==TONE_MODE_REVERB);started.append(voice)
      voices[(ch,a)]=started
     elif kind in (10,13,14):raise ValueError(('Unconverted pressure or pitch event',kind,ch,a,b))
    for active in voices.values():
@@ -91,4 +91,4 @@ for character,resource in enumerate((0x4b,0x4d)):
    record={'character':character,'access':access,'sequence':index,'file':filename,'samples':len(mono),'bytes':len(payload),
     'sha256':hashlib.sha256(payload).hexdigest(),'events':len(ev),'controls':sorted(controls)}
    manifest.append(record);print(filename,len(mono),len(ev),sorted(controls),flush=True)
-(OUT/'sequences_manifest.json').write_text(json.dumps({'sequences':manifest,'limitations':['Mono; reverb and sequence controller modulation not reproduced']},indent=2)+'\n')
+(OUT/'sequences_manifest.json').write_text(json.dumps({'sequences':manifest,'limitations':['Mono PCM with per-tone reverb rendered offline; sequence controller modulation is incomplete']},indent=2)+'\n')

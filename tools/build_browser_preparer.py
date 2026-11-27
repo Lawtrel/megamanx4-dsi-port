@@ -26,9 +26,12 @@ def main():
     OUTPUT.mkdir(parents=True, exist_ok=True)
     compile_tool("xa", [NATIVE / "xa_to_pcm.c"],
                  "-sEXPORTED_RUNTIME_METHODS=FS,callMain", "-lproxyfs.js")
-    compile_tool("samples", [NATIVE / "sfx_bake.c", PSYZ / "psyz/src/psyz/psyz_spu.c"],
+    compile_tool("samples", [
+        NATIVE / "sfx_bake.c", PSYZ / "psyz/src/psyz/psyz_spu.c",
+        PSYZ / "decomp/src/libspu/s_rmp.c", PSYZ / "decomp/src/libspu/s_sra.c",
+    ],
                  "-D__psyz=1", "-DNDEBUG=1", "-I" + str(PSYZ / "psyz/include"),
-                 "-sEXPORTED_FUNCTIONS=_malloc,_free,_bake_reset,_bake_voice,"
+                 "-sEXPORTED_FUNCTIONS=_malloc,_free,_bake_api_version,_bake_reset,_bake_voice,"
                  "_bake_keyoff,_bake_active,_bake_pull",
                  "-sEXPORTED_RUNTIME_METHODS=HEAPU8,HEAP16")
     sources = [ROOT / path for path in json.loads(SOURCES.read_text())]
