@@ -30,6 +30,13 @@ e medir o novo código de gravação do log no console.
 SHA-256 do log
 `f5cdefb6d443d8d32449d6cfa55c1ad1fb6c6475461063c4cf4ffe1104964830`.
 
+## Custo da temporização no ARM9
+
+No microbenchmark Thumb com devkitARM GCC, os cálculos de temporização
+usaram cerca de 664 instruções a menos por quadro no caso estável e 752
+no caso pesado. Os campos e eventos dos oito casos ARM/Thumb ficaram
+idênticos. A medição de quadros no console segue pendente.
+
 ## Comparar capturas do mesmo cenário
 
 Use o mesmo console, modo, carregador, equipamento e percurso. A área aceita
