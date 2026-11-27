@@ -29,3 +29,27 @@ def find_pcm_loop(pcm):
         if period >= first and length >= 2 * period:
             return size - period - length, period
     return None
+
+
+def find_reverb_loop(pcm, dry_period):
+    """Find three wet cycles within one PCM16 unit of the final cycle."""
+    if not isinstance(dry_period, int) or dry_period < 8:
+        return None
+    samples = memoryview(pcm).cast('h')
+    best = None
+    for period in (dry_period, 2 * dry_period):
+        if len(samples) < 3 * period:
+            continue
+        tail = len(samples) - period
+        cycle = samples[tail:]
+        if max(cycle) - min(cycle) <= 2:
+            continue
+        start = tail
+        while start:
+            previous = start - 1
+            if abs(samples[previous] - cycle[(previous - tail) % period]) > 1:
+                break
+            start = previous
+        if len(samples) - start >= 3 * period and (best is None or start + period < sum(best)):
+            best = start, period
+    return best

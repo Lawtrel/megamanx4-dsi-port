@@ -3,7 +3,7 @@ from pathlib import Path
 import subprocess,json,hashlib,sys
 ROOT=Path(__file__).resolve().parents[2];OUT=ROOT/'build/native/n063-arm7-tests';OUT.mkdir(parents=True,exist_ok=True)
 sys.path.insert(0,str(ROOT/'native'))
-from pcm_loop import find_pcm_loop
+from pcm_loop import find_pcm_loop, find_reverb_loop
 
 period=[18,-22,13,10,44,-135,72,2,17]
 prefix=[99,75,37]
@@ -16,6 +16,16 @@ assert find_pcm_loop(pcm(prefix+period*2+[0]*60)) is None
 assert find_pcm_loop(pcm(range(128))) is None
 assert find_pcm_loop(pcm([])) is None
 print('PASS exact PCM tail with non-repeating prefix, partial cycle and flat-tail rejection')
+near = period.copy()
+near[6] += 1
+assert find_reverb_loop(pcm(prefix + near + period * 2 + period[:4]), len(period)) == (len(prefix), len(period))
+near[6] += 1
+assert find_reverb_loop(pcm(prefix + near + period * 2), len(period)) is None
+alternating = period + [sample + 4 for sample in period]
+assert find_reverb_loop(pcm(prefix + alternating * 3), len(period)) == (len(prefix), len(alternating))
+assert find_reverb_loop(pcm([0] * 72), len(period)) is None
+assert find_reverb_loop(pcm(period * 3), None) is None
+print('PASS reverb loop one-unit bound, doubled period, flat-tail and unknown-period rejection')
 mock=ROOT/'native/tests/arm7_audio_mock'
 sources=[ROOT/p for p in ('native/dsi/n063_arm7_audio.c','native/src/x4_sfx.c','native/src/x4_sfx.h','native/src/x4_arm7_audio.h','native/tests/n063_arm7_audio_test.c')]+sorted(mock.rglob('*.h'))
 audio=[ROOT/'native/src'/name for name in ('x4_audio.c','x4_audio.h','x4_music.c','x4_music.h','x4_n05_platform.h')]
