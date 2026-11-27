@@ -55,7 +55,9 @@ def compile_tools(folder, target):
     subprocess.run([
         cc, "-std=gnu11", "-O3", "-shared", "-fPIC", *static, "-D__psyz=1", "-DNDEBUG=1",
         *psyz_include, str(NATIVE / "sfx_bake.c"),
-        str(PSYZ / "psyz/src/psyz/psyz_spu.c"), "-o", str(folder / ("sfx_bake" + shared)),
+        str(PSYZ / "psyz/src/psyz/psyz_spu.c"),
+        str(PSYZ / "decomp/src/libspu/s_rmp.c"),
+        str(PSYZ / "decomp/src/libspu/s_sra.c"), "-o", str(folder / ("sfx_bake" + shared)),
     ], check=True)
     manifest = ROOT / "build/native/n05-flow/host/preparer_sources.json"
     sources = [ROOT / path for path in json.loads(manifest.read_text())]

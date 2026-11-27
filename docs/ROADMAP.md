@@ -120,6 +120,13 @@ do projeto. A beta 9 é a referência para avaliar as mudanças no DSi.
   caso da emenda do trem caiu de 851.328 para 832.527 (2,2%). Os nove
   cenários produziram as mesmas saídas byte a byte. O teste no DSi
   ainda precisa medir o tempo total por quadro.
+- O preparo local aplica a reverberação Studio A aos instrumentos
+  marcados para esse envio. A cauda fica no PCM e o DS usa o mixer
+  existente. A biblioteca de preparo verifica a versão da interface
+  antes de usar um cache. A prova C no Windows verificou o envio por
+  voz, a cauda, o reset e a recuperação de um cache antigo com dados
+  sintéticos. A medição da duração dos efeitos e da pressão no cache
+  em jogo permanece pendente, especialmente no perfil NTR.
 - O cache de áudio repete períodos inteiros para alinhar o PCM às palavras
   do ARM7. Quando a cauda do PCM repete três ciclos idênticos, o banco
   conserva a introdução e grava o ponto de repetição. O mixer em streaming
