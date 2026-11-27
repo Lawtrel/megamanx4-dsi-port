@@ -135,6 +135,12 @@ do projeto. A beta 9 é a referência para avaliar as mudanças no DSi.
   em modo NTR, o primeiro passou da mistura por software para o
   cache PCM do ARM7, usando 46.368 bytes após alinhamento. O impacto
   em jogo ainda precisa de medição no console.
+- No streaming de efeitos, o mixer reaproveita o período curto que já
+  leu no bloco atual. Em um segundo de PCM estéreo sintético com
+  período de sete amostras e cache NTR cheio, `fread` caiu de 2.876
+  para 381 chamadas e `fseek` de 2.700 para 365. O teste preservou as
+  amostras, a fase dos loops e o tratamento de falhas de leitura.
+  O custo da leitura no cartão físico segue pendente.
 - O cache de áudio repete períodos inteiros para alinhar o PCM às palavras
   do ARM7. Quando a cauda do PCM repete três ciclos idênticos, o banco
   conserva a introdução e grava o ponto de repetição. O mixer em streaming
