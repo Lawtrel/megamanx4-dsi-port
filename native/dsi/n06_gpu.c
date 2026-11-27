@@ -128,7 +128,8 @@ void x4_gpu_prepare(void){
    }
    int x=c->x[j],y=c->y[j];if(c->screen_space){x=32+x*4/5;y=24+y*4/5;}
    if(color!=last_color){emit(&out,FIFO_COLOR,color,0,1);last_color=color;}
-   emit_vertex(&out,uv^((j==1||j==2)?u:0)^((j>=2)?v:0),x,y,i,j==0);
+   /* x4_video_quad zeroes the UV fields. Keep the FIFO opcode. */
+   emit_vertex(&out,0,x,y,i,j==0);
   }
  }
  /* Commit the final group even when it has fewer than four opcodes. */

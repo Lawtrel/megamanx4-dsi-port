@@ -7,14 +7,17 @@ NTR/TWL do melonDS DS 1.4.0:
 `262ba2738f416c3d9621fe2afbada3a7e8e06675fa622e043272a9ae44dc97e9`.
 
 Zero iniciou a área 2 da fase 12 pelo seletor com equipamento de debug e
-chegou ao estado de créditos `11/3`. O recorte de controle livre e
-personagem vivo (`engine=6/0`, `locked=0`, `hp>0`) contém 14 janelas.
+chegou ao estado de créditos `11/3`. O recorte de combate contém 14 janelas.
+Ele seleciona controle livre, jogador vivo e chefe ativo com HP positivo
+no fim da janela (`engine=6/0`, `locked=0`, `hp>0` e `BOSS enabled=1`).
 
 | Medição | Resultado |
 | --- | ---: |
 | FPS mínimo / média / máximo das janelas | 48 / 57 / 59 |
 | Intervalos de apresentação medidos | 799 |
 | Intervalos acima de dois campos de vídeo | 6 |
+| Janelas com um ou mais atrasos | 5 de 14 |
+| Ticks de simulação descartados no recorte | 2 |
 | Maior intervalo entre apresentações | 83,58 ms |
 | Maior limite superior de p95 por janela | 34 ms |
 | Custo médio do diagnóstico anterior | 8,63 ms |
@@ -26,6 +29,46 @@ e medir o novo código de gravação do log no console.
 
 SHA-256 do log
 `f5cdefb6d443d8d32449d6cfa55c1ad1fb6c6475461063c4cf4ffe1104964830`.
+
+## Custo da temporização no ARM9
+
+No microbenchmark Thumb com devkitARM GCC, os cálculos de temporização
+usaram cerca de 664 instruções a menos por quadro no caso estável e 752
+no caso pesado. Os campos e eventos dos oito casos ARM/Thumb ficaram
+idênticos. A medição de quadros no console segue pendente.
+
+## Gravação do log durante a partida
+
+O motor usa `fflush` e `fsync` para atualizar o log com o arquivo
+aberto. A rotina volta ao fechamento e à reabertura após falha.
+No teste de 160 gravações, o conteúdo ficou idêntico e o caminho
+normal dispensou 160 fechamentos e 160 reaberturas. As falhas de
+cada função também foram exercitadas. Em um volume FAT16 sintético
+com o libfat do SDK, as leituras caíram de 746 para 160 setores, com
+as mesmas 320 escritas e 160 sincronizações. A latência no cartão
+e o efeito nos quadros ainda precisam de medição no console.
+
+## Comparar capturas do mesmo cenário
+
+Use o mesmo console, modo, carregador, equipamento e percurso. A área aceita
+o índice `area=` do log. Para comparar a luta de Zero contra Sigma, execute
+
+```sh
+python3 tools/compare_frame_logs.py antes.log depois.log \
+  --stage 12 --area 1 --character zero --checkpoint 0 --debug-loadout 1 --boss-active
+```
+
+Use `--before-vblanks INICIO:FIM` e `--after-vblanks INICIO:FIM` para alinhar
+trechos pelo campo `frame=` de cada arquivo. O estado no fim da janela define
+o recorte, então selecione intervalos sem transição de área ou fase do chefe.
+Um único arquivo gera a linha de base. `--json` gera dados estruturados.
+
+A ferramenta informa a contagem e a fração de intervalos acima de dois
+VBlanks, os limites de p95 por janela, os ticks descartados e o diagnóstico
+anterior. O delta de ticks vem da diferença entre
+amostras consecutivas da mesma partida. A tabela indica a cobertura de cada
+contador. Metadados de compilação, hardware e equipamento documentam o recorte.
+Perfis diferentes ou desconhecidos recebem métricas por arquivo.
 
 # Retorno físico — beta 9
 

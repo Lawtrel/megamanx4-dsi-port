@@ -7,6 +7,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/iosupport.h>
+#include <unistd.h>
 #include "x4_flow.h"
 #include "x4_audio.h"
 #include "x4_save.h"
@@ -39,6 +40,31 @@ static uint16_t* const pixels=NULL;
 #else
 static uint16_t pixels[256*192] __attribute__((aligned(32)));
 #endif
+
+static inline unsigned ticks_to_usec(uint64_t ticks){
+#if TICK_FREQ > 500000 && TICK_FREQ < 1000000
+ /* floor(ticks * 1000000 / TICK_FREQ) equals twice the ticks minus
+  * the ceiling of the small correction. Reducing the fraction by five
+  * when possible keeps ordinary frame intervals in 32-bit arithmetic. */
+ const uint32_t factor=TICK_FREQ%5u==0?5u:1u;
+ const uint32_t denominator=TICK_FREQ/factor;
+ const uint32_t deficit=2u*denominator-1000000u/factor;
+ if(ticks<=(UINT32_MAX-(denominator-1u))/deficit){
+  const uint32_t elapsed=(uint32_t)ticks;
+  return 2u*elapsed-(elapsed*deficit+denominator-1u)/denominator;
+ }
+#endif
+ return (unsigned)(ticks*1000000/TICK_FREQ);
+}
+
+#ifdef X4_N06_GPU
+static inline unsigned simulation_steps(uint64_t elapsed){
+ const uint32_t period=ticksFromHz(60);
+ if(elapsed<=UINT32_MAX)return (uint32_t)elapsed/period;
+ return (unsigned)(elapsed/period);
+}
+#endif
+
 static volatile unsigned vblanks;
 static unsigned character,stage,area,muted,audio_open,campaign=1,show_selector;
 static unsigned lower_graphical,lower_valid;
@@ -109,9 +135,15 @@ static char log_buffer[8192];
 enum {PROFILE_LOG_SYNC_INTERVAL=5};
 static volatile unsigned diagnostic_phase;
 static X4FlowState diagnostic_state;
+static bool log_descriptor_sync=true;
 static void commit_log(void){
- /* fclose commits the directory entry and survives a hardware reset. */
  if(log_file){
+  /* libfat uses the same data and directory sync for fsync and fclose. */
+  if(log_descriptor_sync){
+   if(fflush(log_file)==0&&fsync(fileno(log_file))==0)return;
+   log_descriptor_sync=false;
+  }
+  /* Retain the close-and-reopen path if descriptor sync fails. */
   fclose(log_file);
   log_file=fopen(log_path,"a");
   if(log_file)setvbuf(log_file,log_buffer,_IOFBF,sizeof log_buffer);
@@ -286,7 +318,7 @@ int main(int argc,char** argv){
 #ifdef X4_N06_GPU
    /* Keep the original 60 Hz rules when drawing takes two display fields.
     * Bound catch-up after loads so a slow frame cannot create an endless lag. */
-   uint64_t now=t0,period=ticksFromHz(60);unsigned steps=(now-simulation_clock)/period;
+   uint64_t now=t0,period=ticksFromHz(60);unsigned steps=simulation_steps(now-simulation_clock);
    if(!steps){steps=1;simulation_clock=now-period;}
    if(steps>4){dropped_ticks+=steps-4;steps=4;simulation_clock=now-steps*period;}
    for(unsigned step=0;step<steps;++step){
@@ -311,10 +343,10 @@ int main(int argc,char** argv){
 #endif
    uint64_t presented=tickGetCount();unsigned field=vblanks;
    present_ticks+=presented-t0;++frames;
-   unsigned work_us=(presented-frame_start-frame_wait)*1000000/TICK_FREQ;
+   unsigned work_us=ticks_to_usec(presented-frame_start-frame_wait);
    if(work_us>work_max_us)work_max_us=work_us;
    if(previous_present){
-    uint64_t span=presented-previous_present;unsigned us=span*1000000/TICK_FREQ;
+    uint64_t span=presented-previous_present;unsigned us=ticks_to_usec(span);
     frame_sum+=span;++frame_samples;if(us>frame_max_us)frame_max_us=us;
     ++frame_histogram[us/1000<100?us/1000:100];
     if(field-previous_field>2)++late_frames;
