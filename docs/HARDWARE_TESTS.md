@@ -37,6 +37,17 @@ usaram cerca de 664 instruções a menos por quadro no caso estável e 752
 no caso pesado. Os campos e eventos dos oito casos ARM/Thumb ficaram
 idênticos. A medição de quadros no console segue pendente.
 
+## Gravação do log durante a partida
+
+O motor usa `fflush` e `fsync` para atualizar o log com o arquivo
+aberto. A rotina volta ao fechamento e à reabertura após falha.
+No teste de 160 gravações, o conteúdo ficou idêntico e o caminho
+normal dispensou 160 fechamentos e 160 reaberturas. As falhas de
+cada função também foram exercitadas. Em um volume FAT16 sintético
+com o libfat do SDK, as leituras caíram de 746 para 160 setores, com
+as mesmas 320 escritas e 160 sincronizações. A latência no cartão
+e o efeito nos quadros ainda precisam de medição no console.
+
 ## Comparar capturas do mesmo cenário
 
 Use o mesmo console, modo, carregador, equipamento e percurso. A área aceita

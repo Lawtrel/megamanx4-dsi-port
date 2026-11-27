@@ -7,6 +7,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/iosupport.h>
+#include <unistd.h>
 #include "x4_flow.h"
 #include "x4_audio.h"
 #include "x4_save.h"
@@ -134,9 +135,15 @@ static char log_buffer[8192];
 enum {PROFILE_LOG_SYNC_INTERVAL=5};
 static volatile unsigned diagnostic_phase;
 static X4FlowState diagnostic_state;
+static bool log_descriptor_sync=true;
 static void commit_log(void){
- /* fclose commits the directory entry and survives a hardware reset. */
  if(log_file){
+  /* libfat uses the same data and directory sync for fsync and fclose. */
+  if(log_descriptor_sync){
+   if(fflush(log_file)==0&&fsync(fileno(log_file))==0)return;
+   log_descriptor_sync=false;
+  }
+  /* Retain the close-and-reopen path if descriptor sync fails. */
   fclose(log_file);
   log_file=fopen(log_path,"a");
   if(log_file)setvbuf(log_file,log_buffer,_IOFBF,sizeof log_buffer);
